@@ -1,10 +1,8 @@
 from fastapi import APIRouter
-from .endpoints import health, dev
+from .endpoints import health, firms
 
 api_router = APIRouter()
 
 # Group all /api routes logically
-api_router.include_router(health.router, prefix="/api", tags=["health"])
-
-# Dev router handles its own specific un-prefixed paths like /items/{item_id}
-api_router.include_router(dev.router, tags=["dev"])
+api_router.include_router(health.router, prefix="/api/health", tags=["health"])
+api_router.include_router(firms.router, prefix="/api/firms", tags=["firms"])

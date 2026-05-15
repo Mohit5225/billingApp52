@@ -1,4 +1,4 @@
-import { signInWithGoogle } from './actions'
+import { signInWithGoogle } from '@/app/auth/login/actions'
 
 export default function LoginPage() {
   return (
@@ -6,7 +6,7 @@ export default function LoginPage() {
       <div className="relative group w-full max-w-md">
         {/* Decorative background glow */}
         <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000 group-hover:duration-200"></div>
-        
+
         <div className="relative flex flex-col items-center text-center p-10 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl shadow-2xl space-y-8">
           <div className="space-y-3">
             <h1 className="text-4xl font-extrabold tracking-tight">
