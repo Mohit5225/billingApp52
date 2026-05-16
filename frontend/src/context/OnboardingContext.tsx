@@ -12,7 +12,7 @@ interface OnboardingContextType {
   data: OnboardingData;
   updateData: (newData: Partial<OnboardingData>) => void;
   fetchGstDetails: (gstin: string) => Promise<void>;
-  submitOnboarding: () => Promise<void>;
+  submitOnboarding: (manualData?: Partial<OnboardingData>) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
@@ -60,24 +60,30 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const submitOnboarding = async () => {
+  const submitOnboarding = async (manualData?: Partial<OnboardingData>) => {
     setIsLoading(true);
     setError(null);
     try {
       const token = await getAuthToken();
+      // Merge context data with any final manual data passed in to ensure we have the latest
+      const finalData = { ...data, ...manualData };
+      
       const response = await fetch(`${apiBaseUrl}/api/firms/`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(finalData),
       });
 
       if (!response.ok) {
         const errText = await response.text();
         throw new Error(`Failed to save firm details: ${errText}`);
       }
+      
+      // Update local context state with the final merged data after successful submission
+      setData(finalData);
     } catch (err: any) {
       setError(err.message || "An error occurred");
       throw err;

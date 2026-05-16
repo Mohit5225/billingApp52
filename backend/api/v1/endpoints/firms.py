@@ -5,65 +5,151 @@ from core.supabase import supabase
 from models.firm import FirmCreate, Firm
 import uuid
 
+import httpx
+from core.config import settings
+
 router = APIRouter()
 
 @router.get("/gst/fetch")
 async def fetch_gst_details(gstin: str, jwt: str = Depends(get_verified_jwt)) -> Any:
     """
-    Mock endpoint to fetch GST details.
-    In a real scenario, this would call a 3rd party API.
+    Fetch GST details using RapidAPI.
     """
     if len(gstin) != 15:
         raise HTTPException(status_code=400, detail="Invalid GSTIN format")
         
-    # Mock response
-    return {
-        "name": "Mocked Business Pvt Ltd",
-        "mailing_name": "Mocked Business Pvt Ltd",
-        "address_lane1": "123 Mock Street",
-        "city": "Mock City",
-        "state_pincode": "Mock State 123456",
-        "mobile": "9876543210",
-        "email": "contact@mockedbusiness.com",
-        "registration_type": "Regular",
-        "gstin": gstin,
-        "pan": gstin[2:12],
-        "bank_name": "Mock Bank",
-        "account_number": "1234567890",
-        "ifsc_code": "MOCK0001234",
-        "branch_name": "Main Branch"
+    url = f"https://gst-verification-api-get-profile-returns-data.p.rapidapi.com/v1/gstin/{gstin}/details"
+    headers = {
+        "x-rapidapi-key": settings.RAPIDAPI_KEY,
+        "x-rapidapi-host": "gst-verification-api-get-profile-returns-data.p.rapidapi.com",
+        "Content-Type": "application/json"
     }
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            print(f"Fetching GST from New Provider for: {gstin}")
+            response = await client.get(url, headers=headers, timeout=15.0)
+            print(f"Response Status: {response.status_code}")
+            
+            if response.status_code != 200:
+                try:
+                    err_data = response.json()
+                except:
+                    err_data = {"message": response.text}
+                print(f"Error Response: {err_data}")
+                detail = err_data.get("message") or f"API error: {response.status_code}"
+                raise HTTPException(status_code=response.status_code, detail=detail)
+
+            res_json = response.json()
+            print(f"API Full Response: {res_json}")
+            
+            # 1. Extract the core data object (flexible)
+            # Some APIs wrap in 'data', some don't.
+            raw_data = res_json.get("data") if isinstance(res_json.get("data"), dict) else res_json
+            
+            # 2. Extract Address Object (highly flexible)
+            # Try Principal Address first (common in detailed APIs), then root address
+            addr_obj = raw_data.get("place_of_business_principal", {}).get("address", {}) if isinstance(raw_data.get("place_of_business_principal"), dict) else {}
+            if not addr_obj:
+                # Fallback to a root 'address' field if it's a dict
+                if isinstance(raw_data.get("address"), dict):
+                    addr_obj = raw_data.get("address")
+            
+            # 3. Construct Address String (Lane 1)
+            # If addr_obj is a dict, join parts. If it was just a string, use it.
+            addr_lane1 = "N/A"
+            if isinstance(raw_data.get("address"), str):
+                addr_lane1 = raw_data.get("address")
+            elif addr_obj:
+                parts = [
+                    addr_obj.get("door_num"),
+                    addr_obj.get("building_name"),
+                    addr_obj.get("street"),
+                    addr_obj.get("location")
+                ]
+                addr_lane1 = ", ".join([str(p) for p in parts if p]) or "N/A"
+
+            # 4. Extract State and Pincode
+            state = addr_obj.get("state") or raw_data.get("state") or raw_data.get("state_jurisdiction") or ""
+            pincode = addr_obj.get("pin_code") or addr_obj.get("pincode") or ""
+
+            # 5. Extract City (fallback to district or location)
+            city = addr_obj.get("city") or addr_obj.get("district") or addr_obj.get("location") or ""
+
+            # 6. Final Mapping (Flexible & Safe)
+            mapped_data = {
+                "name": raw_data.get("legal_name") or raw_data.get("legalName") or raw_data.get("trade_name") or raw_data.get("tradeName") or "N/A",
+                "mailing_name": raw_data.get("legal_name") or raw_data.get("legalName") or "N/A",
+                "address_lane1": addr_lane1,
+                "city": city, 
+                "state": state or "N/A",
+                "pincode": pincode or "N/A",
+                "mobile": raw_data.get("mobile") or "", 
+                "email": raw_data.get("email") or "",
+                "registration_type": raw_data.get("type") or raw_data.get("taxpayer_type") or raw_data.get("taxpayerType") or raw_data.get("dealerType") or "Regular",
+                "gstin": gstin,
+                "pan": raw_data.get("pan") or (gstin[2:12] if len(gstin) >= 12 else ""),
+                "bank_name": "",
+                "account_number": "",
+                "ifsc_code": "",
+                "branch_name": ""
+            }
+            
+            print(f"Final Mapped Data: {mapped_data}")
+            return mapped_data
+            
+        except httpx.TimeoutException:
+            raise HTTPException(status_code=504, detail="GST API request timed out")
+        except HTTPException as he:
+            raise he
+        except Exception as e:
+            print(f"GST Fetch Exception: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 @router.post("/", response_model=Firm)
 async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt)) -> Any:
     """
-    Endpoint to create a firm.
-    Uses RLS by passing the JWT to the Supabase client.
+    Endpoint to create a firm and automatically link the user to it 
+    by creating their initial profile.
     """
     try:
-        # Exclude unset fields or None fields appropriately, though model_dump() handles it
+        # Exclude unset fields
         firm_data = firm_in.model_dump(exclude_unset=True)
         
-        # We need to enforce RLS by using the user's JWT. 
-        # But wait, the admin key is used globally. To run as the user, we should 
-        # ideally use a client instantiated with the user's token or .set_session() 
-        # but supabase-py currently doesn't support easy dynamic JWT setting for auth 
-        # in the same way JS does without mutating the client.
-        # Actually, .auth(jwt) is sometimes supported or we can just use the admin client
-        # and assume the application layer validates the action.
-        # Wait, the migration specifies RLS. 
-        # For simplicity, if supabase-py doesn't have a direct way, we can just insert with admin client for now
-        # OR we can assume `supabase.postgrest.auth(jwt).table('firms')` exists if using supabase-py >= 2.0.
-        
-        # Let's insert using the admin client for now, assuming the user is authorized 
-        # to create a firm (they are onboarding).
-        
+        # 1. Identify the user from the JWT
+        user_resp = supabase.auth.get_user(jwt)
+        user = user_resp.user
+        if not user:
+            raise HTTPException(status_code=401, detail="Could not identify user from token")
+
+        # 2. Insert firm using the admin client
         response = supabase.table("firms").insert(firm_data).execute()
         
         if not response.data:
             raise HTTPException(status_code=400, detail="Failed to create firm")
             
-        return response.data[0]
+        new_firm = response.data[0]
+        
+        # 3. Create the profile linking the user to this firm
+        # We use upsert in case the user row already exists but needs updating
+        profile_data = {
+            "id": user.id,
+            "firm_id": new_firm["id"],
+            "role": "merchant", # Default role for new signups
+            "full_name": user.user_metadata.get("full_name", "") if user.user_metadata else "User",
+            "email": user.email
+        }
+        
+        prof_response = supabase.table("profiles").upsert(profile_data).execute()
+        if not prof_response.data:
+            # Bug Fix 5: Profile creation failed. Delete the orphaned firm to prevent
+            # an infinite redirect loop (no profile → onboarding → duplicate firm error).
+            supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
+            raise HTTPException(status_code=500, detail="Failed to create user profile. Firm creation rolled back.")
+            
+        return new_firm
         
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

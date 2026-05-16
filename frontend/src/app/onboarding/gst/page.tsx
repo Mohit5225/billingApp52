@@ -18,16 +18,9 @@ export default function GSTPage() {
     setIsReviewing(true);
   };
 
-  const handleConfirm = async () => {
-    try {
-      setSubmitLoading(true);
-      await submitOnboarding();
-      router.push("/onboarding/success");
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitLoading(false);
-    }
+  const handleConfirm = () => {
+    // Navigate to the manual details collection step
+    router.push("/onboarding/details");
   };
 
   if (isReviewing && !isLoading && !error) {
@@ -42,7 +35,9 @@ export default function GSTPage() {
           <div className="grid grid-cols-2 gap-4">
             <div><span className="text-gray-500 block">Firm Name</span><span className="font-medium">{data.name}</span></div>
             <div><span className="text-gray-500 block">Mailing Name</span><span className="font-medium">{data.mailing_name}</span></div>
-            <div className="col-span-2"><span className="text-gray-500 block">Address</span><span className="font-medium">{data.address_lane1}, {data.city}, {data.state_pincode}</span></div>
+            <div className="col-span-2"><span className="text-gray-500 block">Address</span><span className="font-medium">{data.address_lane1}, {data.city}</span></div>
+            <div><span className="text-gray-500 block">State</span><span className="font-medium">{data.state}</span></div>
+            <div><span className="text-gray-500 block">Pincode</span><span className="font-medium">{data.pincode}</span></div>
             <div><span className="text-gray-500 block">GSTIN</span><span className="font-medium">{data.gstin}</span></div>
             <div><span className="text-gray-500 block">PAN</span><span className="font-medium">{data.pan}</span></div>
           </div>
@@ -67,7 +62,7 @@ export default function GSTPage() {
             disabled={submitLoading}
             className="flex-1 bg-black text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-md disabled:opacity-70"
           >
-            {submitLoading ? "Saving..." : "Confirm & Save"}
+            {submitLoading ? "Proceeding..." : "Confirm & Next"}
           </button>
         </div>
       </div>

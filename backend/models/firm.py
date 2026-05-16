@@ -8,7 +8,8 @@ class FirmBase(TimestampSchema):
     mailing_name: str
     address_lane1: str
     city: str
-    state_pincode: str
+    state: str
+    pincode: str
     mobile: str
     email: Optional[str] = None
     registration_type: str = "Regular"

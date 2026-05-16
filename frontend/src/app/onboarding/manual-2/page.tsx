@@ -3,12 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/context/OnboardingContext";
-import { getApiBaseUrl } from "@/lib/api";
 
 export default function Manual2Page() {
   const router = useRouter();
-  const { data, updateData, submitOnboarding, error } = useOnboarding();
-  const apiBaseUrl = getApiBaseUrl();
+  const { data, updateData, submitOnboarding, error: contextError } = useOnboarding();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     gstin: data.gstin || "",
@@ -19,48 +17,61 @@ export default function Manual2Page() {
     branch_name: data.branch_name || "",
   });
 
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  const validate = () => {
+    const newErrors: { [key: string]: string } = {};
+    
+    // GSTIN Validation (15 chars, standard regex)
+    if (!formData.gstin.match(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)) {
+      newErrors.gstin = "Invalid GSTIN format (e.g. 22AAAAA0000A1Z5)";
+    }
+    
+    // PAN Validation (10 chars, standard regex)
+    if (formData.pan && !formData.pan.match(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/)) {
+      newErrors.pan = "Invalid PAN format (e.g. ABCDE1234F)";
+    }
+
+    // Account Number (9-18 digits)
+    if (formData.account_number && !formData.account_number.match(/^[0-9]{9,18}$/)) {
+      newErrors.account_number = "Account number must be 9-18 digits";
+    }
+
+    // IFSC Code (11 chars)
+    if (formData.ifsc_code && !formData.ifsc_code.match(/^[A-Z]{4}0[A-Z0-9]{6}$/)) {
+      newErrors.ifsc_code = "Invalid IFSC format (e.g. SBIN0001234)";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const upperValue = ["gstin", "pan", "ifsc_code"].includes(name) ? value.toUpperCase() : value;
+    
+    setFormData(prev => ({ ...prev, [name]: upperValue }));
+    
+    if (errors[name]) {
+      setErrors(prev => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateData(formData);
+    if (!validate()) return;
     
-    // Slight hack: Wait a tick for context to update, then submit
-    // Ideally we pass combined data to submit, but context update is async.
-    // For now we can just rely on the submitOnboarding picking it up or merge it directly.
     try {
       setLoading(true);
-      // Merging directly for the fetch call
-      const finalData = { ...data, ...formData };
-      
-      // we need to call submitOnboarding. To ensure it has finalData, let's update context
-      // and call the API. In the context, submitOnboarding uses `data` from state which might be stale.
-      // So let's write a direct fetch here or update context to accept an override.
-      // Since we need to follow the mock, I'll update Context's submitOnboarding to take optional payload.
-      // But let's just do it directly here for reliability if context state hasn't flushed.
-      
-      const { createClient } = await import("@/supabaseConfig/client");
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      const res = await fetch(`${apiBaseUrl}/api/firms/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify(finalData),
-      });
-
-      if (!res.ok) throw new Error("Failed to save firm details");
-      
+      // We pass formData directly to ensure context has the latest values before submission
+      await submitOnboarding(formData);
       router.push("/onboarding/success");
     } catch (err: any) {
       console.error(err);
-      alert(err.message);
     } finally {
       setLoading(false);
     }
@@ -77,38 +88,106 @@ export default function Manual2Page() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="space-y-1.5 sm:col-span-2">
             <label className="text-sm font-medium text-gray-700">GSTIN / UIN *</label>
-            <input required type="text" name="gstin" value={formData.gstin} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all uppercase" />
+            <input 
+              required 
+              type="text" 
+              name="gstin" 
+              value={formData.gstin} 
+              onChange={handleChange} 
+              maxLength={15}
+              placeholder="15-digit GSTIN"
+              className={`w-full px-3 py-2 rounded-lg border ${errors.gstin ? 'border-red-500' : 'border-gray-200'} focus:border-black focus:ring-1 focus:ring-black outline-none transition-all uppercase`} 
+            />
+            {errors.gstin && <p className="text-xs text-red-500">{errors.gstin}</p>}
           </div>
+
           <div className="space-y-1.5 sm:col-span-2">
             <label className="text-sm font-medium text-gray-700">PAN Number</label>
-            <input type="text" name="pan" value={formData.pan} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all uppercase" />
+            <input 
+              type="text" 
+              name="pan" 
+              value={formData.pan} 
+              onChange={handleChange} 
+              maxLength={10}
+              placeholder="10-digit PAN"
+              className={`w-full px-3 py-2 rounded-lg border ${errors.pan ? 'border-red-500' : 'border-gray-200'} focus:border-black focus:ring-1 focus:ring-black outline-none transition-all uppercase`} 
+            />
+            {errors.pan && <p className="text-xs text-red-500">{errors.pan}</p>}
           </div>
+
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">Bank Name</label>
-            <input type="text" name="bank_name" value={formData.bank_name} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all" />
+            <input 
+              type="text" 
+              name="bank_name" 
+              value={formData.bank_name} 
+              onChange={handleChange} 
+              placeholder="e.g. HDFC Bank"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all" 
+            />
           </div>
+
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">Account Number</label>
-            <input type="text" name="account_number" value={formData.account_number} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all" />
+            <input 
+              type="text" 
+              name="account_number" 
+              value={formData.account_number} 
+              onChange={handleChange} 
+              placeholder="9-18 digits"
+              className={`w-full px-3 py-2 rounded-lg border ${errors.account_number ? 'border-red-500' : 'border-gray-200'} focus:border-black focus:ring-1 focus:ring-black outline-none transition-all`} 
+            />
+            {errors.account_number && <p className="text-xs text-red-500">{errors.account_number}</p>}
           </div>
+
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">IFSC Code</label>
-            <input type="text" name="ifsc_code" value={formData.ifsc_code} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all uppercase" />
+            <input 
+              type="text" 
+              name="ifsc_code" 
+              value={formData.ifsc_code} 
+              onChange={handleChange} 
+              maxLength={11}
+              placeholder="e.g. HDFC0001234"
+              className={`w-full px-3 py-2 rounded-lg border ${errors.ifsc_code ? 'border-red-500' : 'border-gray-200'} focus:border-black focus:ring-1 focus:ring-black outline-none transition-all uppercase`} 
+            />
+            {errors.ifsc_code && <p className="text-xs text-red-500">{errors.ifsc_code}</p>}
           </div>
+
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">Branch Name</label>
-            <input type="text" name="branch_name" value={formData.branch_name} onChange={handleChange} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all" />
+            <input 
+              type="text" 
+              name="branch_name" 
+              value={formData.branch_name} 
+              onChange={handleChange} 
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all" 
+            />
           </div>
         </div>
 
-        {error && <p className="text-red-500 text-sm pt-2">{error}</p>}
+        {contextError && <p className="text-red-500 text-sm pt-2 bg-red-50 p-2 rounded-lg">{contextError}</p>}
 
         <div className="flex gap-4 pt-4 border-t border-gray-100">
-          <button type="button" onClick={() => router.back()} disabled={loading} className="px-6 py-2.5 bg-white text-black rounded-lg font-medium border border-gray-200 hover:bg-gray-50 transition-colors">
+          <button 
+            type="button" 
+            onClick={() => router.back()} 
+            disabled={loading} 
+            className="px-6 py-2.5 bg-white text-black rounded-lg font-medium border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
             Back
           </button>
-          <button type="submit" disabled={loading} className="flex-1 bg-black text-white py-2.5 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-md disabled:opacity-70">
-            {loading ? "Saving..." : "Complete Setup"}
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className="flex-1 bg-black text-white py-2.5 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-md disabled:opacity-70 flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Saving...
+              </>
+            ) : "Complete Setup"}
           </button>
         </div>
       </form>

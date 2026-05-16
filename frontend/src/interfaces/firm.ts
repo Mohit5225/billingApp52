@@ -8,7 +8,8 @@ export interface Firm extends BaseEntity {
   mailing_name?: string;
   address_lane1?: string;
   city?: string;
-  state_pincode?: string;
+  state?: string;
+  pincode?: string;
   mobile?: string;
   email?: string;
   registration_type: string;
