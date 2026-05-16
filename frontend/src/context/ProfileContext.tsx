@@ -12,6 +12,7 @@ interface ProfileContextType {
   isCAAdmin: boolean;
   isCAEmployee: boolean;
   isMerchant: boolean;
+  supabase: ReturnType<typeof createClient>;
 }
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
@@ -24,9 +25,9 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   // Fix 1: Memoize so the client isn't recreated on every render
   const supabase = useMemo(() => createClient(), []);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (silent: boolean = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) setIsLoading(true);
       setError(null);
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -64,14 +65,14 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    fetchProfile();
+    fetchProfile(false);
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_OUT') {
         setProfile(null);
         setIsLoading(false);
       } else if (event === 'SIGNED_IN') {
-        fetchProfile();
+        fetchProfile(true);
       }
     });
 
@@ -85,10 +86,11 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     profile,
     isLoading,
     error,
-    refreshProfile: fetchProfile,
+    refreshProfile: () => fetchProfile(false),
     isCAAdmin: profile?.role === UserRole.CA_ADMIN,
     isCAEmployee: profile?.role === UserRole.CA_EMPLOYEE,
     isMerchant: profile?.role === UserRole.MERCHANT,
+    supabase,
   };
 
   return (
