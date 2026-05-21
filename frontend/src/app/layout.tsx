@@ -25,10 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${geistMono.variable}`}>
-      <body>
-        <Providers>
-          {children}
-        </Providers>
+      <body className="min-h-screen bg-canvas text-slate-900 antialiased">
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

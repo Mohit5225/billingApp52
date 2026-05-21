@@ -1,58 +1,72 @@
 @import "tailwindcss";
 
-/* ==========================================
-   DESIGN SYSTEM — Tally-Inspired Theme
-   ========================================== */
-
 @theme {
-  /* Primary Brand — Deep Forest Green */
-  --color-tally-900: #0F2A1D;
-  --color-tally-800: #1B4332;
-  --color-tally-700: #2D6A4F;
-  --color-tally-600: #40916C;
-  --color-tally-500: #52B788;
-  --color-tally-400: #74C69D;
-  --color-tally-300: #95D5B2;
-  --color-tally-200: #B7E4C7;
-  --color-tally-100: #D8F3DC;
-  --color-tally-50:  #F0FFF4;
+  --color-tally-900: #0f2a1d;
+  --color-tally-800: #1b4332;
+  --color-tally-700: #2d6a4f;
+  --color-tally-600: #40916c;
+  --color-tally-500: #52b788;
+  --color-tally-400: #74c69d;
+  --color-tally-300: #95d5b2;
+  --color-tally-200: #b7e4c7;
+  --color-tally-100: #d8f3dc;
+  --color-tally-50: #f0fff4;
 
-  /* Warm neutrals for the canvas */
-  --color-canvas:      #F9F7F4;
-  --color-canvas-dark: #F3F0EB;
+  --color-canvas: #f6f2ea;
+  --color-canvas-dark: #ece6dc;
+  --color-sidebar: #173728;
+  --color-sidebar-dark: #10281d;
 
-  /* Sidebar specific */
-  --color-sidebar:      #1B4332;
-  --color-sidebar-dark: #0F2A1D;
-
-  /* Accents */
-  --color-amber-warm: #E8A838;
-  --color-red-soft:   #E85D5D;
-  --color-blue-soft:  #4A90D9;
+  --color-amber-warm: #d49735;
+  --color-red-soft: #d85d5d;
+  --color-blue-soft: #4f85cf;
 }
 
-/* ==========================================
-   BASE STYLES
-   ========================================== */
+:root {
+  color-scheme: light;
+  --app-bg:
+    radial-gradient(circle at top left, rgba(82, 183, 136, 0.16), transparent 30%),
+    radial-gradient(circle at top right, rgba(212, 151, 53, 0.12), transparent 22%),
+    linear-gradient(180deg, #fbf8f3 0%, #f4efe6 100%);
+  --surface-primary: rgba(255, 255, 255, 0.9);
+  --surface-secondary: rgba(255, 255, 255, 0.72);
+  --border-soft: rgba(148, 163, 184, 0.22);
+  --shadow-card: 0 20px 40px rgba(15, 23, 42, 0.07);
+  --shadow-float: 0 30px 80px rgba(15, 23, 42, 0.12);
+}
 
 html {
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: #f6f2ea;
 }
 
 body {
-  background-color: var(--color-canvas);
-  color: #1a1a2e;
+  min-height: 100vh;
+  background: var(--app-bg);
+  color: #142033;
 }
 
-/* ==========================================
-   SCROLLBAR STYLING
-   ========================================== */
+* {
+  border-color: var(--border-soft);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(82, 183, 136, 0.24);
+  color: #0f2a1d;
+}
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -60,31 +74,45 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: rgba(148, 163, 184, 0.55);
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(100, 116, 139, 0.72);
 }
 
-/* ==========================================
-   ANIMATIONS
-   ========================================== */
-
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.72;
+  }
 }
 
 .animate-fade-in-up {
@@ -92,15 +120,31 @@ body {
 }
 
 .animate-shimmer {
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
 
-/* Staggered animation delays for child elements */
-.stagger-1 { animation-delay: 0.05s; }
-.stagger-2 { animation-delay: 0.10s; }
-.stagger-3 { animation-delay: 0.15s; }
-.stagger-4 { animation-delay: 0.20s; }
-.stagger-5 { animation-delay: 0.25s; }
-.stagger-6 { animation-delay: 0.30s; }
+.stagger-1 {
+  animation-delay: 0.05s;
+}
+
+.stagger-2 {
+  animation-delay: 0.1s;
+}
+
+.stagger-3 {
+  animation-delay: 0.15s;
+}
+
+.stagger-4 {
+  animation-delay: 0.2s;
+}
+
+.stagger-5 {
+  animation-delay: 0.25s;
+}
+
+.stagger-6 {
+  animation-delay: 0.3s;
+}

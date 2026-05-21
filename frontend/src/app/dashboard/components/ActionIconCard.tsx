@@ -1,8 +1,3 @@
-/**
- * ActionIconCard — A square quick-action button with an icon and label.
- * Used in the "CREATE TRANSACTIONS" grid.
- */
-
 import Link from "next/link";
 
 interface ActionIconCardProps {
@@ -14,22 +9,30 @@ interface ActionIconCardProps {
 
 export default function ActionIconCard({ label, href, icon, variant = "default" }: ActionIconCardProps) {
   const variantStyles = {
-    default: "text-tally-700 bg-tally-50/50 group-hover:bg-tally-100/70",
-    green: "text-tally-600 bg-tally-100 group-hover:bg-tally-200/70",
-    red: "text-red-soft bg-red-50 group-hover:bg-red-100/70",
+    default: "bg-tally-50 text-tally-700 group-hover:bg-tally-100",
+    green: "bg-emerald-100 text-emerald-700 group-hover:bg-emerald-200/80",
+    red: "bg-rose-50 text-rose-500 group-hover:bg-rose-100/80",
   };
 
   return (
     <Link
       href={href}
-      className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-slate-100 bg-white hover:border-tally-200 hover:shadow-sm transition-all duration-200"
+      className="group flex min-h-[136px] flex-col justify-between rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,255,255,0.8))] p-4 text-left shadow-[0_16px_34px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_24px_48px_rgba(15,23,42,0.1)] sm:min-h-[148px] sm:p-5"
     >
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${variantStyles[variant]}`}>
-        {icon}
+      <div className="flex items-start justify-between gap-3">
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl transition-colors ${variantStyles[variant]}`}>
+          {icon}
+        </div>
+        <svg className="h-5 w-5 text-slate-300 transition group-hover:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 16.5 16.5 7.5m0 0H9.75m6.75 0v6.75" />
+        </svg>
       </div>
-      <span className="text-xs font-medium text-slate-600 text-center leading-tight group-hover:text-slate-900 transition-colors">
-        {label}
-      </span>
+      <div className="space-y-1">
+        <span className="block text-sm font-semibold leading-snug text-slate-900">{label}</span>
+        <span className="block text-xs leading-5 text-slate-500">
+          Jump into a focused creation flow.
+        </span>
+      </div>
     </Link>
   );
 }

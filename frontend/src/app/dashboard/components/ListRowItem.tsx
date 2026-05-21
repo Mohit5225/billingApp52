@@ -1,8 +1,3 @@
-/**
- * ListRowItem — A clickable row with an icon, title/description, and a chevron.
- * Used in "ACCOUNT BOOKS", "RECENT ACTIVITY", and "PENDING ATTENTION".
- */
-
 import Link from "next/link";
 
 interface ListRowItemProps {
@@ -29,40 +24,38 @@ export default function ListRowItem({
 }: ListRowItemProps) {
   const badgeColors = {
     green: "bg-tally-100 text-tally-700",
-    amber: "bg-amber-100 text-amber-700",
-    red: "bg-red-100 text-red-600",
+    amber: "bg-amber-100 text-amber-800",
+    red: "bg-rose-100 text-rose-600",
     slate: "bg-slate-100 text-slate-600",
   };
 
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors group"
+      className="group flex items-start gap-3 rounded-[24px] px-4 py-4 transition-colors hover:bg-slate-50/90 sm:items-center sm:px-5"
     >
       {icon && (
-        <div className="w-9 h-9 rounded-lg bg-tally-50 flex items-center justify-center text-tally-700 flex-shrink-0 group-hover:bg-tally-100 transition-colors">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-tally-50 text-tally-700 transition-colors group-hover:bg-tally-100">
           {icon}
         </div>
       )}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-800 truncate">{title}</p>
-        {description && (
-          <p className="text-xs text-slate-400 truncate mt-0.5">{description}</p>
-        )}
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
+        {description && <p className="mt-1 truncate text-sm text-slate-500">{description}</p>}
       </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex shrink-0 items-center gap-2 self-center">
         {badge && (
-          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${badgeColors[badge.color || "slate"]}`}>
+          <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${badgeColors[badge.color || "slate"]}`}>
             {badge.label}
           </span>
         )}
         {rightText && (
           <div className="text-right">
-            <p className="text-xs font-medium text-slate-600">{rightText}</p>
-            {rightSubText && <p className="text-[10px] text-slate-400">{rightSubText}</p>}
+            <p className="text-xs font-semibold text-slate-600">{rightText}</p>
+            {rightSubText && <p className="text-[11px] text-slate-400">{rightSubText}</p>}
           </div>
         )}
-        <svg className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="h-4 w-4 text-slate-300 transition-colors group-hover:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
       </div>

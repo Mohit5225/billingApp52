@@ -8,7 +8,7 @@ const BOTTOM_TABS = [
     label: "Home",
     href: "/dashboard",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955a1.126 1.126 0 0 1 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
       </svg>
     ),
@@ -17,7 +17,7 @@ const BOTTOM_TABS = [
     label: "Create",
     href: "/dashboard/create",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
       </svg>
     ),
@@ -26,7 +26,7 @@ const BOTTOM_TABS = [
     label: "Books",
     href: "/dashboard/books",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
       </svg>
     ),
@@ -35,7 +35,7 @@ const BOTTOM_TABS = [
     label: "Search",
     href: "/dashboard/search",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
       </svg>
     ),
@@ -44,7 +44,7 @@ const BOTTOM_TABS = [
     label: "Menu",
     href: "/dashboard/menu",
     icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
       </svg>
     ),
@@ -55,24 +55,25 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden bg-white border-t border-slate-200 safe-area-bottom">
-      <div className="flex items-center justify-around h-16 px-2">
+    <nav className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 lg:hidden">
+      <div className="mx-auto flex max-w-lg items-center justify-between gap-1 rounded-[28px] border border-white/70 bg-white/88 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl">
         {BOTTOM_TABS.map((tab) => {
-          const isActive = pathname === tab.href;
+          const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+
           return (
             <Link
               key={tab.label}
               href={tab.href}
-              className={`flex flex-col items-center justify-center gap-0.5 py-1 px-3 rounded-xl transition-colors ${
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 transition-all ${
                 isActive
-                  ? "text-tally-800"
+                  ? "bg-tally-50 text-tally-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                   : "text-slate-400 hover:text-slate-600"
               }`}
             >
-              <div className={`p-1 rounded-lg transition-colors ${isActive ? "bg-tally-100" : ""}`}>
+              <div className={`rounded-2xl p-1.5 transition-all ${isActive ? "bg-tally-100 text-tally-800" : ""}`}>
                 {tab.icon}
               </div>
-              <span className={`text-[10px] font-medium ${isActive ? "font-semibold" : ""}`}>
+              <span className={`truncate text-[11px] ${isActive ? "font-semibold" : "font-medium"}`}>
                 {tab.label}
               </span>
             </Link>

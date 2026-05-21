@@ -11,7 +11,6 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { profile, isLoading } = useProfile();
   const router = useRouter();
 
-  // Guard: redirect unauthenticated users
   useEffect(() => {
     if (!isLoading && !profile) {
       router.replace("/auth/login");
@@ -22,8 +21,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-canvas">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-tally-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-400 animate-pulse">Loading dashboard…</p>
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-t-transparent border-tally-600" />
+          <p className="animate-pulse text-sm text-slate-400">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -33,25 +32,23 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-canvas">
-      {/* Desktop Sidebar */}
       <Sidebar />
 
-      {/* Main Content Area — offset for sidebar on desktop */}
-      <div className="lg:ml-[220px] flex flex-col min-h-screen">
-        {/* Sticky Header */}
-        <Suspense fallback={
-          <div className="h-16 bg-white/80 backdrop-blur-xl border-b border-slate-200/80" />
-        }>
+      <div className="min-h-screen lg:pl-[288px]">
+        <Suspense
+          fallback={<div className="h-[88px] border-b border-white/60 bg-white/70 backdrop-blur-xl" />}
+        >
           <Header />
         </Suspense>
 
-        {/* Page Content — padded for bottom nav on mobile */}
-        <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6">
-          {children}
-        </main>
+        <div className="relative isolate">
+          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_top,_rgba(82,183,136,0.14),transparent_58%)]" />
+          <main className="mx-auto min-h-[calc(100vh-88px)] w-full max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8">
+            {children}
+          </main>
+        </div>
       </div>
 
-      {/* Mobile Bottom Nav */}
       <BottomNav />
     </div>
   );
