@@ -80,11 +80,22 @@ async def list_account_groups(
         .execute()
     )
 
+    all_groups = response.data or []
+    group_name_by_id = {
+        str(group["id"]): group["name"]
+        for group in all_groups
+        if group.get("id") is not None and group.get("name") is not None
+    }
+
     groups = [
         group
-        for group in (response.data or [])
+        for group in all_groups
         if not group.get("is_primary") and (group.get("firm_id") is None or str(group.get("firm_id")) == target_firm_id)
     ]
+
+    for group in groups:
+        parent_id = group.get("parent_id")
+        group["parent_name"] = group_name_by_id.get(str(parent_id)) if parent_id is not None else None
 
     groups.sort(key=lambda group: (
         group.get("nature") or "",

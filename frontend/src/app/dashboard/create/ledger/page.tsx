@@ -35,6 +35,14 @@ type LedgerFormState = {
 
 type LedgerFieldTemplate = "default" | "bank" | "party" | "tax";
 
+const GROUP_TEMPLATE_MAP: Record<string, LedgerFieldTemplate> = {
+  "Bank Accounts": "bank",
+  "Bank OD A/c": "bank",
+  "Sundry Debtors": "party",
+  "Sundry Creditors": "party",
+  "Duties & Taxes": "tax",
+};
+
 const EMPTY_FORM: LedgerFormState = {
   name: "",
   alias: "",
@@ -86,25 +94,17 @@ function formatGroupLabel(group: AccountGroup) {
   return `${group.name}${alias} · ${toTitleCase(group.nature)}`;
 }
 
-function normalizeGroupText(value: string) {
-  return value.toLowerCase().replace(/[\s.\/()_-]+/g, " ").trim();
-}
-
 function getGroupTemplate(group: AccountGroup | null): LedgerFieldTemplate {
   if (!group) return "default";
 
-  const searchableText = normalizeGroupText([group.name, group.alias ?? "", group.nature].join(" "));
-
-  if (/(bank|bank account)/.test(searchableText)) {
-    return "bank";
+  const directTemplate = GROUP_TEMPLATE_MAP[group.name];
+  if (directTemplate) {
+    return directTemplate;
   }
 
-  if (/(sundry debtor|sundry creditor|creditor|debtor)/.test(searchableText)) {
-    return "party";
-  }
-
-  if (/(duty|tax|tcs|tds|vat)/.test(searchableText)) {
-    return "tax";
+  const parentTemplate = group.parent_name ? GROUP_TEMPLATE_MAP[group.parent_name] : undefined;
+  if (parentTemplate) {
+    return parentTemplate;
   }
 
   return "default";
@@ -231,7 +231,7 @@ export default function LedgerCreatePage() {
   };
 
   const handleChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
   ) => {
     const { name, value, type } = event.target;
 
@@ -344,21 +344,6 @@ export default function LedgerCreatePage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-8">
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-tally-700">Create Ledger</p>
-        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-slate-950">New ledger entry</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-              Account groups are loaded from the real Supabase schema. Pick a subgroup, set the opening balance, and save the ledger for the active firm.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-            Active firm: <span className="font-medium text-slate-700">{activeFirmId}</span>
-          </div>
-        </div>
-      </section>
-
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
@@ -371,7 +356,7 @@ export default function LedgerCreatePage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(300px,0.8fr)]">
+      <form onSubmit={handleSubmit} className="grid gap-6">
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
@@ -754,50 +739,6 @@ export default function LedgerCreatePage() {
           </div>
         </section>
 
-        <aside className="space-y-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold text-slate-900">Summary</p>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-slate-500">Firm</dt>
-                <dd className="text-right font-medium text-slate-900">{activeFirmId}</dd>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-slate-500">Group</dt>
-                <dd className="text-right font-medium text-slate-900">{selectedGroup ? selectedGroup.name : "Not selected"}</dd>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-slate-500">Template</dt>
-                <dd className="text-right font-medium text-slate-900">
-                  {selectedTemplate === "default" ? "Core ledger" : TEMPLATE_COPY[selectedTemplate].title}
-                </dd>
-              </div>
-              <div className="flex items-start justify-between gap-4">
-                <dt className="text-slate-500">Opening</dt>
-                <dd className="text-right font-medium text-slate-900">
-                  {formData.opening_balance || "0.00"} {formData.opening_balance_type}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          {selectedGroup && (
-            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
-              <p className="text-sm font-semibold text-slate-900">Selected group</p>
-              <div className="mt-3 space-y-2 text-sm text-slate-600">
-                <p>{selectedGroup.name}</p>
-                {selectedGroup.alias && <p>Alias: {selectedGroup.alias}</p>}
-                <p>Nature: {selectedGroup.nature}</p>
-                <p>Primary: {selectedGroup.is_primary ? "Yes" : "No"}</p>
-                <p>Template: {selectedTemplate === "default" ? "Core ledger" : TEMPLATE_COPY[selectedTemplate].title}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-sm leading-6 text-slate-600 shadow-sm">
-            This form writes to the <span className="font-medium text-slate-900">ledgers</span> table and uses account-group data loaded from Supabase.
-          </div>
-        </aside>
       </form>
     </div>
   );

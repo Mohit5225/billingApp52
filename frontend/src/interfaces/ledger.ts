@@ -11,6 +11,7 @@ export interface AccountGroup extends BaseEntity {
   nature: AccountNature;
   is_primary: boolean;
   parent_id: string | null;
+  parent_name?: string | null;
   affects_gross_profit: boolean;
   is_control_account: boolean;
   is_system: boolean;

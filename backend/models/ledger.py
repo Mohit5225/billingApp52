@@ -79,6 +79,7 @@ class AccountGroup(TimestampSchema):
     nature: AccountNature
     is_primary: bool
     parent_id: Optional[UUID4] = None
+    parent_name: Optional[str] = None
     affects_gross_profit: bool
     is_control_account: bool
     is_system: bool
