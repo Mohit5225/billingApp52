@@ -90,7 +90,7 @@ async def list_account_groups(
     groups = [
         group
         for group in all_groups
-        if not group.get("is_primary") and (group.get("firm_id") is None or str(group.get("firm_id")) == target_firm_id)
+        if group.get("firm_id") is None or str(group.get("firm_id")) == target_firm_id
     ]
 
     for group in groups:
@@ -127,8 +127,6 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Selected account group was not found")
 
     group_firm_id = group.get("firm_id")
-    if group.get("is_primary"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please choose a sub-group for the ledger")
 
     if group_firm_id is not None and str(group_firm_id) != target_firm_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Selected account group is not available for this firm")

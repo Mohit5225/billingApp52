@@ -1,5 +1,6 @@
 "use client";
 
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useProfile } from "@/context/ProfileContext";
@@ -128,6 +129,7 @@ export default function LedgerCreatePage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
 
   const selectedGroup = useMemo(
     () => groups.find((group) => group.id === formData.group_id) || null,
@@ -194,242 +196,127 @@ export default function LedgerCreatePage() {
 
   if (profile && !isCAAdmin) {
     return (
-      <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-tally-700">Create Ledger</p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Ledger creation is restricted</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">
-          Only CA admins can create ledgers in Supabase. CA employees and merchants can view the flow, but submission is blocked by the backend policy.
-        </p>
+    <div className="mx-auto max-w-4xl px-4 md:px-0 space-y-8 pb-32 md:pb-12 pt-4">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Create Ledger</h1>
+        <p className="mt-2 text-sm text-slate-500">Configure a new account ledger with advanced categorization.</p>
       </div>
-    );
-  }
 
-  if (!activeFirmId) {
-    return null;
-  }
-
-  const validateForm = () => {
-    const nextErrors: Record<string, string> = {};
-
-    if (!formData.name.trim()) {
-      nextErrors.name = "Ledger name is required.";
-    }
-
-    if (!formData.group_id) {
-      nextErrors.group_id = "Choose an account group.";
-    }
-
-    if (formData.opening_balance.trim()) {
-      const parsedValue = Number(formData.opening_balance);
-      if (Number.isNaN(parsedValue)) {
-        nextErrors.opening_balance = "Enter a valid opening balance.";
-      }
-    }
-
-    setFieldErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const handleChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value, type } = event.target;
-
-    if (type === "checkbox") {
-      const input = event.target as HTMLInputElement;
-      setFormData((prev) => ({ ...prev, [name]: input.checked }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-
-    if (touched[name]) {
-      setFieldErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-
-  const markTouched = (name: string) => {
-    setTouched((prev) => ({ ...prev, [name]: true }));
-  };
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSuccess(null);
-
-    if (!validateForm()) {
-      setTouched({ name: true, alias: true, group_id: true, opening_balance: true, opening_balance_type: true });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("No active session");
-      }
-
-      const payload = {
-        firm_id: activeFirmId,
-        group_id: formData.group_id,
-        name: formData.name.trim(),
-        alias: formData.alias.trim() || null,
-        opening_balance: formData.opening_balance.trim() ? Number(formData.opening_balance) : 0,
-        opening_balance_type: formData.opening_balance_type,
-        inventory_values_affected: formData.inventory_values_affected,
-        cost_centre_applicable: formData.cost_centre_applicable,
-        ...(selectedTemplate === "bank"
-          ? {
-              bank_details: {
-                account_number: formData.bank_account_number.trim() || null,
-                ifsc_code: formData.bank_ifsc_code.trim() || null,
-                swift_code: formData.bank_swift_code.trim() || null,
-                bank_name: formData.bank_name.trim() || null,
-                branch_name: formData.bank_branch_name.trim() || null,
-              },
-            }
-          : {}),
-        ...(selectedTemplate === "party"
-          ? {
-              party_details: {
-                maintain_bill_by_bill: formData.party_maintain_bill_by_bill,
-                default_credit_days: formData.party_default_credit_days.trim()
-                  ? Number(formData.party_default_credit_days)
-                  : null,
-                mailing_name: formData.party_mailing_name.trim() || null,
-                address: formData.party_address.trim() || null,
-                state: formData.party_state.trim() || null,
-                country: formData.party_country.trim() || null,
-                pincode: formData.party_pincode.trim() || null,
-                pan_number: formData.party_pan_number.trim() || null,
-                gst_registration_type: formData.party_gst_registration_type || null,
-                gstin: formData.party_gstin.trim() || null,
-              },
-            }
-          : {}),
-        ...(selectedTemplate === "tax"
-          ? {
-              tax_details: {
-                duty_tax_type: formData.tax_duty_tax_type || null,
-                tax_percentage: formData.tax_tax_percentage.trim()
-                  ? Number(formData.tax_tax_percentage)
-                  : null,
-              },
-            }
-          : {}),
-      };
-
-      const response = await fetch(`${apiBaseUrl}/api/ledgers/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Failed to create ledger");
-      }
-
-      setSuccess("Ledger created successfully.");
-      router.push(`/dashboard${activeFirmId ? `?firm_id=${activeFirmId}` : ""}`);
-    } catch (err: any) {
-      setError(err?.message || "Unable to create ledger");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-8">
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 shadow-sm animate-in fade-in slide-in-from-top-2">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700 shadow-sm animate-in fade-in slide-in-from-top-2">
           {success}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="grid gap-6">
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="grid gap-5 sm:grid-cols-2">
+      <form onSubmit={handleSubmit} className="relative overflow-hidden rounded-[2.5rem] border border-slate-200/80 bg-white p-8 sm:p-10 shadow-2xl shadow-slate-200/40">
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/40 via-transparent to-slate-50/40 pointer-events-none" />
+        
+        <div className="relative z-10 grid gap-8">
+          <div className="grid gap-6 sm:grid-cols-2">
             <div className="space-y-2 sm:col-span-2">
-              <label className="text-sm font-medium text-slate-700">Ledger Name *</label>
+              <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Ledger Name *</label>
               <input
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
                 onBlur={() => markTouched("name")}
                 placeholder="e.g. Mahalakshmi Enterprises"
-                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors ${
+                className={`peer w-full rounded-2xl border bg-slate-50/50 px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:bg-white focus:shadow-md ${
                   touched.name && fieldErrors.name
-                    ? "border-red-400 focus:border-red-500"
-                    : "border-slate-200 focus:border-tally-500"
+                    ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10"
+                    : "border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300"
                 }`}
               />
-              {touched.name && fieldErrors.name && <p className="text-xs text-red-600">{fieldErrors.name}</p>}
+              {touched.name && fieldErrors.name && <p className="text-xs font-medium text-red-600">{fieldErrors.name}</p>}
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <label className="text-sm font-medium text-slate-700">Alias</label>
+              <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Alias</label>
               <input
                 name="alias"
                 value={formData.alias}
                 onChange={handleChange}
                 onBlur={() => markTouched("alias")}
                 placeholder="Optional short name"
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                className="peer w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
               />
             </div>
 
             <div className="space-y-2 sm:col-span-2">
-              <label className="text-sm font-medium text-slate-700">Account Group *</label>
-              <select
-                name="group_id"
-                value={formData.group_id}
-                onChange={handleChange}
-                onBlur={() => markTouched("group_id")}
-                disabled={isLoadingGroups}
-                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors ${
-                  touched.group_id && fieldErrors.group_id
-                    ? "border-red-400 focus:border-red-500"
-                    : "border-slate-200 focus:border-tally-500"
-                }`}
-              >
-                {isLoadingGroups ? (
-                  <option>Loading account groups...</option>
-                ) : (
+              <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Account Group *</label>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setIsGroupDropdownOpen((prev) => !prev)}
+                  disabled={isLoadingGroups}
+                  onBlur={() => markTouched("group_id")}
+                  className={`flex w-full items-center justify-between rounded-2xl border px-5 py-4 text-sm font-medium outline-none transition-all duration-300 focus:shadow-md ${
+                    touched.group_id && fieldErrors.group_id
+                      ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10 bg-white"
+                      : "border-slate-200 bg-slate-50/50 hover:border-slate-300 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+                  } ${isLoadingGroups ? "opacity-50 cursor-not-allowed" : "text-slate-900"}`}
+                >
+                  <span className="truncate">
+                    {isLoadingGroups 
+                      ? "Loading account groups..." 
+                      : selectedGroup
+                        ? formatGroupLabel(selectedGroup)
+                        : <span className="text-slate-400 font-normal">Select an account group</span>
+                    }
+                  </span>
+                  <svg className={`ml-3 h-5 w-5 shrink-0 text-slate-400 transition-transform duration-300 ${isGroupDropdownOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                
+                {isGroupDropdownOpen && (
                   <>
-                    <option value="">Select a subgroup</option>
-                    {groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {formatGroupLabel(group)}
-                      </option>
-                    ))}
+                    <div className="fixed inset-0 z-20" onClick={() => setIsGroupDropdownOpen(false)} />
+                    <div className="absolute z-30 mt-2 w-full animate-in fade-in slide-in-from-top-2 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-xl backdrop-blur-xl max-h-72 overflow-y-auto">
+                      {groups.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-slate-500">No groups found</div>
+                      ) : (
+                        groups.map((group) => (
+                          <button
+                            key={group.id}
+                            type="button"
+                            className={`w-full rounded-xl px-4 py-3 text-left text-sm transition-all whitespace-normal ${
+                              formData.group_id === group.id 
+                                ? "bg-emerald-50 text-emerald-700 font-semibold" 
+                                : "text-slate-700 hover:bg-slate-100/80 font-medium"
+                            }`}
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, group_id: group.id }));
+                              setIsGroupDropdownOpen(false);
+                              if (touched.group_id) {
+                                setFieldErrors((prev) => ({ ...prev, group_id: "" }));
+                              }
+                            }}
+                          >
+                            {formatGroupLabel(group)}
+                          </button>
+                        ))
+                      )}
+                    </div>
                   </>
                 )}
-              </select>
-              {touched.group_id && fieldErrors.group_id && <p className="text-xs text-red-600">{fieldErrors.group_id}</p>}
-              <p className="text-xs text-slate-500">
-                Primary root groups are filtered out. Ledgers should sit under a subgroup.
-              </p>
+              </div>
+              {touched.group_id && fieldErrors.group_id && <p className="text-xs font-medium text-red-600">{fieldErrors.group_id}</p>}
             </div>
 
             {selectedTemplate !== "default" && (
-              <div className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <p className="font-medium">{TEMPLATE_COPY[selectedTemplate].title}</p>
-                <p className="mt-1 text-xs leading-5 text-amber-800">{TEMPLATE_COPY[selectedTemplate].description}</p>
+              <div className="sm:col-span-2 rounded-2xl border border-amber-200/60 bg-amber-50/50 px-5 py-4 text-sm text-amber-900 shadow-sm">
+                <p className="font-semibold">{TEMPLATE_COPY[selectedTemplate].title}</p>
+                <p className="mt-1 text-xs font-medium leading-relaxed text-amber-800/80">{TEMPLATE_COPY[selectedTemplate].description}</p>
               </div>
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Opening Balance</label>
+              <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Opening Balance</label>
               <input
                 name="opening_balance"
                 type="number"
@@ -438,25 +325,25 @@ export default function LedgerCreatePage() {
                 onChange={handleChange}
                 onBlur={() => markTouched("opening_balance")}
                 placeholder="0.00"
-                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors ${
+                className={`peer w-full rounded-2xl border bg-slate-50/50 px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:bg-white focus:shadow-md ${
                   touched.opening_balance && fieldErrors.opening_balance
-                    ? "border-red-400 focus:border-red-500"
-                    : "border-slate-200 focus:border-tally-500"
+                    ? "border-red-400 focus:border-red-500 focus:ring-4 focus:ring-red-500/10"
+                    : "border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300"
                 }`}
               />
-              {touched.opening_balance && fieldErrors.opening_balance && <p className="text-xs text-red-600">{fieldErrors.opening_balance}</p>}
+              {touched.opening_balance && fieldErrors.opening_balance && <p className="text-xs font-medium text-red-600">{fieldErrors.opening_balance}</p>}
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Balance Type</label>
-              <div className="grid grid-cols-2 gap-3">
+              <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Balance Type</label>
+              <div className="flex rounded-2xl border border-slate-200 bg-slate-50/50 p-1.5 shadow-inner shadow-slate-100">
                 {(["Dr", "Cr"] as DrCrType[]).map((option) => (
                   <label
                     key={option}
-                    className={`flex cursor-pointer items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition-colors ${
+                    className={`relative flex flex-1 cursor-pointer items-center justify-center rounded-xl py-2.5 text-sm font-semibold transition-all duration-300 ${
                       formData.opening_balance_type === option
-                        ? "border-tally-500 bg-tally-50 text-tally-800"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                        ? "bg-white text-emerald-700 shadow-sm ring-1 ring-slate-200/50"
+                        : "text-slate-500 hover:bg-slate-100/50 hover:text-slate-700"
                     }`}
                   >
                     <input
@@ -474,91 +361,97 @@ export default function LedgerCreatePage() {
             </div>
           </div>
 
-          <div className="mt-6 space-y-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-            <p className="text-sm font-medium text-slate-800">Advanced Flags</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  name="inventory_values_affected"
-                  checked={formData.inventory_values_affected}
-                  onChange={handleChange}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-tally-700 focus:ring-tally-500"
-                />
-                <span>
-                  <span className="block font-medium text-slate-900">Inventory values affected</span>
-                  <span className="mt-1 block text-xs text-slate-500">Use for ledgers that affect stock valuation.</span>
-                </span>
+          <div className="rounded-[2rem] border border-slate-100 bg-slate-50/60 p-6 sm:p-8 shadow-sm">
+            <h3 className="mb-6 text-sm font-bold tracking-wide text-slate-800">Advanced Settings</h3>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="group flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5">
+                <div>
+                  <span className="block text-sm font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">Inventory values affected</span>
+                  <span className="mt-1.5 block text-[0.7rem] font-medium leading-relaxed text-slate-500">Use for ledgers that affect stock valuation.</span>
+                </div>
+                <div className="relative inline-flex h-7 w-12 shrink-0 items-center">
+                  <input
+                    type="checkbox"
+                    name="inventory_values_affected"
+                    checked={formData.inventory_values_affected}
+                    onChange={handleChange}
+                    className="peer sr-only"
+                  />
+                  <div className="h-full w-full rounded-full bg-slate-200 transition-all duration-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/20 peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 peer-checked:after:translate-x-5 after:absolute after:left-[3px] after:top-[3px] after:h-[22px] after:w-[22px] after:rounded-full after:bg-white after:shadow-sm after:transition-all after:content-['']"></div>
+                </div>
               </label>
 
-              <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                <input
-                  type="checkbox"
-                  name="cost_centre_applicable"
-                  checked={formData.cost_centre_applicable}
-                  onChange={handleChange}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-tally-700 focus:ring-tally-500"
-                />
-                <span>
-                  <span className="block font-medium text-slate-900">Cost centre applicable</span>
-                  <span className="mt-1 block text-xs text-slate-500">Enable if this ledger should accept cost centre tracking.</span>
-                </span>
+              <label className="group flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5">
+                <div>
+                  <span className="block text-sm font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">Cost centre applicable</span>
+                  <span className="mt-1.5 block text-[0.7rem] font-medium leading-relaxed text-slate-500">Enable if this ledger should accept cost centre tracking.</span>
+                </div>
+                <div className="relative inline-flex h-7 w-12 shrink-0 items-center">
+                  <input
+                    type="checkbox"
+                    name="cost_centre_applicable"
+                    checked={formData.cost_centre_applicable}
+                    onChange={handleChange}
+                    className="peer sr-only"
+                  />
+                  <div className="h-full w-full rounded-full bg-slate-200 transition-all duration-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/20 peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 peer-checked:after:translate-x-5 after:absolute after:left-[3px] after:top-[3px] after:h-[22px] after:w-[22px] after:rounded-full after:bg-white after:shadow-sm after:transition-all after:content-['']"></div>
+                </div>
               </label>
             </div>
           </div>
 
           {selectedTemplate === "bank" && (
-            <div className="mt-6 space-y-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-800">Bank Details</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-[2rem] border border-slate-100 bg-slate-50/60 p-6 sm:p-8 shadow-sm">
+              <h3 className="mb-6 text-sm font-bold tracking-wide text-slate-800">Bank Details</h3>
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Account Number</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Account Number</label>
                   <input
                     name="bank_account_number"
                     value={formData.bank_account_number}
                     onChange={handleChange}
                     placeholder="Account number"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">IFSC Code</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">IFSC Code</label>
                   <input
                     name="bank_ifsc_code"
                     value={formData.bank_ifsc_code}
                     onChange={handleChange}
                     placeholder="IFSC code"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Bank Name</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Bank Name</label>
                   <input
                     name="bank_name"
                     value={formData.bank_name}
                     onChange={handleChange}
                     placeholder="Bank name"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Branch Name</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Branch Name</label>
                   <input
                     name="bank_branch_name"
                     value={formData.bank_branch_name}
                     onChange={handleChange}
                     placeholder="Branch name"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium text-slate-700">SWIFT Code</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">SWIFT Code</label>
                   <input
                     name="bank_swift_code"
                     value={formData.bank_swift_code}
                     onChange={handleChange}
                     placeholder="Optional SWIFT / BIC"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
               </div>
@@ -566,24 +459,27 @@ export default function LedgerCreatePage() {
           )}
 
           {selectedTemplate === "party" && (
-            <div className="mt-6 space-y-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-800">Party Details</p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    name="party_maintain_bill_by_bill"
-                    checked={formData.party_maintain_bill_by_bill}
-                    onChange={handleChange}
-                    className="mt-1 h-4 w-4 rounded border-slate-300 text-tally-700 focus:ring-tally-500"
-                  />
-                  <span>
-                    <span className="block font-medium text-slate-900">Maintain bill-by-bill</span>
-                    <span className="mt-1 block text-xs text-slate-500">Useful for receivables and payables tracking.</span>
-                  </span>
+            <div className="rounded-[2rem] border border-slate-100 bg-slate-50/60 p-6 sm:p-8 shadow-sm">
+              <h3 className="mb-6 text-sm font-bold tracking-wide text-slate-800">Party Details</h3>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <label className="group flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5 sm:col-span-2">
+                  <div>
+                    <span className="block text-sm font-semibold text-slate-900 group-hover:text-emerald-700 transition-colors">Maintain bill-by-bill</span>
+                    <span className="mt-1.5 block text-[0.7rem] font-medium leading-relaxed text-slate-500">Useful for receivables and payables tracking.</span>
+                  </div>
+                  <div className="relative inline-flex h-7 w-12 shrink-0 items-center">
+                    <input
+                      type="checkbox"
+                      name="party_maintain_bill_by_bill"
+                      checked={formData.party_maintain_bill_by_bill}
+                      onChange={handleChange}
+                      className="peer sr-only"
+                    />
+                    <div className="h-full w-full rounded-full bg-slate-200 transition-all duration-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/20 peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 peer-checked:after:translate-x-5 after:absolute after:left-[3px] after:top-[3px] after:h-[22px] after:w-[22px] after:rounded-full after:bg-white after:shadow-sm after:transition-all after:content-['']"></div>
+                  </div>
                 </label>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Default Credit Days</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Default Credit Days</label>
                   <input
                     name="party_default_credit_days"
                     type="number"
@@ -591,121 +487,131 @@ export default function LedgerCreatePage() {
                     value={formData.party_default_credit_days}
                     onChange={handleChange}
                     placeholder="0"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">PAN Number</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">PAN Number</label>
                   <input
                     name="party_pan_number"
                     value={formData.party_pan_number}
                     onChange={handleChange}
                     placeholder="PAN number"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium text-slate-700">Mailing Name</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Mailing Name</label>
                   <input
                     name="party_mailing_name"
                     value={formData.party_mailing_name}
                     onChange={handleChange}
                     placeholder="Mailing name"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium text-slate-700">Address</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Address</label>
                   <textarea
                     name="party_address"
                     value={formData.party_address}
                     onChange={handleChange}
                     placeholder="Billing address"
                     rows={3}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">State</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">State</label>
                   <input
                     name="party_state"
                     value={formData.party_state}
                     onChange={handleChange}
                     placeholder="State"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Country</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Country</label>
                   <input
                     name="party_country"
                     value={formData.party_country}
                     onChange={handleChange}
                     placeholder="Country"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Pincode</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Pincode</label>
                   <input
                     name="party_pincode"
                     value={formData.party_pincode}
                     onChange={handleChange}
                     placeholder="Pincode"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">GSTIN</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">GSTIN</label>
                   <input
                     name="party_gstin"
                     value={formData.party_gstin}
                     onChange={handleChange}
                     placeholder="GSTIN"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">GST Registration Type</label>
-                  <select
-                    name="party_gst_registration_type"
-                    value={formData.party_gst_registration_type}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
-                  >
-                    <option value="">Select type</option>
-                    <option value="Regular">Regular</option>
-                    <option value="Composition">Composition</option>
-                    <option value="Unregistered">Unregistered</option>
-                    <option value="Consumer">Consumer</option>
-                  </select>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">GST Registration Type</label>
+                  <div className="relative">
+                    <select
+                      name="party_gst_registration_type"
+                      value={formData.party_gst_registration_type}
+                      onChange={handleChange}
+                      className="peer w-full appearance-none rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
+                    >
+                      <option value="">Select type</option>
+                      <option value="Regular">Regular</option>
+                      <option value="Composition">Composition</option>
+                      <option value="Unregistered">Unregistered</option>
+                      <option value="Consumer">Consumer</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2">
+                      <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
           {selectedTemplate === "tax" && (
-            <div className="mt-6 space-y-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-800">Tax Details</p>
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-[2rem] border border-slate-100 bg-slate-50/60 p-6 sm:p-8 shadow-sm">
+              <h3 className="mb-6 text-sm font-bold tracking-wide text-slate-800">Tax Details</h3>
+              <div className="grid gap-5 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Duty / Tax Type</label>
-                  <select
-                    name="tax_duty_tax_type"
-                    value={formData.tax_duty_tax_type}
-                    onChange={handleChange}
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
-                  >
-                    <option value="">Select type</option>
-                    <option value="GST">GST</option>
-                    <option value="TDS">TDS</option>
-                    <option value="TCS">TCS</option>
-                    <option value="VAT">VAT</option>
-                    <option value="Others">Others</option>
-                  </select>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Duty / Tax Type</label>
+                  <div className="relative">
+                    <select
+                      name="tax_duty_tax_type"
+                      value={formData.tax_duty_tax_type}
+                      onChange={handleChange}
+                      className="peer w-full appearance-none rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
+                    >
+                      <option value="">Select type</option>
+                      <option value="GST">GST</option>
+                      <option value="TDS">TDS</option>
+                      <option value="TCS">TCS</option>
+                      <option value="VAT">VAT</option>
+                      <option value="Others">Others</option>
+                    </select>
+                    <div className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2">
+                      <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">Tax Percentage</label>
+                  <label className="block text-[0.65rem] font-bold uppercase tracking-wider text-slate-500">Tax Percentage</label>
                   <input
                     name="tax_tax_percentage"
                     type="number"
@@ -714,31 +620,31 @@ export default function LedgerCreatePage() {
                     value={formData.tax_tax_percentage}
                     onChange={handleChange}
                     placeholder="0.00"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-tally-500"
+                    className="peer w-full rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md hover:border-slate-300"
                   />
                 </div>
               </div>
             </div>
           )}
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <div className="mt-4 flex flex-col-reverse gap-4 sm:flex-row sm:items-center sm:justify-end pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={() => router.back()}
-              className="rounded-xl border border-slate-200 px-5 py-3 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+              className="rounded-2xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-600 transition-all duration-300 hover:bg-slate-50 hover:text-slate-900 hover:shadow-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || isLoadingGroups}
-              className="rounded-xl bg-tally-700 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-tally-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 px-8 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-500/30 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-emerald-500/40 active:translate-y-0 disabled:pointer-events-none disabled:opacity-60"
             >
+              <div className="absolute inset-0 bg-white/20 opacity-0 transition-opacity hover:opacity-100"></div>
               {isSubmitting ? "Saving ledger..." : "Create Ledger"}
             </button>
           </div>
-        </section>
-
+        </div>
       </form>
     </div>
   );
