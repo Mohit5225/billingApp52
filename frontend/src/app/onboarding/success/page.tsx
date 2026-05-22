@@ -1,9 +1,23 @@
 "use client";
 
+import { useProfile } from "@/context/ProfileContext";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function SuccessPage() {
   const router = useRouter();
+  const { refreshProfile } = useProfile();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const handleGoToDashboard = async () => {
+    setIsRedirecting(true);
+
+    try {
+      await refreshProfile();
+    } finally {
+      router.push("/dashboard");
+    }
+  };
 
   return (
     <div className="flex flex-col items-center text-center space-y-6 animate-in fade-in zoom-in-95 duration-500">
@@ -35,10 +49,11 @@ export default function SuccessPage() {
 
       <div className="w-full pt-6">
         <button
-          onClick={() => router.push("/dashboard")}
+          onClick={handleGoToDashboard}
+          disabled={isRedirecting}
           className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-md hover:shadow-lg"
         >
-          Go to Dashboard
+          {isRedirecting ? "Loading Dashboard..." : "Go to Dashboard"}
         </button>
       </div>
     </div>

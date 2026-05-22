@@ -134,7 +134,7 @@ USING (
 CREATE POLICY "ledgers_insert" ON public.ledgers FOR INSERT TO authenticated
 WITH CHECK (
     is_system = false -- Prevents forged system ledgers
-    AND (SELECT get_user_role()) = 'ca_admin'
+    AND (SELECT get_user_role()) IN ('ca_admin', 'ca_employee', 'merchant')
     AND (
         firm_id = (SELECT get_user_firm_id())
         OR firm_id IN (SELECT id FROM public.firms WHERE parent_firm_id = (SELECT get_user_firm_id()))

@@ -29,8 +29,13 @@ type LedgerFormState = {
   party_pan_number: string;
   party_gst_registration_type: string;
   party_gstin: string;
+  party_check_credit_days: boolean;
+  party_set_gst_details: boolean;
   tax_duty_tax_type: string;
   tax_tax_percentage: string;
+  transaction_type: string;
+  upi_id: string;
+  cross_using: string;
 };
 
 type LedgerFieldTemplate = "default" | "bank" | "party" | "tax";
@@ -41,6 +46,10 @@ const GROUP_TEMPLATE_MAP: Record<string, LedgerFieldTemplate> = {
   "Sundry Debtors": "party",
   "Sundry Creditors": "party",
   "Duties & Taxes": "tax",
+  "Loans & Advances (Asset)": "party",
+  "Loans (Liability)": "party",
+  "Secured Loans": "party",
+  "Unsecured Loans": "party",
 };
 
 const EMPTY_FORM: LedgerFormState = {
@@ -66,31 +75,20 @@ const EMPTY_FORM: LedgerFormState = {
   party_pan_number: "",
   party_gst_registration_type: "",
   party_gstin: "",
+  party_check_credit_days: false,
+  party_set_gst_details: false,
   tax_duty_tax_type: "",
   tax_tax_percentage: "",
+  transaction_type: "",
+  upi_id: "",
+  cross_using: "A/c Payee",
 };
 
-const TEMPLATE_COPY: Record<
-  Exclude<LedgerFieldTemplate, "default">,
-  { title: string; description: string }
-> = {
-  bank: {
-    title: "Bank ledger",
-    description: "Bank-style ledgers expose bank account fields in addition to the core ledger data.",
-  },
-  party: {
-    title: "Party ledger",
-    description: "Party-style ledgers expose billing, address, and registration details.",
-  },
-  tax: {
-    title: "Tax ledger",
-    description: "Tax-style ledgers expose duty and tax classification fields.",
-  },
-};
 
-const LABEL_CLASS = "block text-[0.68rem] font-bold uppercase tracking-[0.18em] text-slate-500";
+
+const LABEL_CLASS = "block text-[0.68rem] md:text-xs font-bold uppercase tracking-[0.18em] text-slate-500";
 const BASE_INPUT_CLASS =
-  "w-full rounded-2xl border bg-white px-4 py-3.5 text-sm font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:bg-white focus:shadow-md";
+  "w-full rounded-2xl border bg-white px-4 py-3.5 text-sm md:text-[15px] font-medium text-slate-900 outline-none transition-all duration-300 placeholder:font-normal placeholder:text-slate-400 focus:bg-white focus:shadow-md";
 const DEFAULT_INPUT_CLASS =
   "border-slate-200 bg-slate-50/70 hover:border-slate-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10";
 const ERROR_INPUT_CLASS =
@@ -98,15 +96,27 @@ const ERROR_INPUT_CLASS =
 const SECTION_CARD_CLASS =
   "rounded-[28px] border border-slate-200/80 bg-white/94 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)] sm:p-6 lg:p-7";
 const SELECT_CLASS =
-  "w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm font-medium text-slate-900 outline-none transition-all duration-300 hover:border-slate-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md";
+  "w-full appearance-none rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-sm md:text-[15px] font-medium text-slate-900 outline-none transition-all duration-300 hover:border-slate-300 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:shadow-md";
 
 function toTitleCase(value: string) {
   return value.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function formatGroupLabel(group: AccountGroup) {
-  const alias = group.alias ? ` / ${group.alias}` : "";
-  return `${group.name}${alias} / ${toTitleCase(group.nature)}`;
+function GroupLabel({ group, isSelected = false }: { group: AccountGroup; isSelected?: boolean }) {
+  return (
+    <div className="flex w-full items-center justify-between gap-2">
+      <span className="truncate min-w-0">{group.name}</span>
+      <span
+        className={`shrink-0 rounded-full border px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${
+          isSelected
+            ? "border-emerald-200 bg-emerald-100/50 text-emerald-700"
+            : "border-slate-200 bg-slate-50 text-slate-500"
+        }`}
+      >
+        {group.nature}
+      </span>
+    </div>
+  );
 }
 
 function getGroupTemplate(group: AccountGroup | null): LedgerFieldTemplate {
@@ -165,8 +175,8 @@ function SectionCard({
   return (
     <div className={SECTION_CARD_CLASS}>
       <div className="mb-6">
-        <h3 className="text-lg font-semibold tracking-tight text-slate-900">{title}</h3>
-        {description && <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>}
+        <h3 className="text-lg md:text-[19px] font-semibold tracking-tight text-slate-900">{title}</h3>
+        {description && <p className="mt-2 text-sm md:text-[15px] leading-6 text-slate-500">{description}</p>}
       </div>
       {children}
     </div>
@@ -189,10 +199,10 @@ function ToggleTile({
   return (
     <label className="group flex cursor-pointer flex-col items-start justify-between gap-4 rounded-[24px] border border-slate-200 bg-white px-5 py-4 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5 sm:flex-row sm:items-center">
       <div>
-        <span className="block text-sm font-semibold text-slate-900 transition-colors group-hover:text-emerald-700">
+        <span className="block text-sm md:text-[15px] font-semibold text-slate-900 transition-colors group-hover:text-emerald-700">
           {title}
         </span>
-        <span className="mt-1.5 block text-[0.78rem] leading-relaxed text-slate-500">{description}</span>
+        <span className="mt-1.5 block text-[0.78rem] md:text-[0.82rem] leading-relaxed text-slate-500">{description}</span>
       </div>
       <div className="relative inline-flex h-7 w-12 shrink-0 items-center">
         <input
@@ -203,6 +213,28 @@ function ToggleTile({
           className="peer sr-only"
         />
         <div className="h-full w-full rounded-full bg-slate-200 transition-all duration-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/20 peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 peer-checked:after:translate-x-5 after:absolute after:left-[3px] after:top-[3px] after:h-[22px] after:w-[22px] after:rounded-full after:bg-white after:shadow-sm after:transition-all after:content-['']" />
+      </div>
+    </label>
+  );
+}
+
+function InlineToggle({
+  name,
+  checked,
+  title,
+  onChange,
+}: {
+  name: keyof LedgerFormState;
+  checked: boolean;
+  title: string;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <label className="group flex w-full cursor-pointer items-center justify-between gap-3 rounded-[16px] border border-slate-200 bg-white px-4 py-3.5 transition-all duration-300 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5">
+      <span className="text-sm md:text-[15px] font-semibold text-slate-700 transition-colors group-hover:text-emerald-700">{title}</span>
+      <div className="relative inline-flex h-6 w-11 shrink-0 items-center">
+        <input type="checkbox" name={name} checked={checked} onChange={onChange} className="peer sr-only" />
+        <div className="h-full w-full rounded-full bg-slate-200 transition-all duration-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-500/20 peer-checked:bg-gradient-to-r peer-checked:from-emerald-500 peer-checked:to-teal-500 peer-checked:after:translate-x-5 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-all after:content-['']" />
       </div>
     </label>
   );
@@ -246,7 +278,7 @@ export default function LedgerCreatePage() {
   const selectedTemplate = useMemo(() => getGroupTemplate(selectedGroup), [selectedGroup]);
 
   useEffect(() => {
-    if (!activeFirmId || !isCAAdmin) return;
+    if (!activeFirmId) return;
 
     let isMounted = true;
 
@@ -293,7 +325,7 @@ export default function LedgerCreatePage() {
     return () => {
       isMounted = false;
     };
-  }, [activeFirmId, apiBaseUrl, isCAAdmin, supabase]);
+  }, [activeFirmId, apiBaseUrl, supabase]);
 
   function markTouched(field: string) {
     setTouched((prev) => ({ ...prev, [field]: true }));
@@ -371,6 +403,7 @@ export default function LedgerCreatePage() {
         payload.party_default_credit_days = formData.party_default_credit_days
           ? Number(formData.party_default_credit_days)
           : null;
+        payload.party_check_credit_days = formData.party_check_credit_days;
         payload.party_mailing_name = formData.party_mailing_name || null;
         payload.party_address = formData.party_address || null;
         payload.party_state = formData.party_state || null;
@@ -379,6 +412,21 @@ export default function LedgerCreatePage() {
         payload.party_pan_number = formData.party_pan_number || null;
         payload.party_gst_registration_type = formData.party_gst_registration_type || null;
         payload.party_gstin = formData.party_gstin || null;
+        payload.party_set_gst_details = formData.party_set_gst_details;
+
+        payload.transaction_type = formData.transaction_type || null;
+        if (formData.transaction_type === "Cheque") {
+          payload.cross_using = formData.cross_using || null;
+        } else if (formData.transaction_type === "e-Fund Transfer") {
+          payload.bank_account_number = formData.bank_account_number || null;
+          payload.bank_ifsc_code = formData.bank_ifsc_code || null;
+          payload.bank_name = formData.bank_name || null;
+        } else if (formData.transaction_type === "UPI") {
+          payload.upi_id = formData.upi_id || null;
+          payload.bank_account_number = formData.bank_account_number || null;
+          payload.bank_ifsc_code = formData.bank_ifsc_code || null;
+          payload.bank_name = formData.bank_name || null;
+        }
       }
 
       if (selectedTemplate === "tax") {
@@ -415,55 +463,10 @@ export default function LedgerCreatePage() {
     }
   }
 
-  const openingBalancePreview =
-    formData.opening_balance && !Number.isNaN(Number(formData.opening_balance))
-      ? `Rs ${Number(formData.opening_balance).toLocaleString("en-IN", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}`
-      : "Rs 0.00";
-  const completedCoreFields = [formData.name, formData.group_id].filter(Boolean).length;
-  const activeFlags = [
-    formData.inventory_values_affected ? "Inventory linked" : null,
-    formData.cost_centre_applicable ? "Cost centre enabled" : null,
-    selectedTemplate !== "default" ? TEMPLATE_COPY[selectedTemplate].title : "Standard fields",
-  ].filter(Boolean) as string[];
-
-  if (profile && !isCAAdmin) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 pb-24 pt-10 text-center">
-        <div className="rounded-[32px] border border-white/70 bg-white/82 px-6 py-12 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-          <p className="text-sm font-medium text-slate-500">
-            You don&apos;t have permission to create ledgers.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto max-w-7xl pb-32 pt-2 md:pb-12">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="w-full px-4 pb-32 pt-2 sm:px-6 md:pb-12 lg:px-8">
+      <div className="w-full">
         <div className="space-y-6">
-          <section className="relative overflow-hidden rounded-[34px] border border-slate-200/80 bg-[linear-gradient(135deg,#0f2a1d_0%,#173728_50%,#1e4d39_100%)] px-6 py-7 text-white shadow-[0_28px_60px_rgba(15,23,42,0.18)] sm:px-8 sm:py-9">
-            <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(216,243,220,0.22),transparent_56%)]" />
-            <div className="relative z-10">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Ledger setup</p>
-              <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="max-w-2xl">
-                  <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Create Ledger</h1>
-                  <p className="mt-3 text-sm leading-6 text-white/72 sm:text-base">
-                    A tighter editor with stronger sections, a live summary, and more purposeful spacing so the form finally feels designed instead of just filled.
-                  </p>
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-4 py-2 text-sm font-medium text-white/82">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-                  {completedCoreFields}/2 required fields ready
-                </div>
-              </div>
-            </div>
-          </section>
-
           {error && (
             <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 shadow-sm animate-in fade-in slide-in-from-top-2">
               {error}
@@ -530,25 +533,23 @@ export default function LedgerCreatePage() {
                       onClick={() => setIsGroupDropdownOpen((prev) => !prev)}
                       disabled={isLoadingGroups}
                       onBlur={() => markTouched("group_id")}
-                      className={`flex w-full items-start justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left text-sm font-medium outline-none transition-all duration-300 focus:shadow-md ${
-                        touched.group_id && fieldErrors.group_id
+                      className={`flex w-full items-start justify-between gap-3 rounded-2xl border px-4 py-3.5 text-left text-sm md:text-[15px] font-medium outline-none transition-all duration-300 focus:shadow-md ${touched.group_id && fieldErrors.group_id
                           ? ERROR_INPUT_CLASS
                           : DEFAULT_INPUT_CLASS
-                      } ${isLoadingGroups ? "cursor-not-allowed opacity-50" : "text-slate-900"}`}
+                        } ${isLoadingGroups ? "cursor-not-allowed opacity-50" : "text-slate-900"}`}
                     >
-                      <span className="min-w-0 flex-1 break-words pr-2 leading-6">
+                      <span className="min-w-0 flex-1 break-words pr-2">
                         {isLoadingGroups ? (
                           "Loading account groups..."
                         ) : selectedGroup ? (
-                          formatGroupLabel(selectedGroup)
+                          <GroupLabel group={selectedGroup} isSelected={true} />
                         ) : (
                           <span className="font-normal text-slate-400">Select an account group</span>
                         )}
                       </span>
                       <svg
-                        className={`mt-1 h-5 w-5 shrink-0 text-slate-400 transition-transform duration-300 ${
-                          isGroupDropdownOpen ? "rotate-180" : ""
-                        }`}
+                        className={`mt-1 h-5 w-5 shrink-0 text-slate-400 transition-transform duration-300 ${isGroupDropdownOpen ? "rotate-180" : ""
+                          }`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -562,17 +563,16 @@ export default function LedgerCreatePage() {
                         <div className="fixed inset-0 z-20" onClick={() => setIsGroupDropdownOpen(false)} />
                         <div className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-[24px] border border-slate-200 bg-white/96 p-2 shadow-[0_24px_48px_rgba(15,23,42,0.14)] backdrop-blur-xl animate-in fade-in slide-in-from-top-2">
                           {groups.length === 0 ? (
-                            <div className="p-4 text-center text-sm text-slate-500">No groups found</div>
+                            <div className="p-4 text-center text-sm md:text-[15px] text-slate-500">No groups found</div>
                           ) : (
                             groups.map((group) => (
                               <button
                                 key={group.id}
                                 type="button"
-                                className={`w-full rounded-2xl px-4 py-3 text-left text-sm leading-6 transition-all ${
-                                  formData.group_id === group.id
+                                className={`w-full rounded-2xl px-4 py-3 text-left text-sm md:text-[15px] leading-6 transition-all ${formData.group_id === group.id
                                     ? "bg-emerald-50 font-semibold text-emerald-700"
                                     : "font-medium text-slate-700 hover:bg-slate-100/90"
-                                }`}
+                                  }`}
                                 onClick={() => {
                                   setFormData((prev) => ({ ...prev, group_id: group.id }));
                                   setIsGroupDropdownOpen(false);
@@ -581,7 +581,7 @@ export default function LedgerCreatePage() {
                                   }
                                 }}
                               >
-                                {formatGroupLabel(group)}
+                                <GroupLabel group={group} isSelected={formData.group_id === group.id} />
                               </button>
                             ))
                           )}
@@ -598,11 +598,10 @@ export default function LedgerCreatePage() {
                     {(["Dr", "Cr"] as DrCrType[]).map((option) => (
                       <label
                         key={option}
-                        className={`relative flex cursor-pointer items-center justify-center rounded-xl py-3 text-sm font-semibold transition-all ${
-                          formData.opening_balance_type === option
+                        className={`relative flex cursor-pointer items-center justify-center rounded-xl py-3 text-sm md:text-[15px] font-semibold transition-all ${formData.opening_balance_type === option
                             ? "bg-slate-950 text-white shadow-[0_10px_20px_rgba(15,23,42,0.18)]"
                             : "text-slate-500 hover:text-slate-800"
-                        }`}
+                          }`}
                       >
                         <input
                           type="radio"
@@ -618,14 +617,6 @@ export default function LedgerCreatePage() {
                   </div>
                 </div>
 
-                {selectedTemplate !== "default" && (
-                  <div className="sm:col-span-2 rounded-[24px] border border-emerald-200 bg-emerald-50/70 px-5 py-4 text-sm text-emerald-900">
-                    <p className="font-semibold">{TEMPLATE_COPY[selectedTemplate].title}</p>
-                    <p className="mt-1 leading-6 text-emerald-800/80">
-                      {TEMPLATE_COPY[selectedTemplate].description}
-                    </p>
-                  </div>
-                )}
               </div>
             </SectionCard>
 
@@ -714,136 +705,285 @@ export default function LedgerCreatePage() {
             )}
 
             {selectedTemplate === "party" && (
-              <SectionCard
-                title="Party Details"
-                description="Capture billing, registration, and credit defaults for debtor or creditor ledgers."
-              >
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <div className="sm:col-span-2">
-                    <ToggleTile
-                      name="party_maintain_bill_by_bill"
-                      checked={formData.party_maintain_bill_by_bill}
-                      title="Maintain bill-by-bill"
-                      description="Useful for receivables and payables tracking."
-                      onChange={handleChange}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <FieldLabel>Default Credit Days</FieldLabel>
-                    <input
-                      name="party_default_credit_days"
-                      type="number"
-                      min="0"
-                      value={formData.party_default_credit_days}
-                      onChange={handleChange}
-                      placeholder="0"
-                      className={fieldClass()}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <FieldLabel>PAN Number</FieldLabel>
-                    <input
-                      name="party_pan_number"
-                      value={formData.party_pan_number}
-                      onChange={handleChange}
-                      onBlur={() => markTouched("party_pan_number")}
-                      placeholder="PAN number"
-                      className={fieldClass(Boolean(touched.party_pan_number && fieldErrors.party_pan_number))}
-                    />
-                    <FieldError error={touched.party_pan_number ? fieldErrors.party_pan_number : ""} />
-                  </div>
-
-                  <div className="space-y-2 sm:col-span-2">
-                    <FieldLabel>Mailing Name</FieldLabel>
-                    <input
-                      name="party_mailing_name"
-                      value={formData.party_mailing_name}
-                      onChange={handleChange}
-                      placeholder="Mailing name"
-                      className={fieldClass()}
-                    />
-                  </div>
-
-                  <div className="space-y-2 sm:col-span-2">
-                    <FieldLabel>Address</FieldLabel>
-                    <textarea
-                      name="party_address"
-                      value={formData.party_address}
-                      onChange={handleChange}
-                      placeholder="Billing address"
-                      rows={3}
-                      className={`${fieldClass()} resize-y`}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <FieldLabel>State</FieldLabel>
-                    <input
-                      name="party_state"
-                      value={formData.party_state}
-                      onChange={handleChange}
-                      placeholder="State"
-                      className={fieldClass()}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <FieldLabel>Country</FieldLabel>
-                    <input
-                      name="party_country"
-                      value={formData.party_country}
-                      onChange={handleChange}
-                      placeholder="Country"
-                      className={fieldClass()}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <FieldLabel>Pincode</FieldLabel>
-                    <input
-                      name="party_pincode"
-                      value={formData.party_pincode}
-                      onChange={handleChange}
-                      placeholder="Pincode"
-                      className={fieldClass()}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <FieldLabel>GSTIN</FieldLabel>
-                    <input
-                      name="party_gstin"
-                      value={formData.party_gstin}
-                      onChange={handleChange}
-                      onBlur={() => markTouched("party_gstin")}
-                      placeholder="GSTIN"
-                      className={fieldClass(Boolean(touched.party_gstin && fieldErrors.party_gstin))}
-                    />
-                    <FieldError error={touched.party_gstin ? fieldErrors.party_gstin : ""} />
-                  </div>
-
-                  <div className="space-y-2">
-                    <FieldLabel>GST Registration Type</FieldLabel>
-                    <div className="relative">
-                      <select
-                        name="party_gst_registration_type"
-                        value={formData.party_gst_registration_type}
+              <>
+                <SectionCard
+                  title="Party Details"
+                  description="Capture billing, registration, and credit defaults for debtor or creditor ledgers."
+                >
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <ToggleTile
+                        name="party_maintain_bill_by_bill"
+                        checked={formData.party_maintain_bill_by_bill}
+                        title="Maintain bill-by-bill"
+                        description="Useful for receivables and payables tracking."
                         onChange={handleChange}
-                        className={SELECT_CLASS}
-                      >
-                        <option value="">Select type</option>
-                        <option value="Regular">Regular</option>
-                        <option value="Composition">Composition</option>
-                        <option value="Unregistered">Unregistered</option>
-                        <option value="Consumer">Consumer</option>
-                      </select>
-                      <SelectChevron />
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel>Default Credit Days</FieldLabel>
+                      <div className="flex flex-col gap-3">
+                        <input
+                          name="party_default_credit_days"
+                          type="number"
+                          min="0"
+                          value={formData.party_default_credit_days}
+                          onChange={handleChange}
+                          placeholder="0"
+                          className={fieldClass()}
+                        />
+                        <InlineToggle
+                          name="party_check_credit_days"
+                          checked={formData.party_check_credit_days}
+                          title="Check for credit days during voucher entry"
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel>PAN Number</FieldLabel>
+                      <input
+                        name="party_pan_number"
+                        value={formData.party_pan_number}
+                        onChange={handleChange}
+                        onBlur={() => markTouched("party_pan_number")}
+                        placeholder="PAN number"
+                        className={fieldClass(Boolean(touched.party_pan_number && fieldErrors.party_pan_number))}
+                      />
+                      <FieldError error={touched.party_pan_number ? fieldErrors.party_pan_number : ""} />
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <FieldLabel>Mailing Name</FieldLabel>
+                      <input
+                        name="party_mailing_name"
+                        value={formData.party_mailing_name}
+                        onChange={handleChange}
+                        placeholder="Mailing name"
+                        className={fieldClass()}
+                      />
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <FieldLabel>Address</FieldLabel>
+                      <textarea
+                        name="party_address"
+                        value={formData.party_address}
+                        onChange={handleChange}
+                        placeholder="Billing address"
+                        rows={3}
+                        className={`${fieldClass()} resize-y`}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel>State</FieldLabel>
+                      <input
+                        name="party_state"
+                        value={formData.party_state}
+                        onChange={handleChange}
+                        placeholder="State"
+                        className={fieldClass()}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel>Country</FieldLabel>
+                      <input
+                        name="party_country"
+                        value={formData.party_country}
+                        onChange={handleChange}
+                        placeholder="Country"
+                        className={fieldClass()}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel>Pincode</FieldLabel>
+                      <input
+                        name="party_pincode"
+                        value={formData.party_pincode}
+                        onChange={handleChange}
+                        placeholder="Pincode"
+                        className={fieldClass()}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel>GSTIN</FieldLabel>
+                      <input
+                        name="party_gstin"
+                        value={formData.party_gstin}
+                        onChange={handleChange}
+                        onBlur={() => markTouched("party_gstin")}
+                        placeholder="GSTIN"
+                        className={fieldClass(Boolean(touched.party_gstin && fieldErrors.party_gstin))}
+                      />
+                      <FieldError error={touched.party_gstin ? fieldErrors.party_gstin : ""} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <FieldLabel>GST Registration Type</FieldLabel>
+                      <div className="relative">
+                        <select
+                          name="party_gst_registration_type"
+                          value={formData.party_gst_registration_type}
+                          onChange={handleChange}
+                          className={SELECT_CLASS}
+                        >
+                          <option value="">Select type</option>
+                          <option value="Regular">Regular</option>
+                          <option value="Composition">Composition</option>
+                          <option value="Unregistered">Unregistered</option>
+                          <option value="Consumer">Consumer</option>
+                        </select>
+                        <SelectChevron />
+                      </div>
+                    </div>
+
+                    <div className="sm:col-span-2 pt-2">
+                      <InlineToggle
+                        name="party_set_gst_details"
+                        checked={formData.party_set_gst_details}
+                        title="Set/Alter additional GST details"
+                        onChange={handleChange}
+                      />
                     </div>
                   </div>
-                </div>
-              </SectionCard>
+                </SectionCard>
+
+                <SectionCard
+                  title="Bank Details"
+                  description="Specify the transaction type and related bank information."
+                >
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <FieldLabel>Transaction Type</FieldLabel>
+                      <div className="relative">
+                        <select
+                          name="transaction_type"
+                          value={formData.transaction_type}
+                          onChange={handleChange}
+                          className={SELECT_CLASS}
+                        >
+                          <option value="">Select type...</option>
+                          <option value="Cheque">Cheque</option>
+                          <option value="e-Fund Transfer">e-Fund Transfer</option>
+                          <option value="UPI">UPI</option>
+                          <option value="Others">Others</option>
+                        </select>
+                        <SelectChevron />
+                      </div>
+                    </div>
+
+                    <div
+                      className={`grid transition-[grid-template-rows,opacity,margin] duration-500 ease-in-out ${formData.transaction_type && formData.transaction_type !== "Others"
+                          ? "grid-rows-[1fr] opacity-100 mt-5"
+                          : "grid-rows-[0fr] opacity-0 mt-0"
+                        }`}
+                    >
+                      <div className="overflow-hidden">
+                        <div className="grid gap-5 sm:grid-cols-2 pb-1">
+                          {formData.transaction_type === "Cheque" && (
+                            <div className="space-y-2 sm:col-span-2 animate-in fade-in slide-in-from-top-2">
+                              <FieldLabel>Cross Using</FieldLabel>
+                              <input
+                                name="cross_using"
+                                value={formData.cross_using}
+                                onChange={handleChange}
+                                placeholder="e.g. A/c Payee"
+                                className={fieldClass()}
+                              />
+                            </div>
+                          )}
+
+                          {formData.transaction_type === "e-Fund Transfer" && (
+                            <>
+                              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                <FieldLabel>Account Number</FieldLabel>
+                                <input
+                                  name="bank_account_number"
+                                  value={formData.bank_account_number}
+                                  onChange={handleChange}
+                                  placeholder="Account number"
+                                  className={fieldClass()}
+                                />
+                              </div>
+                              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                <FieldLabel>IFSC Code</FieldLabel>
+                                <input
+                                  name="bank_ifsc_code"
+                                  value={formData.bank_ifsc_code}
+                                  onChange={handleChange}
+                                  placeholder="IFSC code"
+                                  className={fieldClass()}
+                                />
+                              </div>
+                              <div className="space-y-2 sm:col-span-2 animate-in fade-in slide-in-from-top-2">
+                                <FieldLabel>Bank Name</FieldLabel>
+                                <input
+                                  name="bank_name"
+                                  value={formData.bank_name}
+                                  onChange={handleChange}
+                                  placeholder="Bank name"
+                                  className={fieldClass()}
+                                />
+                              </div>
+                            </>
+                          )}
+
+                          {formData.transaction_type === "UPI" && (
+                            <>
+                              <div className="space-y-2 sm:col-span-2 animate-in fade-in slide-in-from-top-2">
+                                <FieldLabel>UPI ID</FieldLabel>
+                                <input
+                                  name="upi_id"
+                                  value={formData.upi_id}
+                                  onChange={handleChange}
+                                  placeholder="e.g. user@bank"
+                                  className={fieldClass()}
+                                />
+                              </div>
+                              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                <FieldLabel>Account Number</FieldLabel>
+                                <input
+                                  name="bank_account_number"
+                                  value={formData.bank_account_number}
+                                  onChange={handleChange}
+                                  placeholder="Account number"
+                                  className={fieldClass()}
+                                />
+                              </div>
+                              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                <FieldLabel>IFSC Code</FieldLabel>
+                                <input
+                                  name="bank_ifsc_code"
+                                  value={formData.bank_ifsc_code}
+                                  onChange={handleChange}
+                                  placeholder="IFSC code"
+                                  className={fieldClass()}
+                                />
+                              </div>
+                              <div className="space-y-2 sm:col-span-2 animate-in fade-in slide-in-from-top-2">
+                                <FieldLabel>Bank Name</FieldLabel>
+                                <input
+                                  name="bank_name"
+                                  value={formData.bank_name}
+                                  onChange={handleChange}
+                                  placeholder="Bank name"
+                                  className={fieldClass()}
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </SectionCard>
+              </>
             )}
 
             {selectedTemplate === "tax" && (
@@ -916,63 +1056,6 @@ export default function LedgerCreatePage() {
             </div>
           </form>
         </div>
-
-        <aside className="space-y-4 xl:sticky xl:top-28 xl:self-start">
-          <div className="overflow-hidden rounded-[30px] border border-slate-900/10 bg-slate-950 text-white shadow-[0_26px_52px_rgba(15,23,42,0.18)]">
-            <div className="border-b border-white/10 px-6 py-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/45">Blueprint</p>
-              <h2 className="mt-2 text-xl font-semibold tracking-tight">Live Ledger Summary</h2>
-            </div>
-            <div className="space-y-5 px-6 py-5">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-white/55">Template</span>
-                  <span className="text-right font-semibold">
-                    {selectedTemplate === "default" ? "Standard ledger" : TEMPLATE_COPY[selectedTemplate].title}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-white/55">Account group</span>
-                  <span className="text-right font-semibold">{selectedGroup?.name || "Not selected"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-white/55">Opening balance</span>
-                  <span className="text-right font-semibold">{openingBalancePreview}</span>
-                </div>
-                <div className="flex items-center justify-between gap-4 text-sm">
-                  <span className="text-white/55">Balance side</span>
-                  <span className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-                    {formData.opening_balance_type}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-[24px] border border-white/10 bg-white/6 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/45">Status</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {activeFlags.map((flag) => (
-                    <span
-                      key={flag}
-                      className="rounded-full border border-white/12 bg-white/8 px-3 py-1 text-xs font-medium text-white/82"
-                    >
-                      {flag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-slate-200/80 bg-white/94 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.06)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Design note</p>
-            <h3 className="mt-2 text-lg font-semibold tracking-tight text-slate-950">What changed</h3>
-            <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-              <li>Core inputs are grouped together first so the page has a clear starting point.</li>
-              <li>The editor now uses smaller, stronger cards instead of one oversized white block.</li>
-              <li>The summary rail gives the page shape on desktop and keeps important choices visible.</li>
-            </ul>
-          </div>
-        </aside>
       </div>
     </div>
   );

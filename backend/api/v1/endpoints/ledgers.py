@@ -109,9 +109,6 @@ async def list_account_groups(
 async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified_jwt)) -> Any:
     profile = _get_profile_context(jwt)
 
-    if profile["role"] != "ca_admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only CA admins can create ledgers")
-
     target_firm_id = _resolve_target_firm_id(profile, str(ledger_in.firm_id))
 
     group_resp = (

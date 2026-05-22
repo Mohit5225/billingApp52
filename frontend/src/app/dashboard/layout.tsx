@@ -2,20 +2,45 @@
 
 import { useProfile } from "@/context/ProfileContext";
 import { useRouter } from "next/navigation";
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import BottomNav from "./components/BottomNav";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { profile, isLoading } = useProfile();
+  const { profile, isLoading, refreshProfile, supabase } = useProfile();
   const router = useRouter();
+  const hasRetriedProfile = useRef(false);
 
   useEffect(() => {
-    if (!isLoading && !profile) {
-      router.replace("/auth/login");
+    if (isLoading) {
+      return;
     }
-  }, [isLoading, profile, router]);
+
+    if (profile) {
+      hasRetriedProfile.current = false;
+      return;
+    }
+
+    const recoverProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.replace("/auth/login");
+        return;
+      }
+
+      if (!hasRetriedProfile.current) {
+        hasRetriedProfile.current = true;
+        await refreshProfile();
+        return;
+      }
+
+      router.replace("/onboarding/start");
+    };
+
+    void recoverProfile();
+  }, [isLoading, profile, refreshProfile, router, supabase]);
 
   if (isLoading) {
     return (
