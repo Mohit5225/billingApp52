@@ -1,0 +1,447 @@
+from datetime import date
+from decimal import Decimal, ROUND_HALF_UP
+from typing import Any, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from core.helpers import get_profile_context, resolve_target_firm_id
+from core.security import get_verified_jwt
+from core.supabase import supabase
+from models.voucher import (
+    AccountingLineCreate,
+    InventoryLineCreate,
+    Voucher,
+    VoucherCreate,
+    VoucherDetail,
+    VoucherUpdate,
+    VoucherCategory,
+)
+
+router = APIRouter()
+
+# Categories where a party ledger is NOT required
+_NO_PARTY_CATEGORIES = {VoucherCategory.JOURNAL, VoucherCategory.CONTRA}
+
+
+# ── Validation Helpers ────────────────────────────────────────────────────────
+
+def _validate_accounting_lines(
+    lines: list[AccountingLineCreate],
+    target_firm_id: str,
+) -> None:
+    """Verify all ledger IDs exist and belong to the target firm."""
+    if not lines:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="A voucher must have at least one accounting line",
+        )
+
+    ledger_ids = [str(line.ledger_id) for line in lines]
+    rows = (
+        supabase.table("ledgers")
+        .select("id, firm_id")
+        .in_("id", ledger_ids)
+        .execute()
+    ).data or []
+
+    found_ids = {row["id"] for row in rows}
+    for lid in ledger_ids:
+        if lid not in found_ids:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Ledger {lid} not found",
+            )
+
+    for row in rows:
+        if str(row["firm_id"]) != target_firm_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Ledger {row['id']} does not belong to the target firm",
+            )
+
+    for line in lines:
+        if not (
+            (line.debit_amount > 0 and line.credit_amount == 0) or
+            (line.credit_amount > 0 and line.debit_amount == 0)
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Line {line.line_number}: exactly one of debit_amount or credit_amount must be > 0",
+            )
+
+
+def _build_inventory_line_payloads(
+    lines: list[InventoryLineCreate],
+    target_firm_id: str,
+    voucher_id: str,
+) -> list[dict]:
+    """
+    For each inventory line:
+    1. Fetch the item master (validates cross-tenant + existence)
+    2. Snapshot frozen master data (name, hsn_code, uom, taxability, is_rcm)
+    3. Validate taxable_amount math
+    4. Build the full insert payload
+    """
+    if not lines:
+        return []
+
+    item_ids = [str(line.item_id) for line in lines]
+
+    # Batch-fetch items with their HSN code text
+    items_resp = (
+        supabase.table("items")
+        .select("id, firm_id, name, hsn_id, uom_id, taxability, is_rcm")
+        .in_("id", item_ids)
+        .execute()
+    ).data or []
+
+    item_map = {row["id"]: row for row in items_resp}
+
+    # Batch-fetch HSN codes and UOM names for snapshot
+    hsn_ids = list({row["hsn_id"] for row in items_resp if row.get("hsn_id")})
+    uom_ids = list({row["uom_id"] for row in items_resp if row.get("uom_id")})
+
+    hsn_map: dict[str, str] = {}
+    uom_map: dict[str, str] = {}
+
+    if hsn_ids:
+        hsn_rows = (
+            supabase.table("hsn_codes").select("id, hsn_code").in_("id", hsn_ids).execute()
+        ).data or []
+        hsn_map = {row["id"]: row["hsn_code"] for row in hsn_rows}
+
+    if uom_ids:
+        uom_rows = (
+            supabase.table("uom").select("id, name").in_("id", uom_ids).execute()
+        ).data or []
+        uom_map = {row["id"]: row["name"] for row in uom_rows}
+
+    payloads = []
+    for line in lines:
+        item_id = str(line.item_id)
+
+        if item_id not in item_map:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Item {item_id} not found",
+            )
+
+        item = item_map[item_id]
+
+        if str(item["firm_id"]) != target_firm_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Item {item_id} does not belong to the target firm",
+            )
+
+        # Validate taxable_amount = (qty * price) - discount
+        expected_taxable = (
+            Decimal(str(line.quantity)) * Decimal(str(line.unit_price))
+            - Decimal(str(line.discount_amount))
+        ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        actual_taxable = Decimal(str(line.taxable_amount)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+
+        if expected_taxable != actual_taxable:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=(
+                    f"Line {line.line_number}: taxable_amount mismatch. "
+                    f"Expected {expected_taxable}, got {actual_taxable}"
+                ),
+            )
+
+        payloads.append({
+            "voucher_id": voucher_id,
+            "firm_id": target_firm_id,
+            "item_id": item_id,
+            "line_number": line.line_number,
+
+            # Frozen master data snapshot
+            "item_name": item["name"],
+            "hsn_code": hsn_map.get(str(item["hsn_id"]), ""),
+            "uom": uom_map.get(str(item["uom_id"]), ""),
+            "taxability": item["taxability"],
+            "is_rcm": item["is_rcm"],
+
+            # Quantities & pricing
+            "quantity": float(line.quantity),
+            "unit_price": float(line.unit_price),
+            "discount_amount": float(line.discount_amount),
+            "taxable_amount": float(actual_taxable),
+
+            # Tax rates & amounts (caller provides, DB constraints verify)
+            "igst_rate": line.igst_rate,
+            "cgst_rate": line.cgst_rate,
+            "sgst_rate": line.sgst_rate,
+            "cess_percent": line.cess_percent,
+            "cess_amount_per_unit": line.cess_amount_per_unit,
+            "igst_amount": line.igst_amount,
+            "cgst_amount": line.cgst_amount,
+            "sgst_amount": line.sgst_amount,
+            "cess_amount": line.cess_amount,
+        })
+
+    return payloads
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@router.get("/", response_model=list[Voucher])
+async def list_vouchers(
+    firm_id: Optional[str] = None,
+    category: Optional[str] = None,
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    """
+    List voucher headers. Filter by category, date range.
+    Does NOT return line items — use GET /vouchers/{id} for that.
+    """
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+
+    query = (
+        supabase.table("vouchers")
+        .select("*")
+        .eq("firm_id", target_firm_id)
+        .eq("is_cancelled", False)
+    )
+
+    if category:
+        query = query.eq("category", category)
+    if from_date:
+        query = query.gte("voucher_date", str(from_date))
+    if to_date:
+        query = query.lte("voucher_date", str(to_date))
+
+    response = query.order("voucher_date", desc=True).execute()
+    return response.data or []
+
+
+@router.post("/", response_model=VoucherDetail, status_code=status.HTTP_201_CREATED)
+async def create_voucher(
+    voucher_in: VoucherCreate,
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    """
+    Create a voucher with accounting lines and optional inventory lines.
+
+    Atomic strategy:
+    - Insert header → get voucher_id
+    - Insert accounting lines (bulk)
+    - Insert inventory lines with frozen master data (bulk)
+    - If any step fails, delete the header (CASCADE cleans up lines)
+    """
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, str(voucher_in.firm_id))
+
+    # Validate party ledger requirement
+    if voucher_in.category not in _NO_PARTY_CATEGORIES:
+        if not voucher_in.party_ledger_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"party_ledger_id is required for {voucher_in.category} vouchers",
+            )
+        # Validate party ledger belongs to the same firm
+        party_resp = (
+            supabase.table("ledgers")
+            .select("firm_id")
+            .eq("id", str(voucher_in.party_ledger_id))
+            .single()
+            .execute()
+        )
+        if not party_resp.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Party ledger not found",
+            )
+        if str(party_resp.data["firm_id"]) != target_firm_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Party ledger does not belong to the target firm",
+            )
+
+    # Validate accounting lines
+    _validate_accounting_lines(voucher_in.accounting_lines, target_firm_id)
+
+    # ── Step 1: Insert voucher header ─────────────────────────────────────────
+    header_payload = voucher_in.model_dump(
+        exclude={"accounting_lines", "inventory_lines"}
+    )
+    header_payload["firm_id"] = target_firm_id
+    if voucher_in.party_ledger_id:
+        header_payload["party_ledger_id"] = str(voucher_in.party_ledger_id)
+    header_payload["voucher_date"] = str(voucher_in.voucher_date)
+
+    header_resp = supabase.table("vouchers").insert(header_payload).execute()
+    if not header_resp.data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to create voucher. Voucher number may already exist.",
+        )
+
+    voucher_id = header_resp.data[0]["id"]
+
+    try:
+        # ── Step 2: Insert accounting lines ───────────────────────────────────
+        acc_payloads = [
+            {
+                "voucher_id": voucher_id,
+                "firm_id": target_firm_id,
+                "ledger_id": str(line.ledger_id),
+                "line_number": line.line_number,
+                "debit_amount": line.debit_amount,
+                "credit_amount": line.credit_amount,
+            }
+            for line in voucher_in.accounting_lines
+        ]
+        supabase.table("voucher_accounting_lines").insert(acc_payloads).execute()
+
+        # ── Step 3: Insert inventory lines (with snapshot) ────────────────────
+        if voucher_in.inventory_lines:
+            inv_payloads = _build_inventory_line_payloads(
+                voucher_in.inventory_lines, target_firm_id, voucher_id
+            )
+            supabase.table("voucher_inventory_lines").insert(inv_payloads).execute()
+
+    except HTTPException:
+        # Clean up the header; CASCADE removes any partially inserted lines
+        supabase.table("vouchers").delete().eq("id", voucher_id).execute()
+        raise
+    except Exception as exc:
+        supabase.table("vouchers").delete().eq("id", voucher_id).execute()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Voucher creation failed: {exc}",
+        ) from exc
+
+    # ── Return full detail ────────────────────────────────────────────────────
+    return _fetch_voucher_detail(voucher_id)
+
+
+@router.get("/{voucher_id}", response_model=VoucherDetail)
+async def get_voucher(
+    voucher_id: str,
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    """Fetch a voucher with all accounting and inventory lines."""
+    profile = get_profile_context(jwt)
+
+    voucher_resp = (
+        supabase.table("vouchers").select("*").eq("id", voucher_id).single().execute()
+    )
+    if not voucher_resp.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Voucher not found")
+
+    resolve_target_firm_id(profile, str(voucher_resp.data["firm_id"]))
+    return _fetch_voucher_detail(voucher_id)
+
+
+@router.patch("/{voucher_id}", response_model=Voucher)
+async def update_voucher(
+    voucher_id: str,
+    voucher_in: VoucherUpdate,
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    """
+    Update voucher header fields (narration, date, number).
+    Line items are not editable — cancel and re-create instead.
+    """
+    profile = get_profile_context(jwt)
+
+    existing = (
+        supabase.table("vouchers")
+        .select("firm_id, is_cancelled")
+        .eq("id", voucher_id)
+        .single()
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Voucher not found")
+    if existing.data["is_cancelled"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot edit a cancelled voucher",
+        )
+
+    resolve_target_firm_id(profile, str(existing.data["firm_id"]))
+
+    payload = voucher_in.model_dump(exclude_none=True)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields provided to update",
+        )
+    if "voucher_date" in payload:
+        payload["voucher_date"] = str(payload["voucher_date"])
+
+    response = supabase.table("vouchers").update(payload).eq("id", voucher_id).execute()
+    if not response.data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to update voucher",
+        )
+    return response.data[0]
+
+
+@router.delete("/{voucher_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_voucher(
+    voucher_id: str,
+    jwt: str = Depends(get_verified_jwt),
+) -> None:
+    """
+    Soft-delete: marks the voucher as cancelled (is_cancelled = true).
+    Records are preserved for audit. Lines are untouched.
+    """
+    profile = get_profile_context(jwt)
+
+    existing = (
+        supabase.table("vouchers")
+        .select("firm_id, is_cancelled")
+        .eq("id", voucher_id)
+        .single()
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Voucher not found")
+    if existing.data["is_cancelled"]:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Voucher is already cancelled",
+        )
+
+    resolve_target_firm_id(profile, str(existing.data["firm_id"]))
+
+    supabase.table("vouchers").update({"is_cancelled": True}).eq("id", voucher_id).execute()
+
+
+# ── Internal Fetch Helper ─────────────────────────────────────────────────────
+
+def _fetch_voucher_detail(voucher_id: str) -> dict:
+    """Fetch a voucher with all its lines."""
+    voucher_resp = (
+        supabase.table("vouchers").select("*").eq("id", voucher_id).single().execute()
+    )
+    acc_lines_resp = (
+        supabase.table("voucher_accounting_lines")
+        .select("*")
+        .eq("voucher_id", voucher_id)
+        .order("line_number")
+        .execute()
+    )
+    inv_lines_resp = (
+        supabase.table("voucher_inventory_lines")
+        .select("*")
+        .eq("voucher_id", voucher_id)
+        .order("line_number")
+        .execute()
+    )
+
+    result = voucher_resp.data
+    result["accounting_lines"] = acc_lines_resp.data or []
+    result["inventory_lines"] = inv_lines_resp.data or []
+    return result

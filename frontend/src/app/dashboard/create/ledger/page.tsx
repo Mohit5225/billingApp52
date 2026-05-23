@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, Suspense, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useProfile } from "@/context/ProfileContext";
 import { getApiBaseUrl } from "@/lib/api";
@@ -250,7 +250,7 @@ function SelectChevron() {
   );
 }
 
-export default function LedgerCreatePage() {
+function LedgerCreatePageInner() {
   const { profile, isCAAdmin, isCAEmployee, supabase } = useProfile();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -276,6 +276,10 @@ export default function LedgerCreatePage() {
   );
 
   const selectedTemplate = useMemo(() => getGroupTemplate(selectedGroup), [selectedGroup]);
+
+  const showInventoryToggle = selectedGroup?.affects_gross_profit === true;
+  const showCostCentreToggle = selectedGroup?.nature === "Income" || selectedGroup?.nature === "Expense";
+  const showAdvancedSettings = showInventoryToggle || showCostCentreToggle;
 
   useEffect(() => {
     if (!activeFirmId) return;
@@ -307,9 +311,12 @@ export default function LedgerCreatePage() {
         const data = (await response.json()) as AccountGroup[];
         if (isMounted) {
           setGroups(data);
-          setFormData((prev) =>
-            prev.group_id || data.length === 0 ? prev : { ...prev, group_id: data[0].id },
-          );
+          setFormData((prev) => {
+            if (prev.group_id || data.length === 0) return prev;
+            const defaultGroup = data[0];
+            const defaultType = defaultGroup.nature === "Asset" || defaultGroup.nature === "Expense" ? "Dr" : "Cr";
+            return { ...prev, group_id: defaultGroup.id, opening_balance_type: defaultType };
+          });
         }
       } catch (err: unknown) {
         if (isMounted) {
@@ -512,16 +519,26 @@ export default function LedgerCreatePage() {
 
                 <div className="space-y-2">
                   <FieldLabel>Opening Balance</FieldLabel>
-                  <input
-                    name="opening_balance"
-                    type="number"
-                    step="0.01"
-                    value={formData.opening_balance}
-                    onChange={handleChange}
-                    onBlur={() => markTouched("opening_balance")}
-                    placeholder="0.00"
-                    className={fieldClass(Boolean(touched.opening_balance && fieldErrors.opening_balance))}
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      name="opening_balance"
+                      type="number"
+                      step="0.01"
+                      value={formData.opening_balance}
+                      onChange={handleChange}
+                      onBlur={() => markTouched("opening_balance")}
+                      placeholder="0.00"
+                      className={`${fieldClass(Boolean(touched.opening_balance && fieldErrors.opening_balance))} pr-14 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setFormData(prev => ({ ...prev, opening_balance_type: prev.opening_balance_type === "Dr" ? "Cr" : "Dr" }))}
+                      className="absolute right-3 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[0.7rem] font-bold uppercase tracking-wider text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                    >
+                      {formData.opening_balance_type}
+                    </button>
+                  </div>
                   <FieldError error={touched.opening_balance ? fieldErrors.opening_balance : ""} />
                 </div>
 
@@ -574,7 +591,12 @@ export default function LedgerCreatePage() {
                                     : "font-medium text-slate-700 hover:bg-slate-100/90"
                                   }`}
                                 onClick={() => {
-                                  setFormData((prev) => ({ ...prev, group_id: group.id }));
+                                  const defaultType = group.nature === "Asset" || group.nature === "Expense" ? "Dr" : "Cr";
+                                  setFormData((prev) => ({ 
+                                    ...prev, 
+                                    group_id: group.id,
+                                    opening_balance_type: defaultType
+                                  }));
                                   setIsGroupDropdownOpen(false);
                                   if (touched.group_id) {
                                     setFieldErrors((prev) => ({ ...prev, group_id: "" }));
@@ -592,55 +614,38 @@ export default function LedgerCreatePage() {
                   <FieldError error={touched.group_id ? fieldErrors.group_id : ""} />
                 </div>
 
-                <div className="space-y-2 sm:col-span-2">
-                  <FieldLabel>Balance Type</FieldLabel>
-                  <div className="grid grid-cols-2 rounded-2xl border border-slate-200 bg-slate-100/80 p-1.5">
-                    {(["Dr", "Cr"] as DrCrType[]).map((option) => (
-                      <label
-                        key={option}
-                        className={`relative flex cursor-pointer items-center justify-center rounded-xl py-3 text-sm md:text-[15px] font-semibold transition-all ${formData.opening_balance_type === option
-                            ? "bg-slate-950 text-white shadow-[0_10px_20px_rgba(15,23,42,0.18)]"
-                            : "text-slate-500 hover:text-slate-800"
-                          }`}
-                      >
-                        <input
-                          type="radio"
-                          name="opening_balance_type"
-                          value={option}
-                          checked={formData.opening_balance_type === option}
-                          onChange={handleChange}
-                          className="sr-only"
-                        />
-                        {option}
-                      </label>
-                    ))}
-                  </div>
+
+
+              </div>
+            </SectionCard>
+
+            {showAdvancedSettings && (
+              <SectionCard
+                title="Advanced Settings"
+                description="Optional controls for stock valuation and cost centre tracking."
+              >
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {showInventoryToggle && (
+                    <ToggleTile
+                      name="inventory_values_affected"
+                      checked={formData.inventory_values_affected}
+                      title="Inventory values affected"
+                      description="Use for ledgers that affect stock valuation."
+                      onChange={handleChange}
+                    />
+                  )}
+                  {showCostCentreToggle && (
+                    <ToggleTile
+                      name="cost_centre_applicable"
+                      checked={formData.cost_centre_applicable}
+                      title="Cost centre applicable"
+                      description="Enable if this ledger should accept cost centre tracking."
+                      onChange={handleChange}
+                    />
+                  )}
                 </div>
-
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Advanced Settings"
-              description="Optional controls for stock valuation and cost centre tracking."
-            >
-              <div className="grid gap-4 lg:grid-cols-2">
-                <ToggleTile
-                  name="inventory_values_affected"
-                  checked={formData.inventory_values_affected}
-                  title="Inventory values affected"
-                  description="Use for ledgers that affect stock valuation."
-                  onChange={handleChange}
-                />
-                <ToggleTile
-                  name="cost_centre_applicable"
-                  checked={formData.cost_centre_applicable}
-                  title="Cost centre applicable"
-                  description="Enable if this ledger should accept cost centre tracking."
-                  onChange={handleChange}
-                />
-              </div>
-            </SectionCard>
+              </SectionCard>
+            )}
 
             {selectedTemplate === "bank" && (
               <SectionCard
@@ -1058,5 +1063,17 @@ export default function LedgerCreatePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LedgerCreatePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-t-transparent border-tally-600" />
+      </div>
+    }>
+      <LedgerCreatePageInner />
+    </Suspense>
   );
 }
