@@ -6,7 +6,7 @@ import { useOnboarding } from "@/context/OnboardingContext";
 
 export default function Manual2Page() {
   const router = useRouter();
-  const { data, updateData, submitOnboarding, error: contextError } = useOnboarding();
+  const { data, submitOnboarding, error: contextError } = useOnboarding();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     gstin: data.gstin || "",
@@ -50,10 +50,10 @@ export default function Manual2Page() {
     const { name, value } = e.target;
     const upperValue = ["gstin", "pan", "ifsc_code"].includes(name) ? value.toUpperCase() : value;
     
-    setFormData(prev => ({ ...prev, [name]: upperValue }));
+    setFormData((prev) => ({ ...prev, [name]: upperValue }));
     
     if (errors[name]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const next = { ...prev };
         delete next[name];
         return next;
@@ -70,7 +70,7 @@ export default function Manual2Page() {
       // We pass formData directly to ensure context has the latest values before submission
       await submitOnboarding(formData);
       router.push("/onboarding/success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
     } finally {
       setLoading(false);

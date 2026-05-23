@@ -6,10 +6,10 @@ import { useOnboarding } from "@/context/OnboardingContext";
 
 export default function GSTPage() {
   const router = useRouter();
-  const { fetchGstDetails, isLoading, error, data, submitOnboarding } = useOnboarding();
+  const { fetchGstDetails, isLoading, error, data } = useOnboarding();
   const [gstin, setGstin] = useState("");
   const [isReviewing, setIsReviewing] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitLoading] = useState(false);
 
   const handleFetch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,7 +73,7 @@ export default function GSTPage() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-2">
         <h2 className="text-2xl font-semibold tracking-tight text-black">Enter GST Number</h2>
-        <p className="text-gray-500">We'll fetch your business details automatically.</p>
+        <p className="text-gray-500">We&apos;ll fetch your business details automatically.</p>
       </div>
 
       <form onSubmit={handleFetch} className="space-y-6">

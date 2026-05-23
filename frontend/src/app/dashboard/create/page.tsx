@@ -2,14 +2,6 @@
 
 import Link from "next/link";
 
-function LedgerIcon() {
-  return (
-    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75z" />
-    </svg>
-  );
-}
-
 function QuickLinkCard({ href, title, description }: { href: string; title: string; description: string }) {
   return (
     <Link
@@ -22,7 +14,9 @@ function QuickLinkCard({ href, title, description }: { href: string; title: stri
           <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
         </div>
         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-tally-50 text-tally-700 transition group-hover:bg-tally-100">
-          <LedgerIcon />
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 16.5 16.5 7.5m0 0H9.75m6.75 0v6.75" />
+          </svg>
         </div>
       </div>
     </Link>
@@ -37,19 +31,24 @@ export default function CreateHubPage() {
         <div className="relative z-10 max-w-3xl">
           <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-tally-700">Create</p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Start a new ledger with a cleaner workflow.
+            Start from the right voucher shape, not a one-form compromise.
           </h1>
           <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
-            The ledger flow now adapts better to mobile, gives more breathing room to grouped fields, and keeps the accounting context visible while you create.
+            Invoice-grade workflows stay separate from payment, contra, and journal flows, while still sharing the same overall dashboard shell and mobile treatment.
           </p>
         </div>
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <QuickLinkCard href="/dashboard/create/ledger" title="Ledger" description="Create a new account ledger with balance, group, and advanced classification fields." />
-        <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/55 p-5 text-sm leading-6 text-slate-500">
-          More creation flows can plug into this layout without changing the navigation pattern or mobile treatment.
-        </div>
+        <QuickLinkCard href="/dashboard/create/sales-invoice" title="Sales Invoice" description="Inventory lines, tax engine, and accounting lines generated for outward billing." />
+        <QuickLinkCard href="/dashboard/create/purchase-invoice" title="Purchase Invoice" description="Supplier-facing invoice flow with stock, taxes, and purchase posting structure." />
+        <QuickLinkCard href="/dashboard/create/debit-note" title="Debit Note" description="Inventory-backed return or reversal flow with invoice-style logic." />
+        <QuickLinkCard href="/dashboard/create/credit-note" title="Credit Note" description="Reverse commercial impact with stock and tax kept explicit." />
+        <QuickLinkCard href="/dashboard/create/receipt" title="Receipt Voucher" description="Party + cash or bank + amount in one compact payment family form." />
+        <QuickLinkCard href="/dashboard/create/payment" title="Payment Voucher" description="Focused outgoing payment flow without invoice complexity." />
+        <QuickLinkCard href="/dashboard/create/contra-entry" title="Contra Entry" description="Direct cash and bank movement between two financial ledgers." />
+        <QuickLinkCard href="/dashboard/create/journal-entry" title="Journal Entry" description="Free-form accounting lines for adjustments, provisions, and internal postings." />
+        <QuickLinkCard href="/dashboard/create/ledger" title="Ledger" description="Create or edit account masters with nested bank, party, or tax details." />
       </section>
     </div>
   );

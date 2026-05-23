@@ -9,7 +9,7 @@ export default function StartPage() {
     <div className="flex flex-col items-center text-center space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold tracking-tight text-black">
-          Let's set up your business profile
+          Let&apos;s set up your business profile
         </h1>
         <p className="text-gray-500">
           We need a few details to get you started.
@@ -30,7 +30,7 @@ export default function StartPage() {
           onClick={() => router.push("/onboarding/manual-1")}
           className="w-full bg-white text-black py-3 px-4 rounded-lg font-medium border border-gray-200 hover:bg-gray-50 transition-colors"
         >
-          No, I'll enter details manually
+          No, I&apos;ll enter details manually
         </button>
       </div>
     </div>

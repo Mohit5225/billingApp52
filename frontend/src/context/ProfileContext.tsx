@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
-import { createClient } from '@/supabaseConfig/client';
-import { Profile, UserRole } from '@/interfaces/profile';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+
+import { Profile, UserRole } from "@/interfaces/profile";
+import { createClient } from "@/supabaseConfig/client";
 
 interface ProfileContextType {
   profile: Profile | null;
@@ -21,34 +22,31 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Fix 1: Memoize so the client isn't recreated on every render
   const supabase = useMemo(() => createClient(), []);
 
-  const fetchProfile = async (silent: boolean = false) => {
+  const fetchProfile = useCallback(async (silent = false) => {
     try {
       if (!silent) setIsLoading(true);
       setError(null);
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         setProfile(null);
-        // Fix 2: Must call setIsLoading(false) here, not just in finally,
-        // because early returns skip the finally block in some JS runtimes.
-        // Actually finally DOES run on return, but being explicit is safer.
         setIsLoading(false);
         return;
       }
 
       const { data, error: fetchError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
         .single();
 
       if (fetchError) {
-        if (fetchError.code === 'PGRST116') {
-          // No profile found yet — user is mid-onboarding
+        if (fetchError.code === "PGRST116") {
           setProfile(null);
         } else {
           throw fetchError;
@@ -56,31 +54,32 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       } else {
         setProfile(data as Profile);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching profile:", err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : "Unable to load profile");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
-    fetchProfile(false);
+    queueMicrotask(() => {
+      void fetchProfile(false);
+    });
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event === 'SIGNED_OUT') {
+      if (event === "SIGNED_OUT") {
         setProfile(null);
         setIsLoading(false);
-      } else if (event === 'SIGNED_IN') {
-        fetchProfile(true);
+      } else if (event === "SIGNED_IN") {
+        void fetchProfile(true);
       }
     });
 
     return () => {
       authListener.subscription.unsubscribe();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchProfile, supabase]);
 
   const value = {
     profile,

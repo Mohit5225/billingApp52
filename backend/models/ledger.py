@@ -45,6 +45,10 @@ class BankDetailsCreate(BankDetailsBase):
     pass
 
 
+class BankDetails(BankDetailsBase):
+    ledger_id: UUID4
+
+
 class PartyDetailsBase(BaseSchema):
     maintain_bill_by_bill: bool = False
     default_credit_days: Optional[int] = None
@@ -62,6 +66,10 @@ class PartyDetailsCreate(PartyDetailsBase):
     pass
 
 
+class PartyDetails(PartyDetailsBase):
+    ledger_id: UUID4
+
+
 class TaxDetailsBase(BaseSchema):
     duty_tax_type: Optional[TaxType] = None
     tax_percentage: Optional[float] = None
@@ -69,6 +77,10 @@ class TaxDetailsBase(BaseSchema):
 
 class TaxDetailsCreate(TaxDetailsBase):
     pass
+
+
+class TaxDetails(TaxDetailsBase):
+    ledger_id: UUID4
 
 
 class AccountGroup(TimestampSchema):
@@ -103,6 +115,29 @@ class LedgerCreate(LedgerBase):
     tax_details: Optional[TaxDetailsCreate] = None
 
 
+class LedgerUpdate(BaseSchema):
+    group_id: Optional[UUID4] = None
+    name: Optional[str] = None
+    alias: Optional[str] = None
+    opening_balance: Optional[float] = None
+    opening_balance_type: Optional[DrCrType] = None
+    inventory_values_affected: Optional[bool] = None
+    cost_centre_applicable: Optional[bool] = None
+    bank_details: Optional[BankDetailsCreate] = None
+    party_details: Optional[PartyDetailsCreate] = None
+    tax_details: Optional[TaxDetailsCreate] = None
+
+
 class Ledger(TimestampSchema, LedgerBase):
     id: UUID4
     is_system: bool = False
+
+
+class LedgerDetail(Ledger):
+    group_name: Optional[str] = None
+    group_parent_name: Optional[str] = None
+    group_nature: Optional[AccountNature] = None
+    template_type: str = "default"
+    bank_details: Optional[BankDetails] = None
+    party_details: Optional[PartyDetails] = None
+    tax_details: Optional[TaxDetails] = None

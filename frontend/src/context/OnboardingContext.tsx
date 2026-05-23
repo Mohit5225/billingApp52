@@ -5,8 +5,7 @@ import { FirmCreate } from "@/interfaces/firm";
 import { createClient } from "@/supabaseConfig/client";
 import { getApiBaseUrl } from "@/lib/api";
 
-// Extending FirmCreate slightly to ensure we have all values
-interface OnboardingData extends Partial<FirmCreate> {}
+type OnboardingData = Partial<FirmCreate>;
 
 interface OnboardingContextType {
   data: OnboardingData;
@@ -53,8 +52,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
       const fetchedData = await response.json();
       updateData(fetchedData);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
@@ -84,8 +83,8 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       
       // Update local context state with the final merged data after successful submission
       setData(finalData);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
       throw err;
     } finally {
       setIsLoading(false);
