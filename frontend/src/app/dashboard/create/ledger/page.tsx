@@ -95,11 +95,28 @@ function resolveTemplateType(group: AccountGroup | null): LedgerTemplateType {
   return "default";
 }
 
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Input(props: React.InputHTMLAttributes<HTMLInputElement> | React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  if (props.type === "textarea") {
+    return (
+      <textarea
+        {...(props as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
+        className={`min-h-[100px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${props.className || ""}`}
+      />
+    );
+  }
   return (
     <input
-      {...props}
-      className={`h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 ${props.className || ""}`}
+      {...(props as React.InputHTMLAttributes<HTMLInputElement>)}
+      className={`h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${props.className || ""}`}
     />
   );
 }
@@ -108,31 +125,75 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
-      className={`h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 ${props.className || ""}`}
+      className={`h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${props.className || ""}`}
     />
   );
 }
 
-function Toggle({
+function SegmentedControl({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: string }[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="flex h-11 w-full rounded-xl bg-slate-100 p-1">
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`flex-1 rounded-lg text-sm font-semibold transition ${
+            value === opt.value
+              ? "bg-[#0B1021] text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function LabeledToggle({
   checked,
   label,
+  description,
   onChange,
+  className = "",
 }: {
   checked: boolean;
   label: string;
+  description?: string;
   onChange: (next: boolean) => void;
+  className?: string;
 }) {
   return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="flex items-center justify-between rounded-[20px] border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 transition hover:border-emerald-200"
-    >
-      <span>{label}</span>
-      <span className={`inline-flex h-6 w-11 items-center rounded-full p-1 transition ${checked ? "bg-emerald-500" : "bg-slate-200"}`}>
-        <span className={`h-4 w-4 rounded-full bg-white transition ${checked ? "translate-x-5" : ""}`} />
-      </span>
-    </button>
+    <div className={`flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-emerald-200 ${className}`}>
+      <div>
+        <p className="text-sm font-semibold text-slate-900">{label}</p>
+        {description && <p className="mt-1 text-xs text-slate-500">{description}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+          checked ? "bg-[#0B1021]" : "bg-slate-200"
+        }`}
+      >
+        <span className="sr-only">Use setting</span>
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+            checked ? "translate-x-5" : "translate-x-0"
+          }`}
+        />
+      </button>
+    </div>
   );
 }
 
@@ -266,7 +327,7 @@ export default function LedgerCreatePage() {
           body: payload,
         });
       } else {
-        await apiRequest<LedgerDetail>(supabase, "/api/ledgers", {
+        await apiRequest<LedgerDetail>(supabase, "/api/ledgers/", {
           method: "POST",
           body: payload,
         });
@@ -281,106 +342,193 @@ export default function LedgerCreatePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHero
-        eyebrow={ledgerId ? "Edit Ledger" : "Create Ledger"}
-        title={ledgerId ? "Update a ledger without breaking the master contract." : "Create a ledger with the aligned backend contract."}
-        description="This version keeps the styling calm and the data model honest: group-aware fields only show when they actually apply, and the payload matches the backend’s nested detail objects."
-      />
-
-      {error ? <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
-
-      <SurfaceCard title="Core details" description={isLoading ? "Loading..." : "Name, group, opening balance, and behavior flags."}>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Input placeholder="Ledger name" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
-          <Input placeholder="Alias" value={form.alias} onChange={(event) => setForm((prev) => ({ ...prev, alias: event.target.value }))} />
-          <Select value={form.group_id} onChange={(event) => setForm((prev) => ({ ...prev, group_id: event.target.value }))}>
-            <option value="">Select group</option>
-            {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
-          </Select>
-          <div className="grid grid-cols-[1fr_110px] gap-3">
-            <Input type="number" step="0.01" placeholder="Opening balance" value={form.opening_balance} onChange={(event) => setForm((prev) => ({ ...prev, opening_balance: Number(event.target.value) }))} />
-            <Select value={form.opening_balance_type} onChange={(event) => setForm((prev) => ({ ...prev, opening_balance_type: event.target.value as DrCrType }))}>
-              <option value="Dr">Dr</option>
-              <option value="Cr">Cr</option>
-            </Select>
+    <div className="space-y-6 pb-20">
+      <SurfaceCard title="Core Details" description="Start with the ledger identity, group, and opening balance.">
+        <div className="space-y-6">
+          <Field label="Ledger Name *">
+            <Input placeholder="e.g. Mahalakshmi Enterprises" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+          </Field>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Field label="Alias">
+              <Input placeholder="Optional short name" value={form.alias} onChange={(event) => setForm((prev) => ({ ...prev, alias: event.target.value }))} />
+            </Field>
+            <Field label="Opening Balance">
+              <Input type="number" step="0.01" placeholder="0.00" value={form.opening_balance || ""} onChange={(event) => setForm((prev) => ({ ...prev, opening_balance: Number(event.target.value) }))} />
+            </Field>
           </div>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <Toggle checked={form.inventory_values_affected} label="Affects inventory values" onChange={(next) => setForm((prev) => ({ ...prev, inventory_values_affected: next }))} />
-          <Toggle checked={form.cost_centre_applicable} label="Cost centre applicable" onChange={(next) => setForm((prev) => ({ ...prev, cost_centre_applicable: next }))} />
+          <Field label="Account Group *">
+            <div className="relative">
+              <Select value={form.group_id} onChange={(event) => setForm((prev) => ({ ...prev, group_id: event.target.value }))} className="pl-3 pr-24">
+                <option value="">Select group</option>
+                {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+              </Select>
+              {selectedGroup?.nature && (
+                <div className="pointer-events-none absolute inset-y-0 right-10 flex items-center pr-2">
+                  <span className="rounded bg-[#EAF5F0] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#40916C]">
+                    {selectedGroup.nature}
+                  </span>
+                </div>
+              )}
+            </div>
+          </Field>
+          <Field label="Balance Type">
+            <SegmentedControl
+              options={[
+                { label: "Dr", value: "Dr" },
+                { label: "Cr", value: "Cr" },
+              ]}
+              value={form.opening_balance_type}
+              onChange={(value) => setForm((prev) => ({ ...prev, opening_balance_type: value as DrCrType }))}
+            />
+          </Field>
         </div>
       </SurfaceCard>
 
-      {templateType === "bank" ? (
-        <SurfaceCard title="Bank details" description="Shown because the selected group behaves like a bank ledger.">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <Input placeholder="Account number" value={form.bank_details.account_number} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, account_number: event.target.value } }))} />
-            <Input placeholder="IFSC code" value={form.bank_details.ifsc_code} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, ifsc_code: event.target.value } }))} />
-            <Input placeholder="SWIFT code" value={form.bank_details.swift_code} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, swift_code: event.target.value } }))} />
-            <Input placeholder="Bank name" value={form.bank_details.bank_name} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, bank_name: event.target.value } }))} />
-            <Input placeholder="Branch name" value={form.bank_details.branch_name} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, branch_name: event.target.value } }))} />
+      <SurfaceCard title="Advanced Settings" description="Optional controls for stock valuation and cost centre tracking.">
+        <div className="grid gap-4 md:grid-cols-2">
+          <LabeledToggle
+            checked={form.inventory_values_affected}
+            label="Inventory values affected"
+            description="Use for ledgers that affect stock valuation."
+            onChange={(next) => setForm((prev) => ({ ...prev, inventory_values_affected: next }))}
+          />
+          <LabeledToggle
+            checked={form.cost_centre_applicable}
+            label="Cost centre applicable"
+            description="Enable if this ledger should accept cost centre tracking."
+            onChange={(next) => setForm((prev) => ({ ...prev, cost_centre_applicable: next }))}
+          />
+        </div>
+      </SurfaceCard>
+
+      {templateType === "party" ? (
+        <SurfaceCard title="Party Details" description="Capture billing, registration, and credit defaults for debtor or creditor ledgers.">
+          <div className="space-y-6">
+            <LabeledToggle
+              checked={form.party_details.maintain_bill_by_bill}
+              label="Maintain bill-by-bill"
+              description="Useful for receivables and payables tracking."
+              onChange={(next) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, maintain_bill_by_bill: next } }))}
+            />
+            <div className="grid gap-6 md:grid-cols-2">
+              <Field label="Default Credit Days">
+                <Input type="number" placeholder="0" value={form.party_details.default_credit_days || ""} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, default_credit_days: Number(event.target.value) } }))} />
+              </Field>
+              <Field label="PAN Number">
+                <Input placeholder="PAN number" value={form.party_details.pan_number} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pan_number: event.target.value } }))} />
+              </Field>
+            </div>
+            
+            <LabeledToggle
+              checked={false} // Local UI only
+              label="Check for credit days during voucher entry"
+              onChange={() => {}}
+            />
+
+            <Field label="Mailing Name">
+              <Input placeholder="Mailing name" value={form.party_details.mailing_name} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, mailing_name: event.target.value } }))} />
+            </Field>
+            
+            <Field label="Address">
+              <Input type="textarea" placeholder="Billing address" value={form.party_details.address} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, address: event.target.value } }))} />
+            </Field>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <Field label="State">
+                <Input placeholder="State" value={form.party_details.state} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, state: event.target.value } }))} />
+              </Field>
+              <Field label="Country">
+                <Input placeholder="Country" value={form.party_details.country} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, country: event.target.value } }))} />
+              </Field>
+              <Field label="Pincode">
+                <Input placeholder="Pincode" value={form.party_details.pincode} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pincode: event.target.value } }))} />
+              </Field>
+              <Field label="GSTIN">
+                <Input placeholder="GSTIN" value={form.party_details.gstin} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gstin: event.target.value } }))} />
+              </Field>
+              <Field label="GST Registration Type">
+                <Select value={form.party_details.gst_registration_type} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gst_registration_type: event.target.value as LedgerFormState["party_details"]["gst_registration_type"] } }))}>
+                  <option value="">Select type</option>
+                  <option value="Regular">Regular</option>
+                  <option value="Composition">Composition</option>
+                  <option value="Unregistered">Unregistered</option>
+                  <option value="Consumer">Consumer</option>
+                </Select>
+              </Field>
+            </div>
+
+            <LabeledToggle
+              checked={false} // Local UI only
+              label="Set/Alter additional GST details"
+              onChange={() => {}}
+            />
           </div>
         </SurfaceCard>
       ) : null}
 
-      {templateType === "party" ? (
-        <SurfaceCard title="Party details" description="Shown because this ledger works like a debtor, creditor, or other party-facing account.">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Input placeholder="Mailing name" value={form.party_details.mailing_name} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, mailing_name: event.target.value } }))} />
-            <Input placeholder="Default credit days" type="number" value={form.party_details.default_credit_days} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, default_credit_days: Number(event.target.value) } }))} />
-            <Input placeholder="State" value={form.party_details.state} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, state: event.target.value } }))} />
-            <Input placeholder="Country" value={form.party_details.country} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, country: event.target.value } }))} />
-            <Input placeholder="Pincode" value={form.party_details.pincode} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pincode: event.target.value } }))} />
-            <Input placeholder="PAN number" value={form.party_details.pan_number} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pan_number: event.target.value } }))} />
-            <Select value={form.party_details.gst_registration_type} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gst_registration_type: event.target.value as LedgerFormState["party_details"]["gst_registration_type"] } }))}>
-              <option value="">GST registration type</option>
-              <option value="Regular">Regular</option>
-              <option value="Composition">Composition</option>
-              <option value="Unregistered">Unregistered</option>
-              <option value="Consumer">Consumer</option>
-            </Select>
-            <Input placeholder="GSTIN" value={form.party_details.gstin} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gstin: event.target.value } }))} />
-            <div className="md:col-span-2 xl:col-span-4">
-              <textarea className="min-h-[120px] w-full rounded-[24px] border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm" placeholder="Address" value={form.party_details.address} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, address: event.target.value } }))} />
-            </div>
-            <div className="md:col-span-2 xl:col-span-4">
-              <Toggle checked={form.party_details.maintain_bill_by_bill} label="Maintain bill-by-bill" onChange={(next) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, maintain_bill_by_bill: next } }))} />
+      {templateType === "bank" ? (
+        <SurfaceCard title="Bank Details" description="Specify the transaction type and related bank information.">
+          <div className="space-y-6">
+            <Field label="Transaction Type">
+              <Select>
+                <option value="">Select type...</option>
+                <option value="NEFT">NEFT / RTGS</option>
+                <option value="Cheque">Cheque / DD</option>
+                <option value="Others">Others</option>
+              </Select>
+            </Field>
+            <div className="grid gap-6 md:grid-cols-2">
+              <Field label="Account Number">
+                <Input placeholder="Account number" value={form.bank_details.account_number} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, account_number: event.target.value } }))} />
+              </Field>
+              <Field label="IFSC Code">
+                <Input placeholder="IFSC code" value={form.bank_details.ifsc_code} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, ifsc_code: event.target.value } }))} />
+              </Field>
+              <Field label="SWIFT Code">
+                <Input placeholder="SWIFT code" value={form.bank_details.swift_code} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, swift_code: event.target.value } }))} />
+              </Field>
+              <Field label="Bank Name">
+                <Input placeholder="Bank name" value={form.bank_details.bank_name} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, bank_name: event.target.value } }))} />
+              </Field>
+              <Field label="Branch Name">
+                <Input placeholder="Branch name" value={form.bank_details.branch_name} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, branch_name: event.target.value } }))} />
+              </Field>
             </div>
           </div>
         </SurfaceCard>
       ) : null}
 
       {templateType === "tax" ? (
-        <SurfaceCard title="Tax details" description="Shown because the selected group is a tax ledger.">
-          <div className="grid gap-4 md:grid-cols-2">
-            <Select value={form.tax_details.duty_tax_type} onChange={(event) => setForm((prev) => ({ ...prev, tax_details: { ...prev.tax_details, duty_tax_type: event.target.value as LedgerFormState["tax_details"]["duty_tax_type"] } }))}>
-              <option value="">Select tax type</option>
-              <option value="GST">GST</option>
-              <option value="TDS">TDS</option>
-              <option value="TCS">TCS</option>
-              <option value="VAT">VAT</option>
-              <option value="Others">Others</option>
-            </Select>
-            <Input type="number" step="0.01" placeholder="Tax percentage" value={form.tax_details.tax_percentage} onChange={(event) => setForm((prev) => ({ ...prev, tax_details: { ...prev.tax_details, tax_percentage: Number(event.target.value) } }))} />
+        <SurfaceCard title="Tax Details" description="Configure duty type and calculation percentage.">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Field label="Duty/Tax Type">
+              <Select value={form.tax_details.duty_tax_type} onChange={(event) => setForm((prev) => ({ ...prev, tax_details: { ...prev.tax_details, duty_tax_type: event.target.value as LedgerFormState["tax_details"]["duty_tax_type"] } }))}>
+                <option value="">Select type...</option>
+                <option value="GST">GST</option>
+                <option value="TDS">TDS</option>
+                <option value="TCS">TCS</option>
+                <option value="VAT">VAT</option>
+                <option value="Others">Others</option>
+              </Select>
+            </Field>
+            <Field label="Tax Percentage">
+              <Input type="number" step="0.01" placeholder="0.00" value={form.tax_details.tax_percentage || ""} onChange={(event) => setForm((prev) => ({ ...prev, tax_details: { ...prev.tax_details, tax_percentage: Number(event.target.value) } }))} />
+            </Field>
           </div>
         </SurfaceCard>
       ) : null}
 
-      <div className="sticky bottom-4 z-20 rounded-[28px] border border-white/70 bg-white/88 p-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">{ledgerId ? "Ready to update this ledger?" : "Ready to create this ledger?"}</p>
-            <p className="mt-1 text-sm text-slate-500">Template type: {templateType}. The payload will stay aligned with the backend detail contract.</p>
-          </div>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row">
-            <button onClick={() => router.back()} className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600">
-              Cancel
-            </button>
-            <button disabled={isSubmitting || isLoading} onClick={() => void submit()} className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white disabled:opacity-60">
-              {isSubmitting ? "Saving..." : ledgerId ? "Update ledger" : "Create ledger"}
-            </button>
-          </div>
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between border-t border-slate-200 bg-white/80 p-4 px-6 shadow-[0_-4px_24px_rgba(15,23,42,0.04)] backdrop-blur-md lg:left-[280px]">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{ledgerId ? "Ready to save this ledger?" : "Ready to save this ledger?"}</p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => router.back()} className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+            Cancel
+          </button>
+          <button disabled={isSubmitting || isLoading} onClick={() => void submit()} className="rounded-xl bg-[#0B1021] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60">
+            {isSubmitting ? "Saving..." : ledgerId ? "Update ledger" : "Create ledger"}
+          </button>
         </div>
       </div>
     </div>

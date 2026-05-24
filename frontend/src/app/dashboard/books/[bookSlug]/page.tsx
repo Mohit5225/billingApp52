@@ -56,7 +56,7 @@ export default function BookDetailPage() {
         setError(null);
 
         if (bookSlug === "ledger") {
-          const data = await apiRequest<LedgerDetail[]>(supabase, "/api/ledgers", {
+          const data = await apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", {
             query: { firm_id: activeFirmId },
           });
           if (mounted) setLedgers(data);

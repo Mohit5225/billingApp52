@@ -116,7 +116,7 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
     """
     try:
         # Exclude unset fields
-        firm_data = firm_in.model_dump(exclude_unset=True)
+        firm_data = firm_in.model_dump(mode="json", exclude_unset=True)
         
         # 1. Identify the user from the JWT
         user_resp = supabase.auth.get_user(jwt)

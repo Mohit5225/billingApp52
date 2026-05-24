@@ -9,6 +9,7 @@ from .base import BaseSchema, TimestampSchema
 class UomBase(BaseSchema):
     firm_id: UUID4
     name: str
+    formal_name: Optional[str] = None
     uqc_code: str
     decimal_places: int = 0
 
@@ -19,6 +20,7 @@ class UomCreate(UomBase):
 
 class UomUpdate(BaseSchema):
     name: Optional[str] = None
+    formal_name: Optional[str] = None
     uqc_code: Optional[str] = None
     decimal_places: Optional[int] = None
 

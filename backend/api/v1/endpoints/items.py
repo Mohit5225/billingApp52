@@ -131,7 +131,7 @@ async def create_item(
 
     _validate_cross_tenant_refs(str(item_in.hsn_id), str(item_in.uom_id), target_firm_id)
 
-    payload = item_in.model_dump()
+    payload = item_in.model_dump(mode="json")
     payload["firm_id"] = target_firm_id
     # Serialize UUIDs to strings for Supabase client
     for key in ("hsn_id", "uom_id"):
@@ -188,7 +188,7 @@ async def update_item(
     existing = existing_resp.data
     target_firm_id = resolve_target_firm_id(profile, str(existing["firm_id"]))
 
-    payload = item_in.model_dump(exclude_none=True)
+    payload = item_in.model_dump(mode="json", exclude_none=True)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

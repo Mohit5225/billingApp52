@@ -22,9 +22,23 @@ type HsnForm = {
 
 type UomForm = {
   name: string;
+  formal_name: string;
   uqc_code: string;
   decimal_places: number;
 };
+
+const GST_UQCS = [
+  "Not Applicable", "BAG-BAGS", "BAL-BALE", "BDL-BUNDLES", "BKL-BUCKLES",
+  "BOU-BILLION OF UNITS", "BOX-BOX", "BTL-BOTTLES", "BUN-BUNCHES", "CAN-CANS",
+  "CBM-CUBIC METERS", "CCM-CUBIC CENTIMETERS", "CMS-CENTIMETERS", "CTN-CARTONS",
+  "DOZ-DOZENS", "DRM-DRUMS", "GGK-GREAT GROSS", "GMS-GRAMMES", "GRS-GROSS",
+  "GYD-GROSS YARDS", "KGS-KILOGRAMS", "KLR-KILOLITRE", "KME-KILOMETRE",
+  "LTR-LITRES", "MLT-MILILITRE", "MTR-METERS", "MTS-METRIC TON", "NOS-NUMBERS",
+  "OTH-OTHERS", "PAC-PACKS", "PCS-PIECES", "PRS-PAIRS", "QTL-QUINTAL",
+  "ROL-ROLLS", "SET-SETS", "SQF-SQUARE FEET", "SQM-SQUARE METERS", 
+  "SQY-SQUARE YARDS", "TBS-TABLETS", "TGM-TEN GROSS", "THD-THOUSANDS",
+  "TON-TONNES", "TUB-TUBES", "UGS-US GALLONS", "YDS-YARDS"
+];
 
 type ItemForm = {
   name: string;
@@ -57,7 +71,8 @@ const EMPTY_HSN: HsnForm = {
 
 const EMPTY_UOM: UomForm = {
   name: "",
-  uqc_code: "",
+  formal_name: "",
+  uqc_code: "Not Applicable",
   decimal_places: 0,
 };
 
@@ -198,7 +213,7 @@ export default function InventorySectionPage() {
         const data = await apiRequest<Uom[]>(supabase, "/api/uom", {
           query: { firm_id: activeFirmId },
         });
-        setUom(data.filter((row) => row.name.toLowerCase().includes(search.toLowerCase())));
+        setUom((data || []).filter((row) => row.name.toLowerCase().includes(search.toLowerCase())));
       } else {
         const data = await apiRequest<StockPositionRow[]>(supabase, "/api/workspace/stock-position", {
           query: { firm_id: activeFirmId, search },
@@ -237,38 +252,65 @@ export default function InventorySectionPage() {
 
   async function saveHsn() {
     if (!activeFirmId) return;
-    const body = { ...hsnForm, firm_id: activeFirmId };
-    if (editingId) {
-      await apiRequest<Hsn>(supabase, `/api/hsn/${editingId}`, { method: "PATCH", body });
-    } else {
-      await apiRequest<Hsn>(supabase, "/api/hsn", { method: "POST", body });
+    if (!hsnForm.hsn_code.trim()) {
+      setError("Please provide an HSN / SAC code.");
+      return;
     }
-    resetForms();
-    await loadSection();
+    const body = { ...hsnForm, firm_id: activeFirmId };
+    try {
+      if (editingId) {
+        await apiRequest<Hsn>(supabase, `/api/hsn/${editingId}`, { method: "PATCH", body });
+      } else {
+        await apiRequest<Hsn>(supabase, "/api/hsn/", { method: "POST", body });
+      }
+      resetForms();
+      setError(null);
+      await loadSection();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save HSN");
+    }
   }
 
   async function saveUom() {
     if (!activeFirmId) return;
-    const body = { ...uomForm, firm_id: activeFirmId };
-    if (editingId) {
-      await apiRequest<Uom>(supabase, `/api/uom/${editingId}`, { method: "PATCH", body });
-    } else {
-      await apiRequest<Uom>(supabase, "/api/uom", { method: "POST", body });
+    if (!uomForm.name.trim() || !uomForm.uqc_code.trim()) {
+      setError("Please provide a UOM name and UQC code.");
+      return;
     }
-    resetForms();
-    await loadSection();
+    const body = { ...uomForm, firm_id: activeFirmId };
+    try {
+      if (editingId) {
+        await apiRequest<Uom>(supabase, `/api/uom/${editingId}`, { method: "PATCH", body });
+      } else {
+        await apiRequest<Uom>(supabase, "/api/uom/", { method: "POST", body });
+      }
+      resetForms();
+      setError(null);
+      await loadSection();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save UOM");
+    }
   }
 
   async function saveItem() {
     if (!activeFirmId) return;
-    const body = { ...itemForm, firm_id: activeFirmId };
-    if (editingId) {
-      await apiRequest<ItemDetail>(supabase, `/api/items/${editingId}`, { method: "PATCH", body });
-    } else {
-      await apiRequest<ItemDetail>(supabase, "/api/items", { method: "POST", body });
+    if (!itemForm.name.trim() || !itemForm.hsn_id || !itemForm.uom_id) {
+      setError("Please provide an item name, HSN code, and Unit of Measure.");
+      return;
     }
-    resetForms();
-    await loadSection();
+    const body = { ...itemForm, firm_id: activeFirmId };
+    try {
+      if (editingId) {
+        await apiRequest<ItemDetail>(supabase, `/api/items/${editingId}`, { method: "PATCH", body });
+      } else {
+        await apiRequest<ItemDetail>(supabase, "/api/items/", { method: "POST", body });
+      }
+      resetForms();
+      setError(null);
+      await loadSection();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save item");
+    }
   }
 
   async function removeCurrent(id: string) {
@@ -324,20 +366,40 @@ export default function InventorySectionPage() {
           title={editingId ? "Edit UOM" : "Add UOM"}
           description="Define the GST-ready unit once and keep quantity entry consistent everywhere."
         >
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <TextInput
-              placeholder="Unit name"
+              placeholder="Type"
+              value="Simple"
+              disabled
+              readOnly
+            />
+            <TextInput
+              placeholder="Symbol (e.g. pcs)"
               value={uomForm.name}
               onChange={(event) => setUomForm((prev) => ({ ...prev, name: event.target.value }))}
             />
-            <TextInput
-              placeholder="UQC code"
-              value={uomForm.uqc_code}
-              onChange={(event) => setUomForm((prev) => ({ ...prev, uqc_code: event.target.value }))}
-            />
+            <div className="md:col-span-2">
+              <TextInput
+                placeholder="Formal name (e.g. Pieces)"
+                value={uomForm.formal_name}
+                onChange={(event) => setUomForm((prev) => ({ ...prev, formal_name: event.target.value }))}
+              />
+            </div>
+            <div className="relative md:col-span-2">
+              <select
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-4 focus:ring-emerald-500/10"
+                value={uomForm.uqc_code}
+                onChange={(event) => setUomForm((prev) => ({ ...prev, uqc_code: event.target.value }))}
+              >
+                <option value="" disabled>Select Unit Quantity Code (UQC)</option>
+                {GST_UQCS.map((uqc) => (
+                  <option key={uqc} value={uqc}>{uqc}</option>
+                ))}
+              </select>
+            </div>
             <TextInput
               type="number"
-              placeholder="Decimal places"
+              placeholder="Number of decimal places"
               value={uomForm.decimal_places}
               onChange={(event) => setUomForm((prev) => ({ ...prev, decimal_places: Number(event.target.value) }))}
             />
@@ -508,12 +570,16 @@ export default function InventorySectionPage() {
             {uom.length === 0 ? <EmptyState title="No UOM defined yet" description="Add the units that items and voucher quantity fields will use." /> : uom.map((row) => (
               <div key={row.id} className="flex flex-col gap-4 rounded-[24px] border border-slate-100 bg-white/92 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-lg font-semibold text-slate-950">{row.name}</p>
-                  <p className="mt-2 text-sm text-slate-500">{row.uqc_code} • {row.decimal_places} decimal places</p>
+                  <div className="flex items-center gap-3 mb-1">
+                    <p className="text-lg font-bold text-slate-950">{row.name}</p>
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{row.uqc_code}</span>
+                  </div>
+                  <p className="text-sm text-slate-600">{row.formal_name || "No formal name defined"}</p>
+                  <p className="mt-2 text-xs font-medium uppercase tracking-wider text-slate-500">{row.decimal_places} decimal places</p>
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => { setEditingId(row.id); setUomForm({ name: row.name, uqc_code: row.uqc_code, decimal_places: row.decimal_places }); }} className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600">Edit</button>
-                  <button onClick={() => void removeCurrent(row.id)} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600">Delete</button>
+                  <button onClick={() => { setEditingId(row.id); setUomForm({ name: row.name, formal_name: row.formal_name || "", uqc_code: row.uqc_code, decimal_places: row.decimal_places }); }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300 transition-colors">Edit</button>
+                  <button onClick={() => void removeCurrent(row.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 hover:border-rose-300 hover:bg-rose-100 transition-colors">Delete</button>
                 </div>
               </div>
             ))}

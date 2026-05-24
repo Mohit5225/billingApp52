@@ -125,6 +125,7 @@ export default function DashboardPage() {
             <ActionIconCard label="Receipt Voucher" href="/dashboard/create/receipt" icon={<ReceiptIcon />} variant="green" />
             <ActionIconCard label="Payment Voucher" href="/dashboard/create/payment" icon={<ReceiptIcon />} />
             <ActionIconCard label="Journal Entry" href="/dashboard/create/journal-entry" icon={<JournalIcon />} />
+            <ActionIconCard label="Create Ledger" href="/dashboard/create/ledger" icon={<LedgerIcon />} />
             <ActionIconCard label="Manage Inventory" href="/dashboard/inventory" icon={<InventoryIcon />} />
           </div>
         </section>

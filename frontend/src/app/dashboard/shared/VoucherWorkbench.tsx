@@ -10,8 +10,8 @@ import { VoucherCategory, VoucherDetail, VoucherWritePayload } from "@/interface
 import { apiRequest } from "@/lib/http";
 import { formatCurrency } from "@/lib/format";
 
-import { PageHero, SurfaceCard } from "./WorkspaceUi";
 import { useFirmScope } from "./useFirmScope";
+import { ComboboxField } from "./ComboboxField";
 
 type VoucherSlug =
   | "sales-invoice"
@@ -219,39 +219,46 @@ function recalcLine(line: InvoiceLineState, item: ItemDetail | undefined, taxMod
   };
 }
 
-function SelectField({
+function InputField({
+  label,
   value,
   onChange,
-  options,
+  type = "text",
   placeholder,
+  step,
 }: {
-  value: string;
+  label?: string;
+  value: string | number;
   onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-  placeholder: string;
+  type?: string;
+  placeholder?: string;
+  step?: string;
+  disabled?: boolean;
 }) {
   return (
-    <select
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-    >
-      <option value="">{placeholder}</option>
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <div className="flex flex-col sm:flex-row sm:items-center">
+      {label && <label className="mb-1 text-sm font-medium text-slate-600 sm:mb-0 sm:w-1/3">{label}</label>}
+      <input
+        type={type}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:w-2/3"
+      />
+    </div>
   );
 }
 
 export function VoucherWorkbench({
   slug,
   voucherId,
+  readOnly = false,
 }: {
   slug: VoucherSlug;
   voucherId?: string;
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const { activeFirmId, supabase } = useFirmScope();
@@ -332,8 +339,8 @@ export function VoucherWorkbench({
         setError(null);
 
         const [ledgerData, itemData] = await Promise.all([
-          apiRequest<LedgerDetail[]>(supabase, "/api/ledgers", { query: { firm_id: activeFirmId } }),
-          apiRequest<ItemDetail[]>(supabase, "/api/items", {
+          apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", { query: { firm_id: activeFirmId } }),
+          apiRequest<ItemDetail[]>(supabase, "/api/items/", {
             query: { firm_id: activeFirmId, active_only: false },
           }),
         ]);
@@ -647,7 +654,7 @@ export function VoucherWorkbench({
           method: "PUT",
           body: payload,
         })
-        : await apiRequest<VoucherDetail>(supabase, "/api/vouchers", {
+        : await apiRequest<VoucherDetail>(supabase, "/api/vouchers/", {
           method: "POST",
           body: payload,
         });
@@ -661,182 +668,302 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div className="space-y-6">
-      <PageHero
-        eyebrow={isEditing ? "Edit Voucher" : "Create Voucher"}
-        title={meta.title}
-        description={meta.description}
-      >
-        <Link href="/dashboard/create" className="self-start rounded-2xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white">
-          Back to create hub
-        </Link>
-      </PageHero>
+    <div className="mx-auto w-full max-w-[1200px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="flex flex-col border-b border-slate-200 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">{meta.title}</h1>
+          <p className="mt-1 text-sm text-slate-500">{isEditing ? "Editing voucher" : "New voucher"}</p>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-4 sm:mt-0">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">No.</label>
+            <input 
+              className="h-9 w-24 rounded-md border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition disabled:opacity-75 disabled:bg-slate-50" 
+              placeholder="e.g. 1" 
+              value={form.voucher_number} 
+              onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))} 
+              disabled={readOnly}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Date</label>
+            <input 
+              type="date"
+              className="h-9 w-[135px] rounded-md border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition disabled:opacity-75 disabled:bg-slate-50" 
+              value={form.voucher_date} 
+              onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))} 
+              disabled={readOnly}
+            />
+          </div>
+          <Link href={readOnly ? `/dashboard/vouchers/${voucherId}` : "/dashboard/create"} className="hidden sm:block text-sm font-medium text-emerald-600 hover:text-emerald-700">Close</Link>
+        </div>
+      </div>
 
-      {error ? <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
+      {error && <div className="border-b border-rose-200 bg-rose-50 px-6 py-4 text-sm font-medium text-rose-700">{error}</div>}
 
-      <SurfaceCard title="Header" description={isLoading ? "Loading..." : "Voucher identity, date, and high-level posting choices."}>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <input className="h-12 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm" placeholder="Voucher number" value={form.voucher_number} onChange={(event) => setForm((prev) => ({ ...prev, voucher_number: event.target.value }))} />
-          <input className="h-12 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm" type="date" value={form.voucher_date} onChange={(event) => setForm((prev) => ({ ...prev, voucher_date: event.target.value }))} />
+      {/* Ledger Block */}
+      <div className="grid gap-6 border-b border-slate-100 p-4 sm:p-6 md:grid-cols-2 lg:gap-8 bg-white">
+        <div className="space-y-4">
           {meta.family === "invoice" || meta.family === "payment" ? (
-            <SelectField
+            <ComboboxField
+              label="Party A/c Name"
               value={form.party_ledger_id}
               onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
               options={partyLedgers}
-              placeholder="Select party ledger"
-            />
+              placeholder="Type to search party…"
+              createHref="/dashboard/create/ledger"
+             disabled={readOnly} />
           ) : null}
           {meta.family === "payment" ? (
-            <SelectField
+            <ComboboxField
+              label="Cash/Bank Ledger"
               value={form.cash_bank_ledger_id}
               onChange={(value) => setForm((prev) => ({ ...prev, cash_bank_ledger_id: value }))}
               options={cashBankLedgers}
-              placeholder="Select cash / bank ledger"
-            />
+              placeholder="Type to search account…"
+              createHref="/dashboard/create/ledger"
+             disabled={readOnly} />
           ) : null}
           {meta.family === "contra" ? (
             <>
-              <SelectField value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Transfer from" />
-              <SelectField value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Transfer to" />
+              <ComboboxField label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger"  disabled={readOnly} />
+              <ComboboxField label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger"  disabled={readOnly} />
             </>
           ) : null}
+        </div>
+        <div className="space-y-4">
           {meta.family === "invoice" ? (
             <>
-              <SelectField
+              <ComboboxField
+                label="Sales/Purchase Ledger"
                 value={form.main_ledger_id}
                 onChange={(value) => setForm((prev) => ({ ...prev, main_ledger_id: value }))}
                 options={mainLedgers}
-                placeholder="Select main ledger"
-              />
+                placeholder="Type to search ledger…"
+                createHref="/dashboard/create/ledger"
+               disabled={readOnly} />
               {selectedPartyLedger?.party_details?.state ? (
-                <div className="flex items-center rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm text-slate-600">
-                  Tax mode: <span className="ml-2 font-semibold text-slate-900">{taxMode === "inter" ? "Inter-state / IGST" : "Intra-state / CGST + SGST"}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center">
+                  <label className="mb-1 text-sm font-medium text-slate-600 sm:mb-0 sm:w-1/3">Tax Mode</label>
+                  <div className="flex h-10 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 sm:w-2/3">
+                    {taxMode === "inter" ? "Inter-state / IGST" : "Intra-state / CGST + SGST"}
+                  </div>
                 </div>
               ) : (
-                <SelectField
+                <ComboboxField
+                  label="Tax Mode"
                   value={form.manual_tax_mode}
                   onChange={(value) => setForm((prev) => ({ ...prev, manual_tax_mode: value as TaxMode }))}
                   options={[
                     { value: "intra", label: "Intra-state / CGST + SGST" },
                     { value: "inter", label: "Inter-state / IGST" },
                   ]}
-                  placeholder="Select tax mode"
-                />
+                  placeholder="Type intra or inter…"
+                 disabled={readOnly} />
               )}
               {taxMode === "inter" ? (
-                <SelectField
+                <ComboboxField
+                  label="IGST Ledger"
                   value={form.igst_ledger_id}
                   onChange={(value) => setForm((prev) => ({ ...prev, igst_ledger_id: value }))}
                   options={taxLedgers}
-                  placeholder="Select IGST ledger"
-                />
+                  placeholder="Type to search tax ledger…"
+                  createHref="/dashboard/create/ledger"
+                 disabled={readOnly} />
               ) : (
                 <>
-                  <SelectField value={form.cgst_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, cgst_ledger_id: value }))} options={taxLedgers} placeholder="Select CGST ledger" />
-                  <SelectField value={form.sgst_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, sgst_ledger_id: value }))} options={taxLedgers} placeholder="Select SGST ledger" />
+                  <ComboboxField label="CGST Ledger" value={form.cgst_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, cgst_ledger_id: value }))} options={taxLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger"  disabled={readOnly} />
+                  <ComboboxField label="SGST Ledger" value={form.sgst_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, sgst_ledger_id: value }))} options={taxLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger"  disabled={readOnly} />
                 </>
               )}
             </>
           ) : null}
           {meta.family === "payment" || meta.family === "contra" ? (
-            <input className="h-12 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm" type="number" step="0.01" placeholder="Amount" value={form.amount} onChange={(event) => setForm((prev) => ({ ...prev, amount: Number(event.target.value) }))} />
+            <InputField
+              label="Amount"
+              type="number"
+              step="0.01"
+              value={form.amount}
+              onChange={(value) => setForm((prev) => ({ ...prev, amount: Number(value) }))}
+              placeholder="0.00"
+             disabled={readOnly} />
           ) : null}
-          <div className="md:col-span-2 xl:col-span-4">
-            <textarea className="min-h-[120px] w-full rounded-[24px] border border-slate-200 bg-slate-50/85 px-4 py-3 text-sm" placeholder="Narration" value={form.narration} onChange={(event) => setForm((prev) => ({ ...prev, narration: event.target.value }))} />
-          </div>
         </div>
-      </SurfaceCard>
+      </div>
 
+      {/* Lines Block */}
       {meta.family === "invoice" ? (
-        <>
-          <SurfaceCard title="Inventory lines" description="Item rows carry quantity, pricing, tax rates, and computed amounts from the selected masters.">
-            <div className="space-y-4">
-              {invoiceLines.map((line, index) => (
-                <div key={`${index}-${line.item_id}`} className="rounded-[24px] border border-slate-100 bg-white/92 p-4 shadow-sm">
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-                    <SelectField value={line.item_id} onChange={(value) => selectItem(index, value)} options={items.map((item) => ({ value: item.id, label: `${item.name} • ${item.hsn_code || "No HSN"}` }))} placeholder="Select item" />
-                    <input className="h-12 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm" type="number" step="0.01" placeholder="Qty" value={line.quantity} onChange={(event) => updateInvoiceLine(index, { quantity: Number(event.target.value) })} />
-                    <input className="h-12 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm" type="number" step="0.01" placeholder="Unit price" value={line.unit_price} onChange={(event) => updateInvoiceLine(index, { unit_price: Number(event.target.value) })} />
-                    <input className="h-12 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm" type="number" step="0.01" placeholder="Discount" value={line.discount_amount} onChange={(event) => updateInvoiceLine(index, { discount_amount: Number(event.target.value) })} />
-                    <div className="flex items-center rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm text-slate-600">Taxable: <span className="ml-2 font-semibold text-slate-900">{formatCurrency(line.taxable_amount)}</span></div>
-                    <button onClick={() => setInvoiceLines((prev) => prev.filter((_, rowIndex) => rowIndex !== index))} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600">Remove</button>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-                    <span>IGST: {line.igst_rate}% / {formatCurrency(line.igst_amount)}</span>
-                    <span>CGST: {line.cgst_rate}% / {formatCurrency(line.cgst_amount)}</span>
-                    <span>SGST: {line.sgst_rate}% / {formatCurrency(line.sgst_amount)}</span>
-                    <span>Cess: {formatCurrency(line.cess_amount)}</span>
-                    <span>Total: {formatCurrency(line.taxable_amount + line.igst_amount + line.cgst_amount + line.sgst_amount + line.cess_amount)}</span>
-                  </div>
+        <div className="border-b border-slate-100 bg-white">
+          <div className="hidden grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 bg-slate-50/50 px-6 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid">
+            <div>Name of Item</div>
+            <div>Qty</div>
+            <div>Rate</div>
+            <div>Discount</div>
+            <div className="text-right">Amount</div>
+            <div className="w-10"></div>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {invoiceLines.map((line, index) => (
+              <div key={`${index}-${line.item_id}`} className="grid gap-4 p-4 md:grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-6 md:py-3">
+                <div className="flex flex-col md:block">
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Item</span>
+                  <ComboboxField
+                    inline
+                    value={line.item_id}
+                    onChange={(id) => selectItem(index, id)}
+                    options={items.map((item) => ({ value: item.id, label: item.name }))}
+                    placeholder="Type to search item…"
+                   disabled={readOnly} />
                 </div>
-              ))}
-            </div>
-            <button onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])} className="mt-5 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700">
-              Add line
-            </button>
-          </SurfaceCard>
-
-          <SurfaceCard title="Totals" description="A calm summary panel so the posting impact stays visible while you enter lines.">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <div className="rounded-[24px] border border-slate-100 bg-white/92 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Taxable</p>
-                <p className="mt-3 text-xl font-semibold text-slate-950">{formatCurrency(invoiceTotals.taxable)}</p>
-              </div>
-              <div className="rounded-[24px] border border-slate-100 bg-white/92 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">IGST</p>
-                <p className="mt-3 text-xl font-semibold text-slate-950">{formatCurrency(invoiceTotals.igst)}</p>
-              </div>
-              <div className="rounded-[24px] border border-slate-100 bg-white/92 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">CGST</p>
-                <p className="mt-3 text-xl font-semibold text-slate-950">{formatCurrency(invoiceTotals.cgst)}</p>
-              </div>
-              <div className="rounded-[24px] border border-slate-100 bg-white/92 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">SGST / Cess</p>
-                <p className="mt-3 text-xl font-semibold text-slate-950">{formatCurrency(invoiceTotals.sgst + invoiceTotals.cess)}</p>
-              </div>
-              <div className="rounded-[24px] border border-slate-100 bg-slate-950 p-4 text-white">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/60">Grand Total</p>
-                <p className="mt-3 text-xl font-semibold">{formatCurrency(invoiceTotals.grandTotal)}</p>
-              </div>
-            </div>
-          </SurfaceCard>
-        </>
-      ) : null}
-
-      {meta.family === "journal" ? (
-        <SurfaceCard title="Accounting lines" description="Direct debit and credit lines for pure accounting entries.">
-          <div className="space-y-4">
-            {journalLines.map((line, index) => (
-              <div key={index} className="grid gap-4 rounded-[24px] border border-slate-100 bg-white/92 p-4 md:grid-cols-4">
-                <SelectField value={line.ledger_id} onChange={(value) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, ledger_id: value } : entry))} options={allLedgerOptions} placeholder="Select ledger" />
-                <input className="h-12 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm" type="number" step="0.01" placeholder="Debit" value={line.debit_amount} onChange={(event) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, debit_amount: Number(event.target.value), credit_amount: 0 } : entry))} />
-                <input className="h-12 rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm" type="number" step="0.01" placeholder="Credit" value={line.credit_amount} onChange={(event) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, credit_amount: Number(event.target.value), debit_amount: 0 } : entry))} />
-                <button onClick={() => setJournalLines((prev) => prev.filter((_, entryIndex) => entryIndex !== index))} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-600">Remove</button>
+                <div className="flex flex-col md:block">
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Qty</span>
+                  <input disabled={readOnly} type="number" step="0.01" value={line.quantity || ""} onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })} placeholder="0" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                </div>
+                <div className="flex flex-col md:block">
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Rate</span>
+                  <input disabled={readOnly} type="number" step="0.01" value={line.unit_price || ""} onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })} placeholder="0.00" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                </div>
+                <div className="flex flex-col md:block">
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Discount</span>
+                  <input disabled={readOnly} type="number" step="0.01" value={line.discount_amount || ""} onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })} placeholder="0.00" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                </div>
+                <div className="flex items-center justify-between md:justify-end md:pr-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Amount</span>
+                  <span className="font-medium text-slate-900">{formatCurrency(line.taxable_amount)}</span>
+                </div>
+                <div className="flex justify-end">
+                  <button disabled={readOnly} className={readOnly ? "hidden" : "text-sm font-medium text-rose-500 hover:text-rose-700"} onClick={() => setInvoiceLines((prev) => prev.filter((_, i) => i !== index))}>Remove</button>
+                </div>
               </div>
             ))}
           </div>
-          <button onClick={() => setJournalLines((prev) => [...prev, { ...EMPTY_JOURNAL_LINE }])} className="mt-5 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700">
-            Add accounting line
-          </button>
-        </SurfaceCard>
+          <div className="border-t border-slate-100 px-4 py-3 sm:px-6">
+            <button disabled={readOnly} className={readOnly ? "hidden" : "text-sm font-medium text-emerald-600 hover:text-emerald-700"} onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])}>
+              + Add Line
+            </button>
+          </div>
+        </div>
       ) : null}
 
-      <div className="sticky bottom-4 z-20 rounded-[28px] border border-white/70 bg-white/88 p-4 shadow-[0_18px_40px_rgba(15,23,42,0.16)] backdrop-blur-xl">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">{isEditing ? "Ready to update this voucher?" : "Ready to save this voucher?"}</p>
-            <p className="mt-1 text-sm text-slate-500">
-              {meta.family === "invoice" ? `Current total: ${formatCurrency(invoiceTotals.grandTotal)}` : "The accounting lines will be generated from the focused form shape."}
-            </p>
+      {meta.family === "journal" ? (
+        <div className="border-b border-slate-100 bg-white">
+           <div className="hidden grid-cols-[2fr_1fr_1fr_auto] gap-4 border-b border-slate-200 bg-slate-50/50 px-6 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid">
+            <div>Ledger</div>
+            <div>Debit</div>
+            <div>Credit</div>
+            <div className="w-10"></div>
           </div>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row">
-            <button onClick={() => router.back()} className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600">
-              Cancel
-            </button>
-            <button disabled={isSubmitting || isLoading} onClick={() => void submit()} className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white disabled:opacity-60">
-              {isSubmitting ? "Saving..." : isEditing ? "Update voucher" : "Create voucher"}
+          <div className="divide-y divide-slate-100">
+            {journalLines.map((line, index) => (
+              <div key={index} className="grid gap-4 p-4 md:grid-cols-[2fr_1fr_1fr_auto] md:items-center md:gap-4 md:p-6 md:py-3">
+                 <div className="flex flex-col md:block">
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Ledger</span>
+                  <ComboboxField
+                    inline
+                    value={line.ledger_id}
+                    onChange={(id) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, ledger_id: id } : entry))}
+                    options={allLedgerOptions}
+                    placeholder="Type to search ledger…"
+                    createHref="/dashboard/create/ledger"
+                   disabled={readOnly} />
+                </div>
+                <div className="flex flex-col md:block">
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Debit</span>
+                  <input disabled={readOnly} type="number" step="0.01" value={line.debit_amount || ""} onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, debit_amount: Number(e.target.value), credit_amount: 0 } : entry))} placeholder="0.00" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                </div>
+                <div className="flex flex-col md:block">
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Credit</span>
+                  <input disabled={readOnly} type="number" step="0.01" value={line.credit_amount || ""} onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, credit_amount: Number(e.target.value), debit_amount: 0 } : entry))} placeholder="0.00" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                </div>
+                <div className="flex justify-end">
+                  <button disabled={readOnly} className={readOnly ? "hidden" : "text-sm font-medium text-rose-500 hover:text-rose-700"} onClick={() => setJournalLines((prev) => prev.filter((_, entryIndex) => entryIndex !== index))}>Remove</button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="border-t border-slate-100 px-4 py-3 sm:px-6">
+            <button disabled={readOnly} className={readOnly ? "hidden" : "text-sm font-medium text-emerald-600 hover:text-emerald-700"} onClick={() => setJournalLines((prev) => [...prev, { ...EMPTY_JOURNAL_LINE }])}>
+              + Add Accounting Line
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {/* Totals & Narration Flow */}
+      <div className="flex flex-col-reverse md:grid md:grid-cols-2 md:items-start border-b border-slate-100 bg-white">
+         <div className="p-4 sm:p-6 border-t border-slate-100 md:border-t-0 md:border-r">
+           <label className="mb-2 block text-sm font-medium text-slate-600">Narration</label>
+           <textarea disabled={readOnly}  
+             className="min-h-[100px] w-full rounded-md border border-slate-200 p-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
+             placeholder="Enter narration for this voucher..." 
+             value={form.narration} 
+             onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))} 
+           />
+         </div>
+         <div className="p-4 sm:p-6 bg-slate-50/30">
+            {meta.family === "invoice" ? (
+              <div className="ml-auto w-full space-y-3 md:max-w-sm">
+                 <div className="flex justify-between text-sm text-slate-600">
+                    <span>Taxable Amount</span>
+                    <span className="font-medium text-slate-900">{formatCurrency(invoiceTotals.taxable)}</span>
+                 </div>
+                 {taxMode === 'inter' && invoiceTotals.igst > 0 && (
+                   <div className="flex justify-between text-sm text-slate-600">
+                      <span>IGST</span>
+                      <span>{formatCurrency(invoiceTotals.igst)}</span>
+                   </div>
+                 )}
+                 {taxMode === 'intra' && (invoiceTotals.cgst > 0 || invoiceTotals.sgst > 0) && (
+                   <>
+                     <div className="flex justify-between text-sm text-slate-600">
+                        <span>CGST</span>
+                        <span>{formatCurrency(invoiceTotals.cgst)}</span>
+                     </div>
+                     <div className="flex justify-between text-sm text-slate-600">
+                        <span>SGST</span>
+                        <span>{formatCurrency(invoiceTotals.sgst)}</span>
+                     </div>
+                   </>
+                 )}
+                 {invoiceTotals.cess > 0 && (
+                   <div className="flex justify-between text-sm text-slate-600">
+                      <span>Cess</span>
+                      <span>{formatCurrency(invoiceTotals.cess)}</span>
+                   </div>
+                 )}
+                 <div className="mt-4 flex justify-between border-t border-slate-200 pt-4 text-base font-bold text-slate-900">
+                    <span>Grand Total</span>
+                    <span className="text-xl">{formatCurrency(invoiceTotals.grandTotal)}</span>
+                 </div>
+              </div>
+            ) : (
+              <div className="flex h-full flex-col justify-end">
+                <p className="text-right text-sm text-slate-500">Total impact will be computed from lines.</p>
+              </div>
+            )}
+         </div>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="flex items-center justify-between p-4 sm:p-6 bg-slate-50/50">
+        <Link href="/dashboard/create" className="text-sm font-medium text-slate-600 hover:text-slate-900 sm:hidden">
+           Cancel
+        </Link>
+        <div className="hidden sm:block" />
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="hidden rounded-md border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:block">
+            Cancel
+          </button>
+          {!readOnly ? (
+            <button disabled={isSubmitting || isLoading} onClick={() => void submit()} className="rounded-md bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:opacity-60">
+              {isSubmitting ? "Saving..." : isEditing ? "Update voucher" : "Save voucher"}
+            </button>
+          ) : (
+            <Link href={`/dashboard/vouchers/${voucherId}/edit`} className="rounded-md bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500">
+              Edit voucher
+            </Link>
+          )}
         </div>
       </div>
     </div>

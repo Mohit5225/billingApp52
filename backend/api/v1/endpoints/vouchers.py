@@ -206,7 +206,7 @@ def _build_inventory_line_payloads(
 
 
 def _build_header_payload(voucher_in: VoucherCreate, target_firm_id: str) -> dict[str, Any]:
-    payload = voucher_in.model_dump(exclude={"accounting_lines", "inventory_lines"})
+    payload = voucher_in.model_dump(mode="json", exclude={"accounting_lines", "inventory_lines"})
     payload["firm_id"] = target_firm_id
     payload["voucher_date"] = str(voucher_in.voucher_date)
     if voucher_in.party_ledger_id:
@@ -476,7 +476,7 @@ async def update_voucher(
 
     resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
-    payload = voucher_in.model_dump(exclude_none=True)
+    payload = voucher_in.model_dump(mode="json", exclude_none=True)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

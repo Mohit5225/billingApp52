@@ -1,7 +1,4 @@
-"use client";
-
-import { notFound, useParams } from "next/navigation";
-
+import { notFound } from "next/navigation";
 import { VoucherWorkbench } from "../../shared/VoucherWorkbench";
 
 const VALID_SLUGS = new Set([
@@ -15,13 +12,12 @@ const VALID_SLUGS = new Set([
   "contra-entry",
 ]);
 
-export default function VoucherCreatePage() {
-  const params = useParams<{ voucherSlug: string }>();
-  const slug = params.voucherSlug;
+export default async function VoucherCreatePage({ params }: { params: Promise<{ voucherSlug: string }> }) {
+  const { voucherSlug } = await params;
 
-  if (!VALID_SLUGS.has(slug)) {
+  if (!voucherSlug || !VALID_SLUGS.has(voucherSlug)) {
     notFound();
   }
 
-  return <VoucherWorkbench slug={slug as Parameters<typeof VoucherWorkbench>[0]["slug"]} />;
+  return <VoucherWorkbench slug={voucherSlug as Parameters<typeof VoucherWorkbench>[0]["slug"]} />;
 }

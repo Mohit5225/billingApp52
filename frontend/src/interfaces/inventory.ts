@@ -15,6 +15,7 @@ export interface Hsn extends BaseEntity {
 export interface Uom extends BaseEntity {
   firm_id: string;
   name: string;
+  formal_name?: string | null;
   uqc_code: string;
   decimal_places: number;
 }

@@ -141,7 +141,7 @@ def _replace_detail_row(table_name: str, ledger_id: str, detail_model: Any) -> N
     if detail_model is None:
         return
 
-    payload = detail_model.model_dump(exclude_none=True)
+    payload = detail_model.model_dump(mode="json", exclude_none=True)
     if not payload:
         return
 
@@ -227,6 +227,7 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
     _validate_group_access(str(ledger_in.group_id), target_firm_id)
 
     payload = ledger_in.model_dump(
+        mode="json",
         exclude_none=True,
         exclude={"bank_details", "party_details", "tax_details"},
     )
@@ -258,6 +259,7 @@ async def update_ledger(
         _validate_group_access(str(ledger_in.group_id), target_firm_id)
 
     payload = ledger_in.model_dump(
+        mode="json",
         exclude_none=True,
         exclude={"bank_details", "party_details", "tax_details"},
     )

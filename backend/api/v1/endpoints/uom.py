@@ -38,7 +38,7 @@ async def create_uom(
     profile = get_profile_context(jwt)
     target_firm_id = resolve_target_firm_id(profile, str(uom_in.firm_id))
 
-    payload = uom_in.model_dump()
+    payload = uom_in.model_dump(mode="json")
     payload["firm_id"] = target_firm_id
 
     response = supabase.table("uom").insert(payload).execute()
@@ -90,7 +90,7 @@ async def update_uom(
 
     resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
-    payload = uom_in.model_dump(exclude_none=True)
+    payload = uom_in.model_dump(mode="json", exclude_none=True)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
