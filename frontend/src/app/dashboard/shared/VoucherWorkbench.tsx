@@ -59,9 +59,6 @@ type FormState = {
   source_ledger_id: string;
   destination_ledger_id: string;
   amount: number;
-  igst_ledger_id: string;
-  cgst_ledger_id: string;
-  sgst_ledger_id: string;
   manual_tax_mode: TaxMode;
 };
 
@@ -126,9 +123,6 @@ const EMPTY_FORM: FormState = {
   source_ledger_id: "",
   destination_ledger_id: "",
   amount: 0,
-  igst_ledger_id: "",
-  cgst_ledger_id: "",
-  sgst_ledger_id: "",
   manual_tax_mode: "intra",
 };
 
@@ -226,6 +220,7 @@ function InputField({
   type = "text",
   placeholder,
   step,
+  disabled,
 }: {
   label?: string;
   value: string | number;
@@ -391,15 +386,11 @@ export function VoucherWorkbench({
             const nonPartyLines = voucher.accounting_lines.filter((line) => line.ledger_id !== voucher.party_ledger_id);
             const taxLedgerIds = new Set(ledgerData.filter(isTaxLedger).map((ledger) => ledger.id));
             const mainLine = nonPartyLines.find((line) => !taxLedgerIds.has(line.ledger_id));
-            const taxLines = nonPartyLines.filter((line) => taxLedgerIds.has(line.ledger_id));
             const existingTaxMode: TaxMode = voucher.inventory_lines.some((line) => line.igst_amount > 0) ? "inter" : "intra";
             setForm((prev) => ({
               ...prev,
               main_ledger_id: mainLine?.ledger_id || "",
               manual_tax_mode: existingTaxMode,
-              igst_ledger_id: existingTaxMode === "inter" ? (taxLines[0]?.ledger_id || "") : "",
-              cgst_ledger_id: existingTaxMode === "intra" ? (taxLines[0]?.ledger_id || "") : "",
-              sgst_ledger_id: existingTaxMode === "intra" ? (taxLines[1]?.ledger_id || "") : "",
             }));
           }
 
@@ -478,6 +469,12 @@ export function VoucherWorkbench({
     }
 
     if (meta.family === "invoice") {
+      const getTaxLedgerId = (type: string) => {
+        const found = ledgers.find((l) => isTaxLedger(l) && l.name.toLowerCase().includes(type));
+        if (!found) throw new Error(`Could not automatically find tax ledger for ${type.toUpperCase()}. Please create a tax ledger containing '${type}' in its name.`);
+        return found.id;
+      };
+
       const accountingLines = [];
       if (meta.category === "Sales" || meta.category === "Debit Note") {
         accountingLines.push({
@@ -495,7 +492,7 @@ export function VoucherWorkbench({
         let lineNumber = 3;
         if (invoiceTotals.igst > 0) {
           accountingLines.push({
-            ledger_id: form.igst_ledger_id,
+            ledger_id: getTaxLedgerId("igst"),
             line_number: lineNumber++,
             debit_amount: 0,
             credit_amount: invoiceTotals.igst,
@@ -503,7 +500,7 @@ export function VoucherWorkbench({
         } else {
           if (invoiceTotals.cgst > 0) {
             accountingLines.push({
-              ledger_id: form.cgst_ledger_id,
+              ledger_id: getTaxLedgerId("cgst"),
               line_number: lineNumber++,
               debit_amount: 0,
               credit_amount: invoiceTotals.cgst,
@@ -511,7 +508,7 @@ export function VoucherWorkbench({
           }
           if (invoiceTotals.sgst > 0) {
             accountingLines.push({
-              ledger_id: form.sgst_ledger_id,
+              ledger_id: getTaxLedgerId("sgst"),
               line_number: lineNumber,
               debit_amount: 0,
               credit_amount: invoiceTotals.sgst,
@@ -528,7 +525,7 @@ export function VoucherWorkbench({
         let lineNumber = 2;
         if (invoiceTotals.igst > 0) {
           accountingLines.push({
-            ledger_id: form.igst_ledger_id,
+            ledger_id: getTaxLedgerId("igst"),
             line_number: lineNumber++,
             debit_amount: invoiceTotals.igst,
             credit_amount: 0,
@@ -536,7 +533,7 @@ export function VoucherWorkbench({
         } else {
           if (invoiceTotals.cgst > 0) {
             accountingLines.push({
-              ledger_id: form.cgst_ledger_id,
+              ledger_id: getTaxLedgerId("cgst"),
               line_number: lineNumber++,
               debit_amount: invoiceTotals.cgst,
               credit_amount: 0,
@@ -544,7 +541,7 @@ export function VoucherWorkbench({
           }
           if (invoiceTotals.sgst > 0) {
             accountingLines.push({
-              ledger_id: form.sgst_ledger_id,
+              ledger_id: getTaxLedgerId("sgst"),
               line_number: lineNumber++,
               debit_amount: invoiceTotals.sgst,
               credit_amount: 0,
@@ -743,7 +740,7 @@ export function VoucherWorkbench({
                 placeholder="Type to search ledger…"
                 createHref="/dashboard/create/ledger"
                disabled={readOnly} />
-              {selectedPartyLedger?.party_details?.state ? (
+              {selectedPartyLedger?.party_details?.state && firmState ? (
                 <div className="flex flex-col sm:flex-row sm:items-center">
                   <label className="mb-1 text-sm font-medium text-slate-600 sm:mb-0 sm:w-1/3">Tax Mode</label>
                   <div className="flex h-10 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 sm:w-2/3">
@@ -761,21 +758,6 @@ export function VoucherWorkbench({
                   ]}
                   placeholder="Type intra or inter…"
                  disabled={readOnly} />
-              )}
-              {taxMode === "inter" ? (
-                <ComboboxField
-                  label="IGST Ledger"
-                  value={form.igst_ledger_id}
-                  onChange={(value) => setForm((prev) => ({ ...prev, igst_ledger_id: value }))}
-                  options={taxLedgers}
-                  placeholder="Type to search tax ledger…"
-                  createHref="/dashboard/create/ledger"
-                 disabled={readOnly} />
-              ) : (
-                <>
-                  <ComboboxField label="CGST Ledger" value={form.cgst_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, cgst_ledger_id: value }))} options={taxLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger"  disabled={readOnly} />
-                  <ComboboxField label="SGST Ledger" value={form.sgst_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, sgst_ledger_id: value }))} options={taxLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger"  disabled={readOnly} />
-                </>
               )}
             </>
           ) : null}

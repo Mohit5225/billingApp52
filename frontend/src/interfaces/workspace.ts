@@ -7,7 +7,6 @@ export interface DashboardMetric {
 
 export interface InventorySummary {
   items_count: number;
-  hsn_count: number;
   uom_count: number;
   stock_items_count: number;
   closing_quantity: number;

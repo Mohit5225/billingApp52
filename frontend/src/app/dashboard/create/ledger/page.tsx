@@ -215,6 +215,33 @@ export default function LedgerCreatePage() {
   const templateType = useMemo(() => resolveTemplateType(selectedGroup), [selectedGroup]);
 
   useEffect(() => {
+    if (selectedGroup) {
+      const drGroups = [
+        "Sundry Debtors",
+        "Bank Accounts",
+        "Cash in Hand",
+        "Direct Expenses",
+        "Indirect Expenses",
+        "Purchase Accounts",
+      ];
+      const crGroups = [
+        "Sundry Creditors",
+        "Loans (Liability)",
+        "Loans (Liabilities)",
+        "Duties & Taxes",
+        "Duties and Taxes",
+        "Sales Accounts",
+      ];
+      
+      if (drGroups.includes(selectedGroup.name)) {
+        setForm((prev) => ({ ...prev, opening_balance_type: "Dr" }));
+      } else if (crGroups.includes(selectedGroup.name)) {
+        setForm((prev) => ({ ...prev, opening_balance_type: "Cr" }));
+      }
+    }
+  }, [selectedGroup]);
+
+  useEffect(() => {
     if (!activeFirmId) return;
 
     let mounted = true;
@@ -353,7 +380,16 @@ export default function LedgerCreatePage() {
               <Input placeholder="Optional short name" value={form.alias} onChange={(event) => setForm((prev) => ({ ...prev, alias: event.target.value }))} />
             </Field>
             <Field label="Opening Balance">
-              <Input type="number" step="0.01" placeholder="0.00" value={form.opening_balance || ""} onChange={(event) => setForm((prev) => ({ ...prev, opening_balance: Number(event.target.value) }))} />
+              <div className="relative">
+                <Input type="number" step="0.01" placeholder="0.00" value={form.opening_balance || ""} onChange={(event) => setForm((prev) => ({ ...prev, opening_balance: Number(event.target.value) }))} className="pr-12" />
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, opening_balance_type: prev.opening_balance_type === "Dr" ? "Cr" : "Dr" }))}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-sm font-bold text-slate-500 hover:text-slate-900 focus:outline-none transition-colors"
+                >
+                  {form.opening_balance_type}
+                </button>
+              </div>
             </Field>
           </div>
           <Field label="Account Group *">
@@ -370,16 +406,6 @@ export default function LedgerCreatePage() {
                 </div>
               )}
             </div>
-          </Field>
-          <Field label="Balance Type">
-            <SegmentedControl
-              options={[
-                { label: "Dr", value: "Dr" },
-                { label: "Cr", value: "Cr" },
-              ]}
-              value={form.opening_balance_type}
-              onChange={(value) => setForm((prev) => ({ ...prev, opening_balance_type: value as DrCrType }))}
-            />
           </Field>
         </div>
       </SurfaceCard>

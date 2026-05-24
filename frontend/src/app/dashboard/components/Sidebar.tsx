@@ -55,7 +55,6 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { label: "Inventory Hub", href: "/dashboard/inventory" },
       { label: "Items", href: "/dashboard/inventory/items" },
-      { label: "HSN / SAC", href: "/dashboard/inventory/hsn" },
       { label: "UOM", href: "/dashboard/inventory/uom" },
       { label: "Stock Position", href: "/dashboard/inventory/stock-position" },
     ],

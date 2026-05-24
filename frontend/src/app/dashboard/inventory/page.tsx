@@ -17,11 +17,6 @@ const LINKS = [
     description: "Maintain sellable and purchasable stock masters with GST defaults, UOM, and opening balances.",
   },
   {
-    title: "HSN / SAC",
-    href: "/dashboard/inventory/hsn",
-    description: "Curate statutory code masters that item setup and invoice entry depend on.",
-  },
-  {
     title: "UOM",
     href: "/dashboard/inventory/uom",
     description: "Keep GST-ready units clean so voucher quantity entry stays consistent across devices.",
@@ -80,11 +75,7 @@ export default function InventoryHubPage() {
           value={String(overview?.inventory.items_count ?? 0)}
           helper="Active item masters"
         />
-        <MetricTile
-          label="Codes"
-          value={String(overview?.inventory.hsn_count ?? 0)}
-          helper="HSN / SAC records"
-        />
+
         <MetricTile
           label="Units"
           value={String(overview?.inventory.uom_count ?? 0)}

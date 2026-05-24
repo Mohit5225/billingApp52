@@ -11,30 +11,14 @@ router = APIRouter()
 
 
 def _validate_cross_tenant_refs(
-    hsn_id: str,
     uom_id: str,
     target_firm_id: str,
 ) -> None:
     """
-    Ensure hsn_id and uom_id both belong to the same firm as the item being created.
+    Ensure uom_id belongs to the same firm as the item being created.
     The DB FK will also block this, but this check gives a clean 403 instead of
     a cryptic constraint violation.
     """
-    hsn_resp = (
-        supabase.table("hsn_codes")
-        .select("firm_id")
-        .eq("id", hsn_id)
-        .single()
-        .execute()
-    )
-    if not hsn_resp.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="HSN code not found")
-    if str(hsn_resp.data["firm_id"]) != target_firm_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="HSN code does not belong to the target firm",
-        )
-
     uom_resp = (
         supabase.table("uom")
         .select("firm_id")
@@ -53,26 +37,15 @@ def _validate_cross_tenant_refs(
 
 def _enrich_items(items: list[dict]) -> list[dict]:
     """
-    Join hsn_code text and uom_name onto raw item rows for display.
-    Batch-fetches HSN and UOM records to avoid N+1 queries.
+    Join uom_name onto raw item rows for display.
+    Batch-fetches UOM records to avoid N+1 queries.
     """
     if not items:
         return items
 
-    hsn_ids = list({str(i["hsn_id"]) for i in items if i.get("hsn_id")})
     uom_ids = list({str(i["uom_id"]) for i in items if i.get("uom_id")})
 
-    hsn_map: dict[str, str] = {}
     uom_map: dict[str, str] = {}
-
-    if hsn_ids:
-        hsn_rows = (
-            supabase.table("hsn_codes")
-            .select("id, hsn_code")
-            .in_("id", hsn_ids)
-            .execute()
-        ).data or []
-        hsn_map = {row["id"]: row["hsn_code"] for row in hsn_rows}
 
     if uom_ids:
         uom_rows = (
@@ -84,7 +57,6 @@ def _enrich_items(items: list[dict]) -> list[dict]:
         uom_map = {row["id"]: row["name"] for row in uom_rows}
 
     for item in items:
-        item["hsn_code"] = hsn_map.get(str(item.get("hsn_id")))
         item["uom_name"] = uom_map.get(str(item.get("uom_id")))
 
     return items
@@ -124,18 +96,17 @@ async def create_item(
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     """
-    Create a new item. Validates that hsn_id and uom_id belong to the same firm.
+    Create a new item. Validates that uom_id belongs to the same firm.
     """
     profile = get_profile_context(jwt)
     target_firm_id = resolve_target_firm_id(profile, str(item_in.firm_id))
 
-    _validate_cross_tenant_refs(str(item_in.hsn_id), str(item_in.uom_id), target_firm_id)
+    _validate_cross_tenant_refs(str(item_in.uom_id), target_firm_id)
 
     payload = item_in.model_dump(mode="json")
     payload["firm_id"] = target_firm_id
     # Serialize UUIDs to strings for Supabase client
-    for key in ("hsn_id", "uom_id"):
-        payload[key] = str(payload[key])
+    payload["uom_id"] = str(payload["uom_id"])
 
     response = supabase.table("items").insert(payload).execute()
     if not response.data:
@@ -177,7 +148,7 @@ async def update_item(
 
     existing_resp = (
         supabase.table("items")
-        .select("firm_id, hsn_id, uom_id")
+        .select("firm_id, uom_id")
         .eq("id", item_id)
         .single()
         .execute()
@@ -195,16 +166,14 @@ async def update_item(
             detail="No fields provided to update",
         )
 
-    # Re-validate cross-tenant refs if either FK is being changed
-    new_hsn_id = str(payload.get("hsn_id", existing["hsn_id"]))
+    # Re-validate cross-tenant refs if UOM FK is being changed
     new_uom_id = str(payload.get("uom_id", existing["uom_id"]))
-    if "hsn_id" in payload or "uom_id" in payload:
-        _validate_cross_tenant_refs(new_hsn_id, new_uom_id, target_firm_id)
+    if "uom_id" in payload:
+        _validate_cross_tenant_refs(new_uom_id, target_firm_id)
 
     # Serialize UUIDs
-    for key in ("hsn_id", "uom_id"):
-        if key in payload:
-            payload[key] = str(payload[key])
+    if "uom_id" in payload:
+        payload["uom_id"] = str(payload["uom_id"])
 
     response = supabase.table("items").update(payload).eq("id", item_id).execute()
     if not response.data:

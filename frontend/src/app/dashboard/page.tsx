@@ -187,7 +187,7 @@ export default function DashboardPage() {
             <div className="rounded-[24px] border border-slate-100 bg-white/92 p-4 shadow-sm">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Item Masters</p>
               <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{overview?.inventory.items_count ?? 0}</p>
-              <p className="mt-2 text-sm text-slate-500">{overview?.inventory.hsn_count ?? 0} HSN / SAC • {overview?.inventory.uom_count ?? 0} UOM</p>
+              <p className="mt-2 text-sm text-slate-500">{overview?.inventory.uom_count ?? 0} UOM</p>
             </div>
             <div className="rounded-[24px] border border-slate-100 bg-white/92 p-4 shadow-sm">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Closing Stock Value</p>

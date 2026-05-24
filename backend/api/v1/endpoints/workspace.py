@@ -223,15 +223,8 @@ def _build_stock_rows(target_firm_id: str, search: Optional[str] = None) -> list
         ).data or []
     }
 
-    hsn_ids = list({str(item["hsn_id"]) for item in items if item.get("hsn_id")})
     uom_ids = list({str(item["uom_id"]) for item in items if item.get("uom_id")})
 
-    hsn_map = {
-        str(row["id"]): row["hsn_code"]
-        for row in (
-            supabase.table("hsn_codes").select("id, hsn_code").in_("id", hsn_ids or ["00000000-0000-0000-0000-000000000000"]).execute()
-        ).data or []
-    }
     uom_map = {
         str(row["id"]): row["name"]
         for row in (
@@ -276,7 +269,7 @@ def _build_stock_rows(target_firm_id: str, search: Optional[str] = None) -> list
             "item_id": item["id"],
             "item_name": item["name"],
             "alias": item.get("alias"),
-            "hsn_code": hsn_map.get(str(item["hsn_id"])),
+            "hsn_code": item.get("hsn_code"),
             "uom_name": uom_map.get(str(item["uom_id"])),
             "opening_quantity": round(opening_quantity, 2),
             "opening_value": round(opening_value, 2),
@@ -333,7 +326,6 @@ async def get_overview(
     ]
 
     items = supabase.table("items").select("id").eq("firm_id", target_firm_id).execute().data or []
-    hsn = supabase.table("hsn_codes").select("id").eq("firm_id", target_firm_id).eq("is_active", True).execute().data or []
     uom = supabase.table("uom").select("id").eq("firm_id", target_firm_id).execute().data or []
 
     return {
@@ -344,7 +336,6 @@ async def get_overview(
         "payments": metric_for(VoucherCategory.PAYMENT.value),
         "inventory": {
             "items_count": len(items),
-            "hsn_count": len(hsn),
             "uom_count": len(uom),
             "stock_items_count": len(stock_rows),
             "closing_quantity": round(sum(row["closing_quantity"] for row in stock_rows), 2),

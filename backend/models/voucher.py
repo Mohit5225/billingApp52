@@ -5,7 +5,7 @@ from typing import List, Optional
 from pydantic import UUID4
 
 from .base import BaseSchema, TimestampSchema
-from .hsn import GstTaxability
+from .item import GstTaxability
 
 
 class VoucherCategory(str, Enum):

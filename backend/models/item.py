@@ -1,10 +1,24 @@
 from enum import Enum
 from typing import Optional
 
-from pydantic import UUID4
+from pydantic import UUID4, field_validator
 
 from .base import BaseSchema, TimestampSchema
-from .hsn import CessType, GstTaxability
+
+
+class GstTaxability(str, Enum):
+    TAXABLE = "Taxable"
+    NIL_RATED = "Nil Rated"
+    EXEMPT = "Exempt"
+    ZERO_RATED = "Zero Rated"
+    NON_GST = "Non-GST"
+
+
+class CessType(str, Enum):
+    NONE = "none"
+    AD_VALOREM = "ad_valorem"
+    SPECIFIC = "specific"
+    COMPOUND = "compound"
 
 
 class ItemType(str, Enum):
@@ -14,10 +28,27 @@ class ItemType(str, Enum):
 
 class ItemBase(BaseSchema):
     firm_id: UUID4
-    hsn_id: UUID4
+    hsn_code: Optional[str] = None
     uom_id: UUID4
     name: str
     alias: Optional[str] = None
+
+    @field_validator("hsn_code")
+    @classmethod
+    def validate_hsn_code(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        if not (len(v) == 4 or len(v) == 6) or not v.isdigit():
+            raise ValueError("HSN code must be exactly 4 or 6 digits.")
+        return v
+
+    @field_validator("alias", mode="before")
+    @classmethod
+    def empty_alias_to_none(cls, v: str | None) -> str | None:
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
     type: ItemType
     default_price: float = 0.00
 
@@ -47,10 +78,18 @@ class ItemCreate(ItemBase):
 
 
 class ItemUpdate(BaseSchema):
-    hsn_id: Optional[UUID4] = None
+    hsn_code: Optional[str] = None
     uom_id: Optional[UUID4] = None
     name: Optional[str] = None
     alias: Optional[str] = None
+
+    @field_validator("alias", mode="before")
+    @classmethod
+    def empty_alias_to_none(cls, v: str | None) -> str | None:
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
     type: Optional[ItemType] = None
     default_price: Optional[float] = None
     is_gst_applicable: Optional[bool] = None
@@ -73,6 +112,5 @@ class Item(TimestampSchema, ItemBase):
 
 
 class ItemDetail(Item):
-    """Enriched read model — includes resolved HSN code and UOM name for display."""
-    hsn_code: Optional[str] = None
+    """Enriched read model — includes UOM name for display."""
     uom_name: Optional[str] = None

@@ -13,12 +13,7 @@ import { useFirmScope } from "../../shared/useFirmScope";
 
 type SectionKey = "items" | "hsn" | "uom" | "stock-position";
 
-type HsnForm = {
-  hsn_code: string;
-  description: string;
-  code_type: "HSN" | "SAC";
-  is_active: boolean;
-};
+
 
 type UomForm = {
   name: string;
@@ -44,7 +39,7 @@ type ItemForm = {
   name: string;
   alias: string;
   type: "Goods" | "Services";
-  hsn_id: string;
+  hsn_code: string;
   uom_id: string;
   default_price: number;
   is_gst_applicable: boolean;
@@ -62,12 +57,7 @@ type ItemForm = {
   is_active: boolean;
 };
 
-const EMPTY_HSN: HsnForm = {
-  hsn_code: "",
-  description: "",
-  code_type: "HSN",
-  is_active: true,
-};
+
 
 const EMPTY_UOM: UomForm = {
   name: "",
@@ -80,7 +70,7 @@ const EMPTY_ITEM: ItemForm = {
   name: "",
   alias: "",
   type: "Goods",
-  hsn_id: "",
+  hsn_code: "",
   uom_id: "",
   default_price: 0,
   is_gst_applicable: true,
@@ -103,10 +93,7 @@ const SECTION_COPY: Record<SectionKey, { title: string; description: string }> =
     title: "Item masters",
     description: "Create and maintain billing-ready items with GST defaults, opening balances, and unit mapping.",
   },
-  hsn: {
-    title: "HSN / SAC masters",
-    description: "Keep classification codes tight so invoice entry doesn’t drift later.",
-  },
+
   uom: {
     title: "Units of measure",
     description: "Define quantity units once and reuse them cleanly across vouchers and stock views.",
@@ -158,6 +145,30 @@ function Toggle({
   );
 }
 
+function TogglePill({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+        checked ? "bg-emerald-500" : "bg-slate-200"
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
+
 export default function InventorySectionPage() {
   const params = useParams<{ section: string }>();
   const section = (params.section || "items") as SectionKey;
@@ -168,14 +179,15 @@ export default function InventorySectionPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [items, setItems] = useState<ItemDetail[]>([]);
-  const [hsn, setHsn] = useState<Hsn[]>([]);
+
   const [uom, setUom] = useState<Uom[]>([]);
   const [stockRows, setStockRows] = useState<StockPositionRow[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [hsnForm, setHsnForm] = useState<HsnForm>(EMPTY_HSN);
+
   const [uomForm, setUomForm] = useState<UomForm>(EMPTY_UOM);
   const [itemForm, setItemForm] = useState<ItemForm>(EMPTY_ITEM);
+  const [openingStockOpen, setOpeningStockOpen] = useState(false);
 
   const copy = SECTION_COPY[section];
 
@@ -186,12 +198,9 @@ export default function InventorySectionPage() {
 
     try {
       if (section === "items") {
-        const [itemData, hsnData, uomData, stockData] = await Promise.all([
+        const [itemData, uomData, stockData] = await Promise.all([
           apiRequest<ItemDetail[]>(supabase, "/api/items", {
             query: { firm_id: activeFirmId, active_only: false, search },
-          }),
-          apiRequest<Hsn[]>(supabase, "/api/hsn", {
-            query: { firm_id: activeFirmId, search: "" },
           }),
           apiRequest<Uom[]>(supabase, "/api/uom", {
             query: { firm_id: activeFirmId },
@@ -201,14 +210,8 @@ export default function InventorySectionPage() {
           }),
         ]);
         setItems(itemData);
-        setHsn(hsnData);
         setUom(uomData);
         setStockRows(stockData);
-      } else if (section === "hsn") {
-        const data = await apiRequest<Hsn[]>(supabase, "/api/hsn", {
-          query: { firm_id: activeFirmId, search },
-        });
-        setHsn(data);
       } else if (section === "uom") {
         const data = await apiRequest<Uom[]>(supabase, "/api/uom", {
           query: { firm_id: activeFirmId },
@@ -245,30 +248,19 @@ export default function InventorySectionPage() {
 
   function resetForms() {
     setEditingId(null);
-    setHsnForm(EMPTY_HSN);
     setUomForm(EMPTY_UOM);
     setItemForm(EMPTY_ITEM);
+    setOpeningStockOpen(false);
   }
 
-  async function saveHsn() {
-    if (!activeFirmId) return;
-    if (!hsnForm.hsn_code.trim()) {
-      setError("Please provide an HSN / SAC code.");
-      return;
-    }
-    const body = { ...hsnForm, firm_id: activeFirmId };
-    try {
-      if (editingId) {
-        await apiRequest<Hsn>(supabase, `/api/hsn/${editingId}`, { method: "PATCH", body });
-      } else {
-        await apiRequest<Hsn>(supabase, "/api/hsn/", { method: "POST", body });
-      }
-      resetForms();
-      setError(null);
-      await loadSection();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save HSN");
-    }
+  function handleIgstChange(value: number) {
+    const half = parseFloat((value / 2).toFixed(2));
+    setItemForm((prev) => ({
+      ...prev,
+      igst_rate: value,
+      cgst_rate: half,
+      sgst_rate: half,
+    }));
   }
 
   async function saveUom() {
@@ -294,7 +286,7 @@ export default function InventorySectionPage() {
 
   async function saveItem() {
     if (!activeFirmId) return;
-    if (!itemForm.name.trim() || !itemForm.hsn_id || !itemForm.uom_id) {
+    if (!itemForm.name.trim() || !itemForm.hsn_code || !itemForm.uom_id) {
       setError("Please provide an item name, HSN code, and Unit of Measure.");
       return;
     }
@@ -314,53 +306,13 @@ export default function InventorySectionPage() {
   }
 
   async function removeCurrent(id: string) {
-    const path = section === "hsn" ? `/api/hsn/${id}` : section === "uom" ? `/api/uom/${id}` : `/api/items/${id}`;
+    const path = section === "uom" ? `/api/uom/${id}` : `/api/items/${id}`;
     await apiRequest<void>(supabase, path, { method: "DELETE" });
     if (editingId === id) resetForms();
     await loadSection();
   }
 
-  const editor = section === "hsn"
-    ? (
-      <SurfaceCard
-        title={editingId ? "Edit HSN / SAC" : "Add HSN / SAC"}
-        description="Statutory classification lives here so item and voucher entry stay clean."
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          <TextInput
-            placeholder="HSN / SAC code"
-            value={hsnForm.hsn_code}
-            onChange={(event) => setHsnForm((prev) => ({ ...prev, hsn_code: event.target.value }))}
-          />
-          <SelectInput
-            value={hsnForm.code_type}
-            onChange={(event) => setHsnForm((prev) => ({ ...prev, code_type: event.target.value as "HSN" | "SAC" }))}
-          >
-            <option value="HSN">HSN</option>
-            <option value="SAC">SAC</option>
-          </SelectInput>
-          <div className="md:col-span-2">
-            <TextInput
-              placeholder="Description"
-              value={hsnForm.description}
-              onChange={(event) => setHsnForm((prev) => ({ ...prev, description: event.target.value }))}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <Toggle checked={hsnForm.is_active} label="Keep this code active for selection" onChange={(next) => setHsnForm((prev) => ({ ...prev, is_active: next }))} />
-          </div>
-        </div>
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <button onClick={() => void saveHsn()} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">
-            {editingId ? "Save changes" : "Create code"}
-          </button>
-          <button onClick={resetForms} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600">
-            Reset
-          </button>
-        </div>
-      </SurfaceCard>
-    )
-    : section === "uom"
+  const editor = section === "uom"
       ? (
         <SurfaceCard
           title={editingId ? "Edit UOM" : "Add UOM"}
@@ -418,65 +370,312 @@ export default function InventorySectionPage() {
         ? (
           <SurfaceCard
             title={editingId ? "Edit item" : "Add item"}
-            description="Items are stock-aware and voucher-ready here, with GST defaults and opening position in one dense but clean form."
-            action={
-              <div className="text-right text-xs text-slate-500">
-                <Link href="/dashboard/inventory/hsn" className="font-semibold text-tally-700">Manage HSN</Link>
-                <span className="mx-2 text-slate-300">/</span>
-                <Link href="/dashboard/inventory/uom" className="font-semibold text-tally-700">Manage UOM</Link>
-              </div>
+            description={
+              editingId
+                ? "Update this item's identity, GST defaults, and opening stock."
+                : "Define the item once — billing-ready across all vouchers."
             }
           >
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <TextInput placeholder="Item name" value={itemForm.name} onChange={(event) => setItemForm((prev) => ({ ...prev, name: event.target.value }))} />
-              <TextInput placeholder="Alias" value={itemForm.alias} onChange={(event) => setItemForm((prev) => ({ ...prev, alias: event.target.value }))} />
-              <SelectInput value={itemForm.type} onChange={(event) => setItemForm((prev) => ({ ...prev, type: event.target.value as "Goods" | "Services" }))}>
-                <option value="Goods">Goods</option>
-                <option value="Services">Services</option>
-              </SelectInput>
-              <TextInput type="number" step="0.01" placeholder="Default price" value={itemForm.default_price} onChange={(event) => setItemForm((prev) => ({ ...prev, default_price: Number(event.target.value) }))} />
-              <SelectInput value={itemForm.hsn_id} onChange={(event) => setItemForm((prev) => ({ ...prev, hsn_id: event.target.value }))}>
-                <option value="">Select HSN / SAC</option>
-                {hsn.map((row) => <option key={row.id} value={row.id}>{row.hsn_code} {row.description ? `- ${row.description}` : ""}</option>)}
-              </SelectInput>
-              <SelectInput value={itemForm.uom_id} onChange={(event) => setItemForm((prev) => ({ ...prev, uom_id: event.target.value }))}>
-                <option value="">Select UOM</option>
-                {uom.map((row) => <option key={row.id} value={row.id}>{row.name} ({row.uqc_code})</option>)}
-              </SelectInput>
-              <SelectInput value={itemForm.taxability} onChange={(event) => setItemForm((prev) => ({ ...prev, taxability: event.target.value as ItemForm["taxability"] }))}>
-                <option value="Taxable">Taxable</option>
-                <option value="Nil Rated">Nil Rated</option>
-                <option value="Exempt">Exempt</option>
-                <option value="Zero Rated">Zero Rated</option>
-                <option value="Non-GST">Non-GST</option>
-              </SelectInput>
-              <SelectInput value={itemForm.cess_type} onChange={(event) => setItemForm((prev) => ({ ...prev, cess_type: event.target.value as ItemForm["cess_type"] }))}>
-                <option value="none">No cess</option>
-                <option value="ad_valorem">Ad valorem</option>
-                <option value="specific">Specific</option>
-                <option value="compound">Compound</option>
-              </SelectInput>
-              <TextInput type="number" step="0.01" placeholder="IGST %" value={itemForm.igst_rate} onChange={(event) => setItemForm((prev) => ({ ...prev, igst_rate: Number(event.target.value) }))} />
-              <TextInput type="number" step="0.01" placeholder="CGST %" value={itemForm.cgst_rate} onChange={(event) => setItemForm((prev) => ({ ...prev, cgst_rate: Number(event.target.value) }))} />
-              <TextInput type="number" step="0.01" placeholder="SGST %" value={itemForm.sgst_rate} onChange={(event) => setItemForm((prev) => ({ ...prev, sgst_rate: Number(event.target.value) }))} />
-              <TextInput type="number" step="0.01" placeholder="Cess %" value={itemForm.cess_percent} onChange={(event) => setItemForm((prev) => ({ ...prev, cess_percent: Number(event.target.value) }))} />
-              <TextInput type="number" step="0.01" placeholder="Cess amount / unit" value={itemForm.cess_amount_per_unit} onChange={(event) => setItemForm((prev) => ({ ...prev, cess_amount_per_unit: Number(event.target.value) }))} />
-              <TextInput type="number" step="0.01" placeholder="Opening quantity" value={itemForm.opening_quantity} onChange={(event) => setItemForm((prev) => ({ ...prev, opening_quantity: Number(event.target.value) }))} />
-              <TextInput type="number" step="0.01" placeholder="Opening rate" value={itemForm.opening_rate} onChange={(event) => setItemForm((prev) => ({ ...prev, opening_rate: Number(event.target.value) }))} />
-              <TextInput type="number" step="0.01" placeholder="Opening value" value={itemForm.opening_value} onChange={(event) => setItemForm((prev) => ({ ...prev, opening_value: Number(event.target.value) }))} />
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-              <Toggle checked={itemForm.is_gst_applicable} label="GST applicable" onChange={(next) => setItemForm((prev) => ({ ...prev, is_gst_applicable: next }))} />
-              <Toggle checked={itemForm.is_rcm} label="Reverse charge applicable" onChange={(next) => setItemForm((prev) => ({ ...prev, is_rcm: next }))} />
-              <Toggle checked={itemForm.is_active} label="Keep item active" onChange={(next) => setItemForm((prev) => ({ ...prev, is_active: next }))} />
-            </div>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <button onClick={() => void saveItem()} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">
-                {editingId ? "Save item" : "Create item"}
-              </button>
-              <button onClick={resetForms} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600">
-                Reset
-              </button>
+            <div className="space-y-8">
+
+              {/* ── IDENTITY ──────────────────────────────── */}
+              <div className="space-y-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Identity</p>
+
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-500">
+                    Item name <span className="text-rose-400">*</span>
+                  </label>
+                  <TextInput
+                    placeholder="e.g. Washing Machine"
+                    value={itemForm.name}
+                    onChange={(e) => setItemForm((p) => ({ ...p, name: e.target.value }))}
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-500">Alias</label>
+                    <TextInput
+                      placeholder="Optional short name"
+                      value={itemForm.alias}
+                      onChange={(e) => setItemForm((p) => ({ ...p, alias: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-slate-500">Type</label>
+                    <div className="flex h-12 rounded-2xl bg-slate-100 p-1">
+                      {(["Goods", "Services"] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setItemForm((p) => ({ ...p, type: t }))}
+                          className={`flex-1 rounded-xl text-sm font-semibold transition ${
+                            itemForm.type === t
+                              ? "bg-white text-slate-900 shadow-sm"
+                              : "text-slate-500 hover:text-slate-700"
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-500">
+                        HSN / SAC <span className="text-rose-400">*</span>
+                      </label>
+                    </div>
+                    <TextInput
+                      placeholder="e.g. 123456"
+                      value={itemForm.hsn_code}
+                      onChange={(e) => setItemForm((p) => ({ ...p, hsn_code: e.target.value }))}
+                      maxLength={6}
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-500">
+                        Unit of Measure <span className="text-rose-400">*</span>
+                      </label>
+                      <Link href="/dashboard/inventory/uom" className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700">
+                        + Add new
+                      </Link>
+                    </div>
+                    <SelectInput value={itemForm.uom_id} onChange={(e) => setItemForm((p) => ({ ...p, uom_id: e.target.value }))}>
+                      <option value="">Select unit</option>
+                      {uom.map((row) => (
+                        <option key={row.id} value={row.id}>{row.name} ({row.uqc_code})</option>
+                      ))}
+                    </SelectInput>
+                  </div>
+                </div>
+
+                <div className="sm:max-w-[calc(50%-8px)]">
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-500">Default price (₹)</label>
+                  <TextInput
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={itemForm.default_price || ""}
+                    onChange={(e) => setItemForm((p) => ({ ...p, default_price: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+
+              <div className="border-t border-slate-100" />
+
+              {/* ── GST & TAXATION ────────────────────────── */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">GST &amp; Taxation</p>
+                    {itemForm.is_gst_applicable && (
+                      <p className="mt-0.5 text-xs text-slate-400">IGST auto-splits into CGST + SGST</p>
+                    )}
+                  </div>
+                  <TogglePill
+                    checked={itemForm.is_gst_applicable}
+                    onChange={(next) => setItemForm((p) => ({ ...p, is_gst_applicable: next }))}
+                  />
+                </div>
+
+                {itemForm.is_gst_applicable && (
+                  <div className="space-y-4 rounded-2xl bg-slate-50/70 p-4">
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Taxability</label>
+                        <SelectInput
+                          value={itemForm.taxability}
+                          onChange={(e) => setItemForm((p) => ({ ...p, taxability: e.target.value as ItemForm["taxability"] }))}
+                        >
+                          <option value="Taxable">Taxable</option>
+                          <option value="Nil Rated">Nil Rated</option>
+                          <option value="Exempt">Exempt</option>
+                          <option value="Zero Rated">Zero Rated</option>
+                          <option value="Non-GST">Non-GST</option>
+                        </SelectInput>
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cess type</label>
+                        <SelectInput
+                          value={itemForm.cess_type}
+                          onChange={(e) => setItemForm((p) => ({ ...p, cess_type: e.target.value as ItemForm["cess_type"] }))}
+                        >
+                          <option value="none">No cess</option>
+                          <option value="ad_valorem">Ad valorem (%)</option>
+                          <option value="specific">Specific (per unit)</option>
+                          <option value="compound">Compound</option>
+                        </SelectInput>
+                      </div>
+                    </div>
+
+                    {itemForm.taxability === "Taxable" && (
+                      <div>
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                          GST rates — type IGST to auto-fill CGST &amp; SGST
+                        </p>
+                        <div className="grid gap-3 grid-cols-3">
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-500">IGST %</label>
+                            <TextInput
+                              type="number"
+                              step="0.01"
+                              placeholder="0"
+                              value={itemForm.igst_rate || ""}
+                              onChange={(e) => handleIgstChange(Number(e.target.value))}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-500">CGST %</label>
+                            <TextInput
+                              type="number"
+                              step="0.01"
+                              placeholder="0"
+                              value={itemForm.cgst_rate || ""}
+                              onChange={(e) => setItemForm((p) => ({ ...p, cgst_rate: Number(e.target.value) }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1.5 block text-xs font-semibold text-slate-500">SGST %</label>
+                            <TextInput
+                              type="number"
+                              step="0.01"
+                              placeholder="0"
+                              value={itemForm.sgst_rate || ""}
+                              onChange={(e) => setItemForm((p) => ({ ...p, sgst_rate: Number(e.target.value) }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {itemForm.cess_type !== "none" && (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cess %</label>
+                          <TextInput
+                            type="number"
+                            step="0.01"
+                            placeholder="0"
+                            value={itemForm.cess_percent || ""}
+                            onChange={(e) => setItemForm((p) => ({ ...p, cess_percent: Number(e.target.value) }))}
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cess per unit (₹)</label>
+                          <TextInput
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={itemForm.cess_amount_per_unit || ""}
+                            onChange={(e) => setItemForm((p) => ({ ...p, cess_amount_per_unit: Number(e.target.value) }))}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <Toggle
+                      checked={itemForm.is_rcm}
+                      label="Reverse charge applicable"
+                      onChange={(next) => setItemForm((p) => ({ ...p, is_rcm: next }))}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-100" />
+
+              {/* ── OPENING STOCK ─────────────────────────── */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setOpeningStockOpen((p) => !p)}
+                  className="flex w-full items-center justify-between"
+                >
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Opening Stock</p>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      {openingStockOpen
+                        ? "Collapse"
+                        : "Expand to set opening quantity, rate, and value"}
+                    </p>
+                  </div>
+                  <span
+                    className={`text-lg leading-none text-slate-400 transition-transform duration-200 ${
+                      openingStockOpen ? "rotate-180" : ""
+                    }`}
+                  >
+                    ▾
+                  </span>
+                </button>
+
+                {openingStockOpen && (
+                  <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">Opening quantity</label>
+                      <TextInput
+                        type="number"
+                        step="0.01"
+                        placeholder="0"
+                        value={itemForm.opening_quantity || ""}
+                        onChange={(e) => setItemForm((p) => ({ ...p, opening_quantity: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">Rate (₹ / unit)</label>
+                      <TextInput
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={itemForm.opening_rate || ""}
+                        onChange={(e) => setItemForm((p) => ({ ...p, opening_rate: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-500">Value (₹)</label>
+                      <TextInput
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={itemForm.opening_value || ""}
+                        onChange={(e) => setItemForm((p) => ({ ...p, opening_value: Number(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-100" />
+
+              {/* ── STATUS & ACTIONS ──────────────────────── */}
+              <div className="flex flex-col gap-5">
+                <Toggle
+                  checked={itemForm.is_active}
+                  label="Keep item active"
+                  onChange={(next) => setItemForm((p) => ({ ...p, is_active: next }))}
+                />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    onClick={() => void saveItem()}
+                    className="rounded-2xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 active:scale-[0.98]"
+                  >
+                    {editingId ? "Save item" : "Create item"}
+                  </button>
+                  <button
+                    onClick={resetForms}
+                    className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
             </div>
           </SurfaceCard>
         )

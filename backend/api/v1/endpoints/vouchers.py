@@ -113,26 +113,15 @@ def _build_inventory_line_payloads(
     item_ids = [str(line.item_id) for line in lines]
     items_resp = (
         supabase.table("items")
-        .select("id, firm_id, name, hsn_id, uom_id, taxability, is_rcm")
+        .select("id, firm_id, name, hsn_code, uom_id, taxability, is_rcm")
         .in_("id", item_ids)
         .execute()
     ).data or []
 
     item_map = {row["id"]: row for row in items_resp}
-    hsn_ids = list({row["hsn_id"] for row in items_resp if row.get("hsn_id")})
+
     uom_ids = list({row["uom_id"] for row in items_resp if row.get("uom_id")})
-
-    hsn_map: dict[str, str] = {}
     uom_map: dict[str, str] = {}
-
-    if hsn_ids:
-        hsn_rows = (
-            supabase.table("hsn_codes")
-            .select("id, hsn_code")
-            .in_("id", hsn_ids)
-            .execute()
-        ).data or []
-        hsn_map = {row["id"]: row["hsn_code"] for row in hsn_rows}
 
     if uom_ids:
         uom_rows = (
@@ -183,7 +172,7 @@ def _build_inventory_line_payloads(
             "item_id": item_id,
             "line_number": line.line_number,
             "item_name": item["name"],
-            "hsn_code": hsn_map.get(str(item["hsn_id"]), ""),
+            "hsn_code": item.get("hsn_code", ""),
             "uom": uom_map.get(str(item["uom_id"]), ""),
             "taxability": item["taxability"],
             "is_rcm": item["is_rcm"],
