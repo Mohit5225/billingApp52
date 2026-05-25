@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/context/OnboardingContext";
+import { useToast } from "@/context/ToastContext";
 
 export default function Manual2Page() {
   const router = useRouter();
-  const { data, submitOnboarding, error: contextError } = useOnboarding();
+  const { data, submitOnboarding } = useOnboarding();
+  const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     gstin: data.gstin || "",
@@ -63,7 +65,10 @@ export default function Manual2Page() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate()) {
+      showToast("Please correct the validation errors before proceeding.", "error");
+      return;
+    }
     
     try {
       setLoading(true);
@@ -165,8 +170,6 @@ export default function Manual2Page() {
             />
           </div>
         </div>
-
-        {contextError && <p className="text-red-500 text-sm pt-2 bg-red-50 p-2 rounded-lg">{contextError}</p>}
 
         <div className="flex gap-4 pt-4 border-t border-gray-100">
           <button 

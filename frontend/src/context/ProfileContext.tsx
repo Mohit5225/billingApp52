@@ -4,11 +4,11 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 import { Profile, UserRole } from "@/interfaces/profile";
 import { createClient } from "@/supabaseConfig/client";
+import { useToast } from "@/context/ToastContext";
 
 interface ProfileContextType {
   profile: Profile | null;
   isLoading: boolean;
-  error: string | null;
   refreshProfile: () => Promise<void>;
   isCAAdmin: boolean;
   isCAEmployee: boolean;
@@ -21,13 +21,12 @@ const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const supabase = useMemo(() => createClient(), []);
 
   const fetchProfile = useCallback(async (silent = false) => {
     try {
       if (!silent) setIsLoading(true);
-      setError(null);
 
       const {
         data: { session },
@@ -56,11 +55,11 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err: unknown) {
       console.error("Error fetching profile:", err);
-      setError(err instanceof Error ? err.message : "Unable to load profile");
+      showToast(err instanceof Error ? err.message : "Unable to load profile", "error");
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, showToast]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -84,7 +83,6 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
   const value = {
     profile,
     isLoading,
-    error,
     refreshProfile: () => fetchProfile(false),
     isCAAdmin: profile?.role === UserRole.CA_ADMIN,
     isCAEmployee: profile?.role === UserRole.CA_EMPLOYEE,

@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, ReactNode } from "react";
 import { FirmCreate } from "@/interfaces/firm";
 import { createClient } from "@/supabaseConfig/client";
 import { getApiBaseUrl } from "@/lib/api";
+import { useToast } from "@/context/ToastContext";
 
 type OnboardingData = Partial<FirmCreate>;
 
@@ -13,7 +14,6 @@ interface OnboardingContextType {
   fetchGstDetails: (gstin: string) => Promise<void>;
   submitOnboarding: (manualData?: Partial<OnboardingData>) => Promise<void>;
   isLoading: boolean;
-  error: string | null;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -21,7 +21,7 @@ const OnboardingContext = createContext<OnboardingContextType | undefined>(undef
 export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
   const [data, setData] = useState<OnboardingData>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
   const apiBaseUrl = getApiBaseUrl();
 
   const updateData = (newData: Partial<OnboardingData>) => {
@@ -37,7 +37,6 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchGstDetails = async (gstin: string) => {
     setIsLoading(true);
-    setError(null);
     try {
       const token = await getAuthToken();
       const response = await fetch(`${apiBaseUrl}/api/firms/gst/fetch?gstin=${gstin}`, {
@@ -53,7 +52,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       const fetchedData = await response.json();
       updateData(fetchedData);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      showToast(err instanceof Error ? err.message : "An error occurred", "error");
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +60,6 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
   const submitOnboarding = async (manualData?: Partial<OnboardingData>) => {
     setIsLoading(true);
-    setError(null);
     try {
       const token = await getAuthToken();
       // Merge context data with any final manual data passed in to ensure we have the latest
@@ -84,7 +82,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       // Update local context state with the final merged data after successful submission
       setData(finalData);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      showToast(err instanceof Error ? err.message : "An error occurred", "error");
       throw err;
     } finally {
       setIsLoading(false);
@@ -93,7 +91,7 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <OnboardingContext.Provider
-      value={{ data, updateData, fetchGstDetails, submitOnboarding, isLoading, error }}
+      value={{ data, updateData, fetchGstDetails, submitOnboarding, isLoading }}
     >
       {children}
     </OnboardingContext.Provider>

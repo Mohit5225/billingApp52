@@ -32,10 +32,10 @@ export default function ListRowItem({
   return (
     <Link
       href={href}
-      className="group flex items-start gap-3 rounded-[24px] px-4 py-4 transition-colors hover:bg-slate-50/90 sm:items-center sm:px-5"
+      className="group flex items-start gap-2.5 rounded-2xl px-3 py-3 transition-colors hover:bg-slate-50/90 sm:items-center sm:px-5 sm:gap-3"
     >
       {icon && (
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-tally-50 text-tally-700 transition-colors group-hover:bg-tally-100">
+        <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-tally-50 text-tally-700 transition-colors group-hover:bg-tally-100">
           {icon}
         </div>
       )}

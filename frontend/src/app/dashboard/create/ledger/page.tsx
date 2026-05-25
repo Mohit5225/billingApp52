@@ -13,6 +13,7 @@ import {
 import { apiRequest } from "@/lib/http";
 import { useFirmScope } from "../../shared/useFirmScope";
 import { PageHero, SurfaceCard } from "../../shared/WorkspaceUi";
+import { useToast } from "@/context/ToastContext";
 
 type LedgerFormState = {
   name: string;
@@ -46,6 +47,19 @@ type LedgerFormState = {
     tax_percentage: number;
   };
 };
+
+type BankSectionMeta = {
+  transaction_type: string;
+  international_account: boolean;
+};
+
+type BankSectionErrors = Partial<{
+  transaction_type: string;
+  account_number: string;
+  ifsc_code: string;
+  swift_code: string;
+  bank_name: string;
+}>;
 
 const EMPTY_FORM: LedgerFormState = {
   name: "",
@@ -105,7 +119,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Input(props: React.InputHTMLAttributes<HTMLInputElement> | React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  if (props.type === "textarea") {
+  if ("type" in props && props.type === "textarea") {
     return (
       <textarea
         {...(props as React.TextareaHTMLAttributes<HTMLTextAreaElement>)}
@@ -128,6 +142,47 @@ function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
       className={`h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 ${props.className || ""}`}
     />
   );
+}
+
+const BANK_ACCOUNT_NUMBER_REGEX = /^[A-Z0-9]{9,18}$/;
+const BANK_IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+const BANK_SWIFT_REGEX = /^[A-Z0-9]{8}([A-Z0-9]{3})?$/;
+
+function validateBankSection(bankDetails: LedgerFormState["bank_details"], bankMeta: BankSectionMeta): BankSectionErrors {
+  const errors: BankSectionErrors = {};
+
+  if (!bankMeta.transaction_type.trim()) {
+    errors.transaction_type = "Select a transaction type.";
+  }
+
+  const accountNumber = bankDetails.account_number.trim().toUpperCase();
+  if (!accountNumber) {
+    errors.account_number = "Account number is required.";
+  } else if (!BANK_ACCOUNT_NUMBER_REGEX.test(accountNumber)) {
+    errors.account_number = "Use 9 to 18 alphanumeric characters for the account number.";
+  }
+
+  const ifscCode = bankDetails.ifsc_code.trim().toUpperCase();
+  if (!ifscCode) {
+    errors.ifsc_code = "IFSC code is required.";
+  } else if (!BANK_IFSC_REGEX.test(ifscCode)) {
+    errors.ifsc_code = "Enter a valid IFSC code, for example SBIN0001234.";
+  }
+
+  if (!bankDetails.bank_name.trim()) {
+    errors.bank_name = "Bank name is required.";
+  }
+
+  if (bankMeta.international_account) {
+    const swiftCode = bankDetails.swift_code.trim().toUpperCase();
+    if (!swiftCode) {
+      errors.swift_code = "SWIFT code is required for international accounts.";
+    } else if (!BANK_SWIFT_REGEX.test(swiftCode)) {
+      errors.swift_code = "Enter a valid SWIFT/BIC code (8 or 11 alphanumeric characters).";
+    }
+  }
+
+  return errors;
 }
 
 function SegmentedControl({
@@ -204,9 +259,14 @@ export default function LedgerCreatePage() {
   const { activeFirmId, supabase } = useFirmScope();
   const [groups, setGroups] = useState<AccountGroup[]>([]);
   const [form, setForm] = useState<LedgerFormState>(EMPTY_FORM);
+  const [bankMeta, setBankMeta] = useState<BankSectionMeta>({
+    transaction_type: "Cheque / DD",
+    international_account: false,
+  });
+  const [bankErrors, setBankErrors] = useState<BankSectionErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   const selectedGroup = useMemo(
     () => groups.find((group) => group.id === form.group_id) || null,
@@ -242,13 +302,18 @@ export default function LedgerCreatePage() {
   }, [selectedGroup]);
 
   useEffect(() => {
+    if (templateType !== "bank") {
+      setBankErrors({});
+    }
+  }, [templateType]);
+
+  useEffect(() => {
     if (!activeFirmId) return;
 
     let mounted = true;
     const load = async () => {
       try {
         setIsLoading(true);
-        setError(null);
         const accountGroups = await apiRequest<AccountGroup[]>(supabase, "/api/ledgers/account-groups", {
           query: { firm_id: activeFirmId },
         });
@@ -295,7 +360,7 @@ export default function LedgerCreatePage() {
           });
         }
       } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : "Unable to load ledger setup");
+        if (mounted) showToast(err instanceof Error ? err.message : "Unable to load ledger setup", "error");
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -311,7 +376,17 @@ export default function LedgerCreatePage() {
     if (!activeFirmId) return;
     try {
       setIsSubmitting(true);
-      setError(null);
+
+      if (templateType === "bank") {
+        const validationErrors = validateBankSection(form.bank_details, bankMeta);
+        if (Object.keys(validationErrors).length > 0) {
+          setBankErrors(validationErrors);
+          showToast("Please complete the bank details before saving.", "error");
+          return;
+        }
+      }
+
+      setBankErrors({});
 
       const payload: LedgerWritePayload = {
         firm_id: activeFirmId,
@@ -362,7 +437,7 @@ export default function LedgerCreatePage() {
 
       router.push("/dashboard/books/ledger");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save ledger");
+      showToast(err instanceof Error ? err.message : "Unable to save ledger", "error");
     } finally {
       setIsSubmitting(false);
     }
@@ -495,29 +570,93 @@ export default function LedgerCreatePage() {
       {templateType === "bank" ? (
         <SurfaceCard title="Bank Details" description="Specify the transaction type and related bank information.">
           <div className="space-y-6">
-            <Field label="Transaction Type">
-              <Select>
+            <Field label="Transaction Type *">
+              <Select
+                value={bankMeta.transaction_type}
+                onChange={(event) => {
+                  setBankMeta((prev) => ({ ...prev, transaction_type: event.target.value }));
+                  setBankErrors({});
+                }}
+              >
                 <option value="">Select type...</option>
-                <option value="NEFT">NEFT / RTGS</option>
-                <option value="Cheque">Cheque / DD</option>
+                <option value="NEFT / RTGS">NEFT / RTGS</option>
+                <option value="Cheque / DD">Cheque / DD</option>
                 <option value="Others">Others</option>
               </Select>
+              {bankErrors.transaction_type && <p className="text-xs font-medium text-red-600">{bankErrors.transaction_type}</p>}
             </Field>
+
+            <LabeledToggle
+              checked={bankMeta.international_account}
+              label="International / foreign currency account"
+              description="Enable this when a SWIFT/BIC code is required."
+              onChange={(next) => {
+                setBankMeta((prev) => ({ ...prev, international_account: next }));
+                setBankErrors({});
+              }}
+            />
+
             <div className="grid gap-6 md:grid-cols-2">
-              <Field label="Account Number">
-                <Input placeholder="Account number" value={form.bank_details.account_number} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, account_number: event.target.value } }))} />
+              <Field label="Account Number *">
+                <Input
+                  placeholder="Account number"
+                  value={form.bank_details.account_number}
+                  inputMode="text"
+                  maxLength={18}
+                  onChange={(event) => {
+                    const value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, account_number: value } }));
+                    setBankErrors({});
+                  }}
+                />
+                {bankErrors.account_number && <p className="text-xs font-medium text-red-600">{bankErrors.account_number}</p>}
               </Field>
-              <Field label="IFSC Code">
-                <Input placeholder="IFSC code" value={form.bank_details.ifsc_code} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, ifsc_code: event.target.value } }))} />
+              <Field label="IFSC Code *">
+                <Input
+                  placeholder="IFSC code"
+                  value={form.bank_details.ifsc_code}
+                  maxLength={11}
+                  onChange={(event) => {
+                    const value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, ifsc_code: value } }));
+                    setBankErrors({});
+                  }}
+                />
+                {bankErrors.ifsc_code && <p className="text-xs font-medium text-red-600">{bankErrors.ifsc_code}</p>}
               </Field>
-              <Field label="SWIFT Code">
-                <Input placeholder="SWIFT code" value={form.bank_details.swift_code} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, swift_code: event.target.value } }))} />
+              <Field label={bankMeta.international_account ? "SWIFT Code *" : "SWIFT Code"}>
+                <Input
+                  placeholder="SWIFT code"
+                  value={form.bank_details.swift_code}
+                  maxLength={11}
+                  onChange={(event) => {
+                    const value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, swift_code: value } }));
+                    setBankErrors({});
+                  }}
+                />
+                {bankErrors.swift_code && <p className="text-xs font-medium text-red-600">{bankErrors.swift_code}</p>}
               </Field>
-              <Field label="Bank Name">
-                <Input placeholder="Bank name" value={form.bank_details.bank_name} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, bank_name: event.target.value } }))} />
+              <Field label="Bank Name *">
+                <Input
+                  placeholder="Bank name"
+                  value={form.bank_details.bank_name}
+                  onChange={(event) => {
+                    setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, bank_name: event.target.value } }));
+                    setBankErrors({});
+                  }}
+                />
+                {bankErrors.bank_name && <p className="text-xs font-medium text-red-600">{bankErrors.bank_name}</p>}
               </Field>
               <Field label="Branch Name">
-                <Input placeholder="Branch name" value={form.bank_details.branch_name} onChange={(event) => setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, branch_name: event.target.value } }))} />
+                <Input
+                  placeholder="Branch name"
+                  value={form.bank_details.branch_name}
+                  onChange={(event) => {
+                    setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, branch_name: event.target.value } }));
+                    setBankErrors({});
+                  }}
+                />
               </Field>
             </div>
           </div>

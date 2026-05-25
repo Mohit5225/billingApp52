@@ -46,8 +46,8 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-2 lg:hidden">
-      <div className="mx-auto flex max-w-lg items-center justify-between gap-1 rounded-[28px] border border-white/70 bg-white/88 p-2 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+    <nav className="fixed inset-x-0 bottom-0 z-40 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
+      <div className="mx-auto flex max-w-lg items-center justify-between gap-0.5 rounded-2xl border border-white/70 bg-white/88 p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl">
         {BOTTOM_TABS.map((tab) => {
           const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
 
@@ -55,16 +55,16 @@ export default function BottomNav() {
             <Link
               key={tab.label}
               href={tab.href}
-              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-2 py-2.5 transition-all ${
+              className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1.5 transition-all ${
                 isActive
                   ? "bg-tally-50 text-tally-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                   : "text-slate-400 hover:text-slate-600"
               }`}
             >
-              <div className={`rounded-2xl p-1.5 transition-all ${isActive ? "bg-tally-100 text-tally-800" : ""}`}>
+              <div className={`rounded-xl p-1 transition-all ${isActive ? "bg-tally-100 text-tally-800" : ""}`}>
                 {tab.icon}
               </div>
-              <span className={`truncate text-[11px] ${isActive ? "font-semibold" : "font-medium"}`}>
+              <span className={`truncate text-[10px] sm:text-[11px] ${isActive ? "font-semibold" : "font-medium"}`}>
                 {tab.label}
               </span>
             </Link>

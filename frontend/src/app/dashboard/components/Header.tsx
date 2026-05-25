@@ -36,25 +36,25 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-30 border-b border-white/60 bg-[rgba(248,245,239,0.84)] backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex items-start justify-between gap-4 lg:items-center">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-tally-400 font-bold text-tally-900 shadow-lg shadow-emerald-950/10 lg:hidden">
+        <div className="flex w-full flex-wrap items-start justify-between gap-4 lg:flex-nowrap lg:items-center">
+          <div className="flex min-w-0 flex-1 items-start gap-2.5 sm:gap-3">
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-tally-400 font-bold text-tally-900 shadow-lg shadow-emerald-950/10 lg:hidden">
               B
             </div>
 
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Active Workspace
               </p>
-              <div className="mt-1 flex items-center gap-2">
-                <h1 className="truncate text-lg font-semibold tracking-tight text-slate-950 sm:text-xl lg:text-2xl">
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                <h1 className="truncate text-base font-semibold tracking-tight text-slate-950 sm:text-xl lg:text-2xl">
                   {firmName || "Loading..."}
                 </h1>
                 <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
               </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-slate-500">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:text-xs font-medium text-slate-500">
                 {firmDetails.state && <span>{firmDetails.state}</span>}
                 {firmDetails.gstin && (
                   <>

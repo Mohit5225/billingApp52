@@ -4,6 +4,13 @@ export type GstTaxability = "Taxable" | "Nil Rated" | "Exempt" | "Zero Rated" | 
 export type CessType = "none" | "ad_valorem" | "specific" | "compound";
 export type ItemType = "Goods" | "Services";
 
+export interface Hsn extends BaseEntity {
+  firm_id: string;
+  hsn_code: string;
+  description?: string | null;
+  code_type: string;
+  is_active: boolean;
+}
 
 export interface Uom extends BaseEntity {
   firm_id: string;

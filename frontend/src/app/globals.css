@@ -35,17 +35,44 @@
   --shadow-float: 0 30px 80px rgba(15, 23, 42, 0.12);
 }
 
+/* ── Voucher workbench zone tokens ── */
+:root {
+  --voucher-ribbon-from: #173728;
+  --voucher-ribbon-to: #2d6a4f;
+  --voucher-zone-ledger: #f3f6f4;
+  --voucher-zone-table-header: rgba(23, 55, 40, 0.045);
+  --voucher-zone-totals-bg: #173728;
+  --voucher-zone-totals-row: rgba(255, 255, 255, 0.06);
+  --voucher-input-hover: rgba(64, 145, 108, 0.18);
+  --voucher-input-focus-ring: rgba(64, 145, 108, 0.22);
+  --voucher-row-hover: rgba(212, 243, 220, 0.38);
+}
+
+@keyframes field-focus-in {
+  from { box-shadow: 0 0 0 0px rgba(64, 145, 108, 0); }
+  to   { box-shadow: 0 0 0 3px rgba(64, 145, 108, 0.22); }
+}
+
+/* Monospaced tabular numerics — for all financial amounts */
+.mono-num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.01em;
+}
+
 html {
   font-family: "Segoe UI", "SF Pro Text", "Helvetica Neue", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #f6f2ea;
+  overflow-x: hidden;
 }
 
 body {
   min-height: 100vh;
   background: var(--app-bg);
   color: #142033;
+  overflow-x: hidden;
 }
 
 * {

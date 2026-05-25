@@ -9,6 +9,7 @@ import { LedgerDetail } from "@/interfaces/ledger";
 import { VoucherCategory, VoucherDetail, VoucherWritePayload } from "@/interfaces/voucher";
 import { apiRequest } from "@/lib/http";
 import { formatCurrency } from "@/lib/format";
+import { useToast } from "@/context/ToastContext";
 
 import { useFirmScope } from "./useFirmScope";
 import { ComboboxField } from "./ComboboxField";
@@ -231,8 +232,12 @@ function InputField({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center">
-      {label && <label className="mb-1 text-sm font-medium text-slate-600 sm:mb-0 sm:w-1/3">{label}</label>}
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+      {label && (
+        <label className="mb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500 sm:mb-0 sm:w-1/3">
+          {label}
+        </label>
+      )}
       <input
         type={type}
         step={step}
@@ -240,7 +245,7 @@ function InputField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 sm:w-2/3"
+        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:cursor-not-allowed disabled:opacity-60 sm:w-2/3"
       />
     </div>
   );
@@ -257,6 +262,7 @@ export function VoucherWorkbench({
 }) {
   const router = useRouter();
   const { activeFirmId, supabase } = useFirmScope();
+  const { showToast } = useToast();
   const meta = VOUCHER_META[slug];
   const isEditing = Boolean(voucherId);
 
@@ -269,7 +275,6 @@ export function VoucherWorkbench({
   const [ledgers, setLedgers] = useState<LedgerDetail[]>([]);
   const [items, setItems] = useState<ItemDetail[]>([]);
   const [firmState, setFirmState] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -331,7 +336,6 @@ export function VoucherWorkbench({
     const load = async () => {
       try {
         setIsLoading(true);
-        setError(null);
 
         const [ledgerData, itemData] = await Promise.all([
           apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", { query: { firm_id: activeFirmId } }),
@@ -431,7 +435,7 @@ export function VoucherWorkbench({
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : "Unable to load voucher dependencies");
+          showToast(err instanceof Error ? err.message : "Unable to load voucher dependencies", "error");
         }
       } finally {
         if (mounted) setIsLoading(false);
@@ -643,7 +647,6 @@ export function VoucherWorkbench({
   async function submit() {
     try {
       setIsSubmitting(true);
-      setError(null);
       const payload = buildPayload();
 
       const result = isEditing
@@ -656,138 +659,198 @@ export function VoucherWorkbench({
           body: payload,
         });
 
+      showToast(`Voucher ${isEditing ? "updated" : "saved"} successfully!`, "success");
       router.push(`/dashboard/vouchers/${result.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save voucher");
+      showToast(err instanceof Error ? err.message : "Unable to save voucher", "error");
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col border-b border-slate-200 bg-slate-50/50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">{meta.title}</h1>
-          <p className="mt-1 text-sm text-slate-500">{isEditing ? "Editing voucher" : "New voucher"}</p>
+    <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      {/* ── Voucher Command Ribbon ── */}
+      <div
+        className="relative flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:px-6 sm:py-4 overflow-hidden"
+        style={{ background: `linear-gradient(135deg, var(--voucher-ribbon-from) 0%, var(--voucher-ribbon-to) 100%)` }}
+      >
+        {/* Faint radial glow */}
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-2/3 bg-[radial-gradient(circle_at_top_right,rgba(216,243,220,0.22),transparent_55%)]" />
+
+        {/* Top row on mobile / Left side on desktop — type pill + title + close on mobile */}
+        <div className="relative z-10 flex items-center justify-between w-full sm:w-auto gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.16em] text-white/80 ring-1 ring-white/20">
+              {meta.category}
+            </span>
+            <span className="h-3.5 w-px bg-white/20" />
+            <h1 className="text-sm font-semibold tracking-tight text-white sm:text-base">{meta.title}</h1>
+            {isEditing && (
+              <span className="hidden sm:inline-flex items-center rounded-full bg-amber-400/20 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-400/30">
+                Editing
+              </span>
+            )}
+          </div>
+          
+          {/* Close button ONLY on mobile (right side of title) */}
+          <Link
+            href={readOnly ? `/dashboard/vouchers/${voucherId}` : "/dashboard/create"}
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/20 bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-white sm:hidden"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </Link>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-4 sm:mt-0">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">No.</label>
-            <input 
-              className="h-9 w-24 rounded-md border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition disabled:opacity-75 disabled:bg-slate-50" 
-              placeholder="e.g. 1" 
-              value={form.voucher_number} 
-              onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))} 
+
+        {/* Bottom row on mobile / Right side on desktop — number, date, close */}
+        <div className="relative z-10 flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-white/50">No.</label>
+            <input
+              className="h-8 w-full sm:w-20 rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white outline-none placeholder:text-white/40 transition focus:border-white/50 focus:bg-white/15 disabled:opacity-60"
+              placeholder="e.g. 1"
+              value={form.voucher_number}
+              onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
               disabled={readOnly}
             />
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Date</label>
-            <input 
+          <div className="flex items-center gap-1.5 flex-[2] sm:flex-initial">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Date</label>
+            <input
               type="date"
-              className="h-9 w-[135px] rounded-md border border-slate-200 bg-white px-3 text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition disabled:opacity-75 disabled:bg-slate-50" 
-              value={form.voucher_date} 
-              onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))} 
+              className="h-8 w-full sm:w-[135px] rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white outline-none transition focus:border-white/50 focus:bg-white/15 disabled:opacity-60"
+              value={form.voucher_date}
+              onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
               disabled={readOnly}
             />
           </div>
-          <Link href={readOnly ? `/dashboard/vouchers/${voucherId}` : "/dashboard/create"} className="hidden sm:block text-sm font-medium text-emerald-600 hover:text-emerald-700">Close</Link>
+          
+          {/* Close button ONLY on desktop */}
+          <Link
+            href={readOnly ? `/dashboard/vouchers/${voucherId}` : "/dashboard/create"}
+            className="hidden sm:flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/20 hover:text-white"
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>Close</span>
+          </Link>
         </div>
       </div>
 
-      {error && <div className="border-b border-rose-200 bg-rose-50 px-6 py-4 text-sm font-medium text-rose-700">{error}</div>}
-
-      {/* Ledger Block */}
-      <div className="grid gap-6 border-b border-slate-100 p-4 sm:p-6 md:grid-cols-2 lg:gap-8 bg-white">
-        <div className="space-y-4">
-          {meta.family === "invoice" || meta.family === "payment" ? (
-            <ComboboxField
-              label="Party A/c Name"
-              value={form.party_ledger_id}
-              onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
-              options={partyLedgers}
-              placeholder="Type to search party…"
-              createHref="/dashboard/create/ledger"
-             disabled={readOnly} />
-          ) : null}
-          {meta.family === "payment" ? (
-            <ComboboxField
-              label="Cash/Bank Ledger"
-              value={form.cash_bank_ledger_id}
-              onChange={(value) => setForm((prev) => ({ ...prev, cash_bank_ledger_id: value }))}
-              options={cashBankLedgers}
-              placeholder="Type to search account…"
-              createHref="/dashboard/create/ledger"
-             disabled={readOnly} />
-          ) : null}
-          {meta.family === "contra" ? (
-            <>
-              <ComboboxField label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger"  disabled={readOnly} />
-              <ComboboxField label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger"  disabled={readOnly} />
-            </>
-          ) : null}
-        </div>
-        <div className="space-y-4">
-          {meta.family === "invoice" ? (
-            <>
+      {/* ── Zone B: Party / Ledger ── */}
+      <div
+        className="relative border-b border-slate-100"
+        style={{ background: "var(--voucher-zone-ledger)" }}
+      >
+        {/* Left accent bar */}
+        <div className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-tally-500/40" />
+        <div className="grid gap-6 p-5 pl-7 sm:p-6 sm:pl-8 md:grid-cols-2 lg:gap-8">
+          <div className="space-y-4">
+            {meta.family === "invoice" || meta.family === "payment" ? (
               <ComboboxField
-                label="Sales/Purchase Ledger"
-                value={form.main_ledger_id}
-                onChange={(value) => setForm((prev) => ({ ...prev, main_ledger_id: value }))}
-                options={mainLedgers}
-                placeholder="Type to search ledger…"
+                label="Party A/c Name"
+                value={form.party_ledger_id}
+                onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
+                options={partyLedgers}
+                placeholder="Type to search party…"
                 createHref="/dashboard/create/ledger"
-               disabled={readOnly} />
-              {selectedPartyLedger?.party_details?.state && firmState ? (
-                <div className="flex flex-col sm:flex-row sm:items-center">
-                  <label className="mb-1 text-sm font-medium text-slate-600 sm:mb-0 sm:w-1/3">Tax Mode</label>
-                  <div className="flex h-10 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-800 sm:w-2/3">
-                    {taxMode === "inter" ? "Inter-state / IGST" : "Intra-state / CGST + SGST"}
-                  </div>
-                </div>
-              ) : (
+                disabled={readOnly}
+              />
+            ) : null}
+            {meta.family === "payment" ? (
+              <ComboboxField
+                label="Cash/Bank Ledger"
+                value={form.cash_bank_ledger_id}
+                onChange={(value) => setForm((prev) => ({ ...prev, cash_bank_ledger_id: value }))}
+                options={cashBankLedgers}
+                placeholder="Type to search account…"
+                createHref="/dashboard/create/ledger"
+                disabled={readOnly}
+              />
+            ) : null}
+            {meta.family === "contra" ? (
+              <>
+                <ComboboxField label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger" disabled={readOnly} />
+                <ComboboxField label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger" disabled={readOnly} />
+              </>
+            ) : null}
+          </div>
+          <div className="space-y-4">
+            {meta.family === "invoice" ? (
+              <>
                 <ComboboxField
-                  label="Tax Mode"
-                  value={form.manual_tax_mode}
-                  onChange={(value) => setForm((prev) => ({ ...prev, manual_tax_mode: value as TaxMode }))}
-                  options={[
-                    { value: "intra", label: "Intra-state / CGST + SGST" },
-                    { value: "inter", label: "Inter-state / IGST" },
-                  ]}
-                  placeholder="Type intra or inter…"
-                 disabled={readOnly} />
-              )}
-            </>
-          ) : null}
-          {meta.family === "payment" || meta.family === "contra" ? (
-            <InputField
-              label="Amount"
-              type="number"
-              step="0.01"
-              value={form.amount}
-              onChange={(value) => setForm((prev) => ({ ...prev, amount: Number(value) }))}
-              placeholder="0.00"
-             disabled={readOnly} />
-          ) : null}
+                  label="Sales/Purchase Ledger"
+                  value={form.main_ledger_id}
+                  onChange={(value) => setForm((prev) => ({ ...prev, main_ledger_id: value }))}
+                  options={mainLedgers}
+                  placeholder="Type to search ledger…"
+                  createHref="/dashboard/create/ledger"
+                  disabled={readOnly}
+                />
+                {selectedPartyLedger?.party_details?.state && firmState ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1">
+                    <label className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 sm:mb-0 sm:w-1/3">Tax Mode</label>
+                    <div className="flex h-11 w-full items-center rounded-lg border border-slate-200 bg-white/80 px-3 text-sm font-medium text-slate-700 sm:w-2/3">
+                      {taxMode === "inter" ? "Inter-state / IGST" : "Intra-state / CGST + SGST"}
+                    </div>
+                  </div>
+                ) : (
+                  <ComboboxField
+                    label="Tax Mode"
+                    value={form.manual_tax_mode}
+                    onChange={(value) => setForm((prev) => ({ ...prev, manual_tax_mode: value as TaxMode }))}
+                    options={[
+                      { value: "intra", label: "Intra-state / CGST + SGST" },
+                      { value: "inter", label: "Inter-state / IGST" },
+                    ]}
+                    placeholder="Type intra or inter…"
+                    disabled={readOnly}
+                  />
+                )}
+              </>
+            ) : null}
+            {meta.family === "payment" || meta.family === "contra" ? (
+              <InputField
+                label="Amount"
+                type="number"
+                step="0.01"
+                value={form.amount}
+                onChange={(value) => setForm((prev) => ({ ...prev, amount: Number(value) }))}
+                placeholder="0.00"
+                disabled={readOnly}
+              />
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {/* Lines Block */}
+      {/* ── Zone C: Items Table ── */}
       {meta.family === "invoice" ? (
         <div className="border-b border-slate-100 bg-white">
-          <div className="hidden grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 bg-slate-50/50 px-6 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid">
+          {/* Sticky table header */}
+          <div
+            className="hidden grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 md:grid"
+            style={{ background: "var(--voucher-zone-table-header)" }}
+          >
             <div>Name of Item</div>
             <div>Qty</div>
             <div>Rate</div>
             <div>Discount</div>
             <div className="text-right">Amount</div>
-            <div className="w-10"></div>
+            <div className="w-10" />
           </div>
           <div className="divide-y divide-slate-100">
             {invoiceLines.map((line, index) => (
-              <div key={`${index}-${line.item_id}`} className="grid gap-4 p-4 md:grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-6 md:py-3">
+              <div
+                key={`${index}-${line.item_id}`}
+                className="group grid gap-4 p-4 transition-colors duration-100 md:grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-5 md:py-2.5"
+                style={{ ['--tw-bg-opacity' as string]: '1' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
+              >
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Item</span>
                   <ComboboxField
@@ -796,50 +859,101 @@ export function VoucherWorkbench({
                     onChange={(id) => selectItem(index, id)}
                     options={items.map((item) => ({ value: item.id, label: item.name }))}
                     placeholder="Type to search item…"
-                   disabled={readOnly} />
+                    disabled={readOnly}
+                  />
                 </div>
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Qty</span>
-                  <input disabled={readOnly} type="number" step="0.01" value={line.quantity || ""} onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })} placeholder="0" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                  <input
+                    disabled={readOnly}
+                    type="number"
+                    step="0.01"
+                    value={line.quantity || ""}
+                    onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })}
+                    placeholder="0"
+                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                  />
                 </div>
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Rate</span>
-                  <input disabled={readOnly} type="number" step="0.01" value={line.unit_price || ""} onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })} placeholder="0.00" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                  <input
+                    disabled={readOnly}
+                    type="number"
+                    step="0.01"
+                    value={line.unit_price || ""}
+                    onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })}
+                    placeholder="0.00"
+                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                  />
                 </div>
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Discount</span>
-                  <input disabled={readOnly} type="number" step="0.01" value={line.discount_amount || ""} onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })} placeholder="0.00" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                  <input
+                    disabled={readOnly}
+                    type="number"
+                    step="0.01"
+                    value={line.discount_amount || ""}
+                    onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
+                    placeholder="0.00"
+                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                  />
                 </div>
-                <div className="flex items-center justify-between md:justify-end md:pr-2">
+                <div className="flex items-center justify-between md:justify-end md:pr-1">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Amount</span>
-                  <span className="font-medium text-slate-900">{formatCurrency(line.taxable_amount)}</span>
+                  <span className="mono-num font-semibold text-slate-900">{formatCurrency(line.taxable_amount)}</span>
                 </div>
                 <div className="flex justify-end">
-                  <button disabled={readOnly} className={readOnly ? "hidden" : "text-sm font-medium text-rose-500 hover:text-rose-700"} onClick={() => setInvoiceLines((prev) => prev.filter((_, i) => i !== index))}>Remove</button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => setInvoiceLines((prev) => prev.filter((_, i) => i !== index))}
+                      title="Remove line"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
-          <div className="border-t border-slate-100 px-4 py-3 sm:px-6">
-            <button disabled={readOnly} className={readOnly ? "hidden" : "text-sm font-medium text-emerald-600 hover:text-emerald-700"} onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])}>
-              + Add Line
-            </button>
+          <div className="border-t border-slate-100 px-5 py-3">
+            {!readOnly && (
+              <button
+                onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Line
+              </button>
+            )}
           </div>
         </div>
       ) : null}
 
       {meta.family === "journal" ? (
         <div className="border-b border-slate-100 bg-white">
-           <div className="hidden grid-cols-[2fr_1fr_1fr_auto] gap-4 border-b border-slate-200 bg-slate-50/50 px-6 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid">
+          <div
+            className="hidden grid-cols-[2fr_1fr_1fr_auto] gap-4 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 md:grid"
+            style={{ background: "var(--voucher-zone-table-header)" }}
+          >
             <div>Ledger</div>
-            <div>Debit</div>
-            <div>Credit</div>
-            <div className="w-10"></div>
+            <div>Debit (Dr)</div>
+            <div>Credit (Cr)</div>
+            <div className="w-10" />
           </div>
           <div className="divide-y divide-slate-100">
             {journalLines.map((line, index) => (
-              <div key={index} className="grid gap-4 p-4 md:grid-cols-[2fr_1fr_1fr_auto] md:items-center md:gap-4 md:p-6 md:py-3">
-                 <div className="flex flex-col md:block">
+              <div
+                key={index}
+                className="grid gap-4 p-4 transition-colors duration-100 md:grid-cols-[2fr_1fr_1fr_auto] md:items-center md:gap-4 md:p-5 md:py-2.5"
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
+              >
+                <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Ledger</span>
                   <ComboboxField
                     inline
@@ -848,102 +962,180 @@ export function VoucherWorkbench({
                     options={allLedgerOptions}
                     placeholder="Type to search ledger…"
                     createHref="/dashboard/create/ledger"
-                   disabled={readOnly} />
+                    disabled={readOnly}
+                  />
                 </div>
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Debit</span>
-                  <input disabled={readOnly} type="number" step="0.01" value={line.debit_amount || ""} onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, debit_amount: Number(e.target.value), credit_amount: 0 } : entry))} placeholder="0.00" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                  <input
+                    disabled={readOnly}
+                    type="number"
+                    step="0.01"
+                    value={line.debit_amount || ""}
+                    onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, debit_amount: Number(e.target.value), credit_amount: 0 } : entry))}
+                    placeholder="0.00"
+                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                  />
                 </div>
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Credit</span>
-                  <input disabled={readOnly} type="number" step="0.01" value={line.credit_amount || ""} onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, credit_amount: Number(e.target.value), debit_amount: 0 } : entry))} placeholder="0.00" className="h-10 w-full rounded-md border border-slate-200 px-2 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 md:h-9 md:border-transparent md:hover:border-slate-200" />
+                  <input
+                    disabled={readOnly}
+                    type="number"
+                    step="0.01"
+                    value={line.credit_amount || ""}
+                    onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, credit_amount: Number(e.target.value), debit_amount: 0 } : entry))}
+                    placeholder="0.00"
+                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                  />
                 </div>
                 <div className="flex justify-end">
-                  <button disabled={readOnly} className={readOnly ? "hidden" : "text-sm font-medium text-rose-500 hover:text-rose-700"} onClick={() => setJournalLines((prev) => prev.filter((_, entryIndex) => entryIndex !== index))}>Remove</button>
+                  {!readOnly && (
+                    <button
+                      onClick={() => setJournalLines((prev) => prev.filter((_, entryIndex) => entryIndex !== index))}
+                      title="Remove line"
+                      className="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
-          <div className="border-t border-slate-100 px-4 py-3 sm:px-6">
-            <button disabled={readOnly} className={readOnly ? "hidden" : "text-sm font-medium text-emerald-600 hover:text-emerald-700"} onClick={() => setJournalLines((prev) => [...prev, { ...EMPTY_JOURNAL_LINE }])}>
-              + Add Accounting Line
-            </button>
+          <div className="border-t border-slate-100 px-5 py-3">
+            {!readOnly && (
+              <button
+                onClick={() => setJournalLines((prev) => [...prev, { ...EMPTY_JOURNAL_LINE }])}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Add Accounting Line
+              </button>
+            )}
           </div>
         </div>
       ) : null}
 
-      {/* Totals & Narration Flow */}
-      <div className="flex flex-col-reverse md:grid md:grid-cols-2 md:items-start border-b border-slate-100 bg-white">
-         <div className="p-4 sm:p-6 border-t border-slate-100 md:border-t-0 md:border-r">
-           <label className="mb-2 block text-sm font-medium text-slate-600">Narration</label>
-           <textarea disabled={readOnly}  
-             className="min-h-[100px] w-full rounded-md border border-slate-200 p-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500" 
-             placeholder="Enter narration for this voucher..." 
-             value={form.narration} 
-             onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))} 
-           />
-         </div>
-         <div className="p-4 sm:p-6 bg-slate-50/30">
-            {meta.family === "invoice" ? (
-              <div className="ml-auto w-full space-y-3 md:max-w-sm">
-                 <div className="flex justify-between text-sm text-slate-600">
-                    <span>Taxable Amount</span>
-                    <span className="font-medium text-slate-900">{formatCurrency(invoiceTotals.taxable)}</span>
-                 </div>
-                 {taxMode === 'inter' && invoiceTotals.igst > 0 && (
-                   <div className="flex justify-between text-sm text-slate-600">
-                      <span>IGST</span>
-                      <span>{formatCurrency(invoiceTotals.igst)}</span>
-                   </div>
-                 )}
-                 {taxMode === 'intra' && (invoiceTotals.cgst > 0 || invoiceTotals.sgst > 0) && (
-                   <>
-                     <div className="flex justify-between text-sm text-slate-600">
-                        <span>CGST</span>
-                        <span>{formatCurrency(invoiceTotals.cgst)}</span>
-                     </div>
-                     <div className="flex justify-between text-sm text-slate-600">
-                        <span>SGST</span>
-                        <span>{formatCurrency(invoiceTotals.sgst)}</span>
-                     </div>
-                   </>
-                 )}
-                 {invoiceTotals.cess > 0 && (
-                   <div className="flex justify-between text-sm text-slate-600">
-                      <span>Cess</span>
-                      <span>{formatCurrency(invoiceTotals.cess)}</span>
-                   </div>
-                 )}
-                 <div className="mt-4 flex justify-between border-t border-slate-200 pt-4 text-base font-bold text-slate-900">
-                    <span>Grand Total</span>
-                    <span className="text-xl">{formatCurrency(invoiceTotals.grandTotal)}</span>
-                 </div>
+      {/* ── Zone D: Narration + Totals ── */}
+      <div className="flex flex-col-reverse border-b border-slate-100 bg-white md:grid md:grid-cols-2 md:items-start">
+        {/* Narration */}
+        <div className="border-t border-slate-100 p-5 md:border-r md:border-t-0 sm:p-6">
+          <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Narration</label>
+          <textarea
+            disabled={readOnly}
+            className="min-h-[120px] w-full rounded-lg border border-slate-200 bg-white/80 p-3 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
+            placeholder="Enter narration for this voucher…"
+            value={form.narration}
+            onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))}
+          />
+        </div>
+
+        {/* Totals */}
+        <div className="p-5 sm:p-6">
+          {meta.family === "invoice" ? (
+            <div
+              className="ml-auto w-full overflow-hidden rounded-xl shadow-lg md:max-w-sm"
+              style={{ background: "var(--voucher-zone-totals-bg)" }}
+            >
+              {/* Line items */}
+              <div className="space-y-0 divide-y divide-white/8 px-5 pt-4 pb-3">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-[13px] text-white/65">Taxable Amount</span>
+                  <span className="mono-num text-[13px] font-medium text-white/80">{formatCurrency(invoiceTotals.taxable)}</span>
+                </div>
+                {taxMode === "inter" && invoiceTotals.igst > 0 && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-[13px] text-white/65">IGST</span>
+                    <span className="mono-num text-[13px] text-white/80">{formatCurrency(invoiceTotals.igst)}</span>
+                  </div>
+                )}
+                {taxMode === "intra" && (invoiceTotals.cgst > 0 || invoiceTotals.sgst > 0) && (
+                  <>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-[13px] text-white/65">CGST</span>
+                      <span className="mono-num text-[13px] text-white/80">{formatCurrency(invoiceTotals.cgst)}</span>
+                    </div>
+                    <div className="flex items-center justify-between py-2">
+                      <span className="text-[13px] text-white/65">SGST</span>
+                      <span className="mono-num text-[13px] text-white/80">{formatCurrency(invoiceTotals.sgst)}</span>
+                    </div>
+                  </>
+                )}
+                {invoiceTotals.cess > 0 && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-[13px] text-white/65">Cess</span>
+                    <span className="mono-num text-[13px] text-white/80">{formatCurrency(invoiceTotals.cess)}</span>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="flex h-full flex-col justify-end">
-                <p className="text-right text-sm text-slate-500">Total impact will be computed from lines.</p>
+              {/* Grand Total row — darkened inset */}
+              <div
+                className="flex items-center justify-between px-5 py-4"
+                style={{ background: "var(--voucher-zone-totals-row)" }}
+              >
+                <span className="text-[14px] font-bold uppercase tracking-wider text-white/90">Grand Total</span>
+                <span className="mono-num text-xl font-bold text-white">{formatCurrency(invoiceTotals.grandTotal)}</span>
               </div>
-            )}
-         </div>
+            </div>
+          ) : (
+            <div className="flex h-full items-end justify-end">
+              <p className="text-sm text-slate-400">Total impact will be computed from accounting lines.</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Footer Actions */}
-      <div className="flex items-center justify-between p-4 sm:p-6 bg-slate-50/50">
+      {/* ── Zone E: Footer Actions ── */}
+      <div
+        className="flex items-center justify-between px-5 py-4 sm:px-7 sm:py-5"
+        style={{ background: "var(--voucher-zone-ledger)" }}
+      >
+        {/* Mobile cancel */}
         <Link href="/dashboard/create" className="text-sm font-medium text-slate-600 hover:text-slate-900 sm:hidden">
-           Cancel
+          Cancel
         </Link>
         <div className="hidden sm:block" />
         <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} className="hidden rounded-md border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 sm:block">
+          <button
+            onClick={() => router.back()}
+            className="hidden rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow sm:block"
+          >
             Cancel
           </button>
           {!readOnly ? (
-            <button disabled={isSubmitting || isLoading} onClick={() => void submit()} className="rounded-md bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:opacity-60">
-              {isSubmitting ? "Saving..." : isEditing ? "Update voucher" : "Save voucher"}
+            <button
+              disabled={isSubmitting || isLoading}
+              onClick={() => void submit()}
+              className="group relative flex items-center gap-3 overflow-hidden rounded-xl bg-tally-700 px-7 py-3 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tally-600 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Saving…
+                </span>
+              ) : (
+                <span className="flex items-center gap-3">
+                  {isEditing ? "Update Voucher" : "Save Voucher"}
+                  <kbd className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[11px] font-normal tracking-wider text-white/55 ring-1 ring-white/15">
+                    ⌘S
+                  </kbd>
+                </span>
+              )}
             </button>
           ) : (
-            <Link href={`/dashboard/vouchers/${voucherId}/edit`} className="rounded-md bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-500">
-              Edit voucher
+            <Link
+              href={`/dashboard/vouchers/${voucherId}/edit`}
+              className="flex items-center gap-2 rounded-xl bg-tally-700 px-7 py-3 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg"
+            >
+              Edit Voucher
             </Link>
           )}
         </div>

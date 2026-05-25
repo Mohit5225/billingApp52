@@ -8,6 +8,7 @@ import { LedgerDetail } from "@/interfaces/ledger";
 import { RegisterRow } from "@/interfaces/workspace";
 import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useToast } from "@/context/ToastContext";
 
 import { EmptyState, PageHero, SurfaceCard } from "../../shared/WorkspaceUi";
 import { useFirmScope } from "../../shared/useFirmScope";
@@ -39,9 +40,9 @@ export default function BookDetailPage() {
   const params = useParams<{ bookSlug: string }>();
   const bookSlug = params.bookSlug;
   const { activeFirmId, supabase } = useFirmScope();
+  const { showToast } = useToast();
   const [rows, setRows] = useState<RegisterRow[]>([]);
   const [ledgers, setLedgers] = useState<LedgerDetail[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const copy = BOOK_LABELS[bookSlug] || BOOK_LABELS["day-book"];
@@ -53,7 +54,6 @@ export default function BookDetailPage() {
     const load = async () => {
       try {
         setIsLoading(true);
-        setError(null);
 
         if (bookSlug === "ledger") {
           const data = await apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", {
@@ -67,7 +67,7 @@ export default function BookDetailPage() {
           if (mounted) setRows(data);
         }
       } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : "Unable to load this book");
+        if (mounted) showToast(err instanceof Error ? err.message : "Unable to load this book", "error");
       } finally {
         if (mounted) setIsLoading(false);
       }
@@ -83,7 +83,6 @@ export default function BookDetailPage() {
     <div className="space-y-6">
       <PageHero eyebrow="Book Detail" title={copy.title} description={copy.description} />
 
-      {error ? <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
       <SurfaceCard title={copy.title} description={isLoading ? "Loading..." : "Live rows from the operational backend."}>
         {bookSlug === "ledger" ? (
@@ -92,10 +91,9 @@ export default function BookDetailPage() {
           ) : (
             <div className="space-y-3">
               {ledgers.map((ledger) => (
-                <Link
+                <div
                   key={ledger.id}
-                  href={`/dashboard/create/ledger?ledger_id=${ledger.id}`}
-                  className="block rounded-[24px] border border-slate-100 bg-white/92 p-5 shadow-sm transition hover:border-emerald-200"
+                  className="rounded-3xl border border-slate-100 bg-white/92 p-5 shadow-sm transition hover:border-emerald-200"
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
@@ -104,12 +102,28 @@ export default function BookDetailPage() {
                         {ledger.group_name || "Ungrouped"} {ledger.group_parent_name ? `• ${ledger.group_parent_name}` : ""} • {ledger.template_type}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-3 text-sm text-slate-600">
-                      <span>Opening: {formatCurrency(ledger.opening_balance)}</span>
-                      <span>{ledger.opening_balance_type}</span>
+                    <div className="flex flex-col gap-3 sm:items-end">
+                      <div className="flex flex-wrap gap-3 text-sm text-slate-600 sm:justify-end">
+                        <span>Opening: {formatCurrency(ledger.opening_balance)}</span>
+                        <span>{ledger.opening_balance_type}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={`/dashboard/books/ledger-statement/${ledger.id}`}
+                          className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 transition hover:bg-emerald-100"
+                        >
+                          View ledger
+                        </Link>
+                        <Link
+                          href={`/dashboard/create/ledger?ledger_id=${ledger.id}`}
+                          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:bg-slate-50"
+                        >
+                          Edit ledger
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )
@@ -121,7 +135,7 @@ export default function BookDetailPage() {
               <Link
                 key={row.id}
                 href={`/dashboard/vouchers/${row.id}`}
-                className="block rounded-[24px] border border-slate-100 bg-white/92 p-5 shadow-sm transition hover:border-emerald-200"
+                className="block rounded-3xl border border-slate-100 bg-white/92 p-5 shadow-sm transition hover:border-emerald-200"
               >
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>

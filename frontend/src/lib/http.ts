@@ -44,7 +44,16 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    const message = await response.text();
+    const text = await response.text();
+    let message = text;
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && typeof parsed === "object" && "detail" in parsed) {
+        message = String(parsed.detail);
+      }
+    } catch {
+      // Keep raw text if not JSON
+    }
     throw new Error(message || `Request failed with status ${response.status}`);
   }
 

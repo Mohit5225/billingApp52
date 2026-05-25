@@ -7,8 +7,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Hsn, ItemDetail, StockPositionRow, Uom } from "@/interfaces/inventory";
 import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { useToast } from "@/context/ToastContext";
 
-import { EmptyState, PageHero, SurfaceCard } from "../../shared/WorkspaceUi";
+import { EmptyState, PageHero, SurfaceCard, ConfirmModal } from "../../shared/WorkspaceUi";
 import { useFirmScope } from "../../shared/useFirmScope";
 
 type SectionKey = "items" | "hsn" | "uom" | "stock-position";
@@ -21,6 +22,14 @@ type UomForm = {
   uqc_code: string;
   decimal_places: number;
 };
+
+type HsnForm = {
+  hsn_code: string;
+  description: string;
+  code_type: string;
+  is_active: boolean;
+};
+
 
 const GST_UQCS = [
   "Not Applicable", "BAG-BAGS", "BAL-BALE", "BDL-BUNDLES", "BKL-BUCKLES",
@@ -66,6 +75,13 @@ const EMPTY_UOM: UomForm = {
   decimal_places: 0,
 };
 
+const EMPTY_HSN: HsnForm = {
+  hsn_code: "",
+  description: "",
+  code_type: "goods",
+  is_active: true,
+};
+
 const EMPTY_ITEM: ItemForm = {
   name: "",
   alias: "",
@@ -101,6 +117,10 @@ const SECTION_COPY: Record<SectionKey, { title: string; description: string }> =
   "stock-position": {
     title: "Stock position",
     description: "Read live inward, outward, and closing stock computed from the backend.",
+  },
+  hsn: {
+    title: "HSN codes",
+    description: "Manage Harmonized System of Nomenclature (HSN) codes for accurate tax filing.",
   },
 };
 
@@ -173,28 +193,47 @@ export default function InventorySectionPage() {
   const params = useParams<{ section: string }>();
   const section = (params.section || "items") as SectionKey;
   const { activeFirmId, supabase } = useFirmScope();
+  const { showToast } = useToast();
 
   const [search, setSearch] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [items, setItems] = useState<ItemDetail[]>([]);
 
+  const [hsn, setHsn] = useState<Hsn[]>([]);
   const [uom, setUom] = useState<Uom[]>([]);
   const [stockRows, setStockRows] = useState<StockPositionRow[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const [hsnForm, setHsnForm] = useState<HsnForm>(EMPTY_HSN);
   const [uomForm, setUomForm] = useState<UomForm>(EMPTY_UOM);
   const [itemForm, setItemForm] = useState<ItemForm>(EMPTY_ITEM);
   const [openingStockOpen, setOpeningStockOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+
+
+  async function handleMakeInactive(id: string) {
+    try {
+      await apiRequest<ItemDetail>(supabase, `/api/items/${id}`, {
+        method: "PATCH",
+        body: { is_active: false },
+      });
+      showToast("Item made inactive successfully!", "success");
+      setDeleteTarget(null);
+      await loadSection();
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to make item inactive", "error");
+    }
+  }
 
   const copy = SECTION_COPY[section];
 
   async function loadSection() {
     if (!activeFirmId) return;
     setIsLoading(true);
-    setError(null);
 
     try {
       if (section === "items") {
@@ -217,6 +256,10 @@ export default function InventorySectionPage() {
           query: { firm_id: activeFirmId },
         });
         setUom((data || []).filter((row) => row.name.toLowerCase().includes(search.toLowerCase())));
+      } else if (section === "hsn") {
+        const { data, error } = await supabase.from("hsn_codes").select("*").eq("firm_id", activeFirmId);
+        if (error) throw error;
+        setHsn((data || []).filter((row) => row.hsn_code.toLowerCase().includes(search.toLowerCase())));
       } else {
         const data = await apiRequest<StockPositionRow[]>(supabase, "/api/workspace/stock-position", {
           query: { firm_id: activeFirmId, search },
@@ -224,7 +267,7 @@ export default function InventorySectionPage() {
         setStockRows(data);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load this section");
+      showToast(err instanceof Error ? err.message : "Unable to load this section", "error");
     } finally {
       setIsLoading(false);
     }
@@ -246,11 +289,31 @@ export default function InventorySectionPage() {
     [stockRows],
   );
 
+  const deleteTargetInUse = useMemo(() => {
+    if (!deleteTarget) return false;
+    if (section === "items") {
+      const stock = stockByItemId[deleteTarget.id];
+      return stock ? (stock.inward_quantity > 0 || stock.outward_quantity > 0) : false;
+    } else if (section === "uom") {
+      return items.some((item) => item.uom_id === deleteTarget.id);
+    }
+    return false;
+  }, [deleteTarget, section, stockByItemId, items]);
+
+  const referencingItems = useMemo(() => {
+    if (!deleteTarget || section !== "uom") return [];
+    return items
+      .filter((item) => item.uom_id === deleteTarget.id)
+      .map((item) => item.name);
+  }, [deleteTarget, section, items]);
+
   function resetForms() {
     setEditingId(null);
+    setHsnForm(EMPTY_HSN);
     setUomForm(EMPTY_UOM);
     setItemForm(EMPTY_ITEM);
     setOpeningStockOpen(false);
+    setIsFormOpen(false);
   }
 
   function handleIgstChange(value: number) {
@@ -266,50 +329,70 @@ export default function InventorySectionPage() {
   async function saveUom() {
     if (!activeFirmId) return;
     if (!uomForm.name.trim() || !uomForm.uqc_code.trim()) {
-      setError("Please provide a UOM name and UQC code.");
+      showToast("Please provide a UOM name and UQC code.", "error");
       return;
     }
     const body = { ...uomForm, firm_id: activeFirmId };
     try {
       if (editingId) {
         await apiRequest<Uom>(supabase, `/api/uom/${editingId}`, { method: "PATCH", body });
+        showToast("UOM updated successfully!", "success");
       } else {
         await apiRequest<Uom>(supabase, "/api/uom/", { method: "POST", body });
+        showToast("UOM created successfully!", "success");
       }
       resetForms();
-      setError(null);
       await loadSection();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save UOM");
+      showToast(err instanceof Error ? err.message : "Failed to save UOM", "error");
     }
   }
 
   async function saveItem() {
     if (!activeFirmId) return;
     if (!itemForm.name.trim() || !itemForm.hsn_code || !itemForm.uom_id) {
-      setError("Please provide an item name, HSN code, and Unit of Measure.");
+      showToast("Please provide an item name, HSN code, and Unit of Measure.", "error");
+      return;
+    }
+    const hsnLen = itemForm.hsn_code.length;
+    if (![2, 4, 6, 8].includes(hsnLen)) {
+      showToast("HSN code must be exactly 2, 4, 6, or 8 digits.", "error");
       return;
     }
     const body = { ...itemForm, firm_id: activeFirmId };
     try {
       if (editingId) {
         await apiRequest<ItemDetail>(supabase, `/api/items/${editingId}`, { method: "PATCH", body });
+        showToast("Item updated successfully!", "success");
       } else {
         await apiRequest<ItemDetail>(supabase, "/api/items/", { method: "POST", body });
+        showToast("Item created successfully!", "success");
       }
       resetForms();
-      setError(null);
       await loadSection();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save item");
+      showToast(err instanceof Error ? err.message : "Failed to save item", "error");
     }
   }
 
   async function removeCurrent(id: string) {
-    const path = section === "uom" ? `/api/uom/${id}` : `/api/items/${id}`;
-    await apiRequest<void>(supabase, path, { method: "DELETE" });
-    if (editingId === id) resetForms();
-    await loadSection();
+    try {
+      const path = section === "uom" ? `/api/uom/${id}` : `/api/items/${id}`;
+      await apiRequest<void>(supabase, path, { method: "DELETE" });
+      showToast(`${section === "uom" ? "UOM" : "Item"} deleted successfully!`, "success");
+      if (editingId === id) resetForms();
+      await loadSection();
+    } catch (err) {
+      let errMsg = "Failed to delete item";
+      if (err instanceof Error) {
+        if (err.message.includes("violates foreign key constraint") || err.message.includes("23503")) {
+          errMsg = `Cannot delete this ${section === "uom" ? "UOM" : "item"} because it is currently used in vouchers. You can disable it by editing and unchecking "Keep active" instead.`;
+        } else {
+          errMsg = err.message;
+        }
+      }
+      showToast(errMsg, "error");
+    }
   }
 
   const editor = section === "uom"
@@ -361,7 +444,7 @@ export default function InventorySectionPage() {
               {editingId ? "Save changes" : "Create UOM"}
             </button>
             <button onClick={resetForms} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600">
-              Reset
+              Cancel
             </button>
           </div>
         </SurfaceCard>
@@ -433,8 +516,11 @@ export default function InventorySectionPage() {
                     <TextInput
                       placeholder="e.g. 123456"
                       value={itemForm.hsn_code}
-                      onChange={(e) => setItemForm((p) => ({ ...p, hsn_code: e.target.value }))}
-                      maxLength={6}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "");
+                        setItemForm((p) => ({ ...p, hsn_code: val }));
+                      }}
+                      maxLength={8}
                     />
                   </div>
                   <div>
@@ -671,7 +757,7 @@ export default function InventorySectionPage() {
                     onClick={resetForms}
                     className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                   >
-                    Reset
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -714,7 +800,7 @@ export default function InventorySectionPage() {
                         name: item.name,
                         alias: item.alias || "",
                         type: item.type,
-                        hsn_id: item.hsn_id,
+                        hsn_code: item.hsn_code || "",
                         uom_id: item.uom_id,
                         default_price: item.default_price,
                         is_gst_applicable: item.is_gst_applicable,
@@ -731,12 +817,17 @@ export default function InventorySectionPage() {
                         opening_value: item.opening_value,
                         is_active: item.is_active,
                       });
+                      setIsFormOpen(true);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
                     }}
                     className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600"
                   >
                     Edit
                   </button>
-                  <button onClick={() => void removeCurrent(item.id)} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600">
+                  <button 
+                    onClick={() => setDeleteTarget({ id: item.id, name: item.name })} 
+                    className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 transition hover:bg-rose-100"
+                  >
                     Delete
                   </button>
                 </div>
@@ -777,8 +868,13 @@ export default function InventorySectionPage() {
                   <p className="mt-2 text-xs font-medium uppercase tracking-wider text-slate-500">{row.decimal_places} decimal places</p>
                 </div>
                 <div className="flex gap-3">
-                  <button onClick={() => { setEditingId(row.id); setUomForm({ name: row.name, formal_name: row.formal_name || "", uqc_code: row.uqc_code, decimal_places: row.decimal_places }); }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300 transition-colors">Edit</button>
-                  <button onClick={() => void removeCurrent(row.id)} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 hover:border-rose-300 hover:bg-rose-100 transition-colors">Delete</button>
+                  <button onClick={() => { setEditingId(row.id); setUomForm({ name: row.name, formal_name: row.formal_name || "", uqc_code: row.uqc_code, decimal_places: row.decimal_places }); setIsFormOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-slate-300 transition-colors">Edit</button>
+                  <button 
+                    onClick={() => setDeleteTarget({ id: row.id, name: row.name })} 
+                    className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-600 hover:border-rose-300 hover:bg-rose-100 transition-colors"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             ))}
@@ -818,15 +914,66 @@ export default function InventorySectionPage() {
         <TextInput placeholder={`Search ${section.replace("-", " ")}`} value={search} onChange={(event) => setSearch(event.target.value)} />
       </SurfaceCard>
 
-      {error ? <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
-      {editor}
-
-      <SurfaceCard
-        title={copy.title}
-        description={isLoading ? "Loading..." : "Live records from the backend."}
-      >
-        {content}
-      </SurfaceCard>
+      {isFormOpen && (section === "items" || section === "uom") ? (
+        editor
+      ) : (
+        <SurfaceCard
+          title={copy.title}
+          description={isLoading ? "Loading..." : "Live records from the backend."}
+        >
+          {(section === "items" || section === "uom") && (
+            <div className="mb-4 flex justify-end">
+              <button
+                onClick={() => { setIsFormOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                className="rounded-2xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+              >
+                + Add {section === "items" ? "Item" : "UOM"}
+              </button>
+            </div>
+          )}
+          {content}
+        </SurfaceCard>
+      )}
+      
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        title={
+          deleteTargetInUse
+            ? section === "items"
+              ? "Item is in Use"
+              : "UOM is in Use"
+            : `Delete ${section === "uom" ? "UOM" : "Item"}`
+        }
+        message={
+          deleteTargetInUse
+            ? section === "items"
+              ? `"${deleteTarget?.name}" is currently referenced in vouchers and cannot be deleted. Would you like to make it inactive instead so it can't be selected in new transactions?`
+              : `"${deleteTarget?.name}" is currently referenced by items: ${referencingItems.slice(0, 3).join(", ")}${referencingItems.length > 3 ? " and others" : ""}. You must update or delete those items before you can delete this UOM.`
+            : `Are you sure you want to delete the ${section === "uom" ? "UOM" : "item"} "${deleteTarget?.name}"? This action cannot be undone.`
+        }
+        confirmLabel={
+          deleteTargetInUse
+            ? section === "items"
+              ? "Make Inactive"
+              : undefined
+            : "Delete"
+        }
+        cancelLabel={deleteTargetInUse && section === "uom" ? "Close" : "Cancel"}
+        onConfirm={async () => {
+          if (deleteTarget) {
+            if (deleteTargetInUse) {
+              if (section === "items") {
+                await handleMakeInactive(deleteTarget.id);
+              }
+            } else {
+              await removeCurrent(deleteTarget.id);
+              setDeleteTarget(null);
+            }
+          }
+        }}
+        onCancel={() => setDeleteTarget(null)}
+        isDanger={!deleteTargetInUse}
+      />
     </div>
   );
 }

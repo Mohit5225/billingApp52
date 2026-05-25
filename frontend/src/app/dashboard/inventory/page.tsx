@@ -9,6 +9,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 
 import { MetricTile, PageHero, SurfaceCard } from "../shared/WorkspaceUi";
 import { useFirmScope } from "../shared/useFirmScope";
+import { useToast } from "@/context/ToastContext";
 
 const LINKS = [
   {
@@ -31,7 +32,7 @@ const LINKS = [
 export default function InventoryHubPage() {
   const { activeFirmId, supabase } = useFirmScope();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (!activeFirmId) return;
@@ -39,13 +40,12 @@ export default function InventoryHubPage() {
     let mounted = true;
     const load = async () => {
       try {
-        setError(null);
         const data = await apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
           query: { firm_id: activeFirmId },
         });
         if (mounted) setOverview(data);
       } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : "Unable to load inventory overview");
+        if (mounted) showToast(err instanceof Error ? err.message : "Unable to load inventory overview", "error");
       }
     };
 
@@ -62,12 +62,6 @@ export default function InventoryHubPage() {
         title="Manage stock masters without losing accounting context."
         description="Inventory stays close to vouchers here: build clean item masters, lock HSN and UOM, then step into stock position with the same warm dashboard treatment."
       />
-
-      {error ? (
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">
-          {error}
-        </div>
-      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricTile

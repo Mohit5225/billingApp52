@@ -111,7 +111,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
   }
 
   const inputClasses =
-    "h-10 w-full rounded-md border border-slate-200 bg-transparent px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500";
+    "h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15]";
 
   if (inline) {
     return (
@@ -211,18 +211,20 @@ function Dropdown({
   return (
     <ul
       ref={listRef}
-      className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-auto rounded-md border border-slate-200 bg-white py-1 shadow-lg"
+      className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-60 overflow-auto rounded-xl border border-slate-100 bg-white py-1.5 shadow-xl"
     >
       {filtered.map((option, i) => (
         <li
           key={option.value}
           onMouseDown={(e) => {
-            e.preventDefault(); // prevent blur before click
+            e.preventDefault();
             onSelect(option);
           }}
           onMouseEnter={() => onHighlight(i)}
           className={`cursor-pointer select-none px-3 py-2 text-sm transition-colors ${
-            i === highlighted ? "bg-emerald-50 text-emerald-900" : "text-slate-800 hover:bg-slate-50"
+            i === highlighted
+              ? "border-l-2 border-tally-500 bg-tally-50 pl-2.5 text-tally-900 font-medium"
+              : "border-l-2 border-transparent text-slate-800 hover:bg-slate-50"
           }`}
         >
           <span className="font-medium">{option.label}</span>
@@ -237,7 +239,7 @@ function Dropdown({
 
 function EmptyState() {
   return (
-    <div className="absolute left-0 right-0 top-full z-50 mt-1 rounded-md border border-slate-200 bg-white px-3 py-4 text-center text-sm text-slate-400 shadow-lg">
+    <div className="absolute left-0 right-0 top-full z-50 mt-1.5 rounded-xl border border-slate-100 bg-white px-3 py-4 text-center text-sm text-slate-400 shadow-xl">
       No matches found
     </div>
   );

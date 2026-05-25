@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import UUID4
 
 from .base import BaseSchema, TimestampSchema
+from .voucher import VoucherCategory
 
 
 class DrCrType(str, Enum):
@@ -141,3 +142,27 @@ class LedgerDetail(Ledger):
     bank_details: Optional[BankDetails] = None
     party_details: Optional[PartyDetails] = None
     tax_details: Optional[TaxDetails] = None
+
+
+class LedgerStatementRow(BaseSchema):
+    voucher_id: UUID4
+    voucher_number: str
+    voucher_date: str
+    category: VoucherCategory
+    particulars: str
+    narration: Optional[str] = None
+    debit_amount: float = 0.0
+    credit_amount: float = 0.0
+    balance_amount: float = 0.0
+    balance_type: DrCrType
+
+
+class LedgerStatement(BaseSchema):
+    ledger: LedgerDetail
+    opening_balance: float = 0.0
+    opening_balance_type: DrCrType
+    rows: list[LedgerStatementRow]
+    total_debit: float = 0.0
+    total_credit: float = 0.0
+    closing_balance: float = 0.0
+    closing_balance_type: DrCrType

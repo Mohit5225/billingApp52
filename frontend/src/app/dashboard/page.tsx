@@ -10,6 +10,7 @@ import { useFirmScope } from "./shared/useFirmScope";
 import { apiRequest } from "@/lib/http";
 import { DashboardOverview } from "@/interfaces/workspace";
 import { formatCurrency } from "@/lib/format";
+import { useToast } from "@/context/ToastContext";
 
 const InvoiceIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -49,8 +50,8 @@ const LedgerIcon = () => (
 
 export default function DashboardPage() {
   const { activeFirmId, supabase } = useFirmScope();
+  const { showToast } = useToast();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!activeFirmId) return;
@@ -58,13 +59,12 @@ export default function DashboardPage() {
     let mounted = true;
     const load = async () => {
       try {
-        setError(null);
         const data = await apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
           query: { firm_id: activeFirmId },
         });
         if (mounted) setOverview(data);
       } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : "Unable to load dashboard");
+        if (mounted) showToast(err instanceof Error ? err.message : "Unable to load dashboard", "error");
       }
     };
 
@@ -76,22 +76,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 lg:space-y-8">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(18,58,41,0.96),rgba(33,92,70,0.92))] px-6 py-7 text-white shadow-[0_24px_60px_rgba(15,23,42,0.14)] sm:px-8 sm:py-9">
+      <section className="relative overflow-hidden rounded-2xl sm:rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(18,58,41,0.96),rgba(33,92,70,0.92))] px-4 py-5 sm:px-8 sm:py-9 text-white shadow-[0_24px_60px_rgba(15,23,42,0.14)]">
         <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(216,243,220,0.28),transparent_58%)]" />
         <div className="relative z-10 max-w-3xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Overview</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
+          <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">Overview</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-4xl">
             Day-to-day billing, inventory, and books in one real workspace.
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-white/72 sm:text-base">
+          <p className="mt-2.5 max-w-2xl text-xs sm:text-base leading-relaxed text-white/72">
             The dashboard now pulls live voucher and inventory data so the main shortcuts, books, and recent activity all land on working screens.
           </p>
         </div>
       </section>
 
-      {error ? <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div> : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2">
         <KpiCard
           label="Total Sales"
           amount={formatCurrency(overview?.sales.amount ?? 0)}
@@ -108,39 +107,39 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="rounded-[32px] border border-white/70 bg-white/78 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] sm:p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Create</p>
-              <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Voucher families</h3>
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-3.5 sm:p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Create</p>
+              <h3 className="mt-1 text-lg sm:text-xl font-semibold tracking-tight text-slate-950">Voucher families</h3>
             </div>
-            <Link href="/dashboard/create" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600">
+            <Link href="/dashboard/create" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-semibold text-slate-600">
               View all
             </Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-2 sm:gap-3 grid-cols-2 xl:grid-cols-3">
             <ActionIconCard label="Sales Invoice" href="/dashboard/create/sales-invoice" icon={<InvoiceIcon />} />
             <ActionIconCard label="Purchase Invoice" href="/dashboard/create/purchase-invoice" icon={<InvoiceIcon />} />
             <ActionIconCard label="Receipt Voucher" href="/dashboard/create/receipt" icon={<ReceiptIcon />} variant="green" />
             <ActionIconCard label="Payment Voucher" href="/dashboard/create/payment" icon={<ReceiptIcon />} />
             <ActionIconCard label="Journal Entry" href="/dashboard/create/journal-entry" icon={<JournalIcon />} />
             <ActionIconCard label="Create Ledger" href="/dashboard/create/ledger" icon={<LedgerIcon />} />
-            <ActionIconCard label="Manage Inventory" href="/dashboard/inventory" icon={<InventoryIcon />} />
+            <ActionIconCard label="Manage Inventory" href="/dashboard/inventory" icon={<InventoryIcon />} className="col-span-2 xl:col-span-1" />
           </div>
         </section>
 
-        <section className="rounded-[32px] border border-white/70 bg-white/78 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] sm:p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Books</p>
-              <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Operational books</h3>
+        <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Books</p>
+              <h3 className="mt-1 text-lg sm:text-xl font-semibold tracking-tight text-slate-950">Operational books</h3>
             </div>
-            <Link href="/dashboard/books" className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600">
+            <Link href="/dashboard/books" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-semibold text-slate-600">
               View all
             </Link>
           </div>
-          <div className="space-y-2 rounded-[28px] border border-slate-100 bg-white/90 p-2">
+          <div className="space-y-2 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/90 p-1.5 sm:p-2">
             <ListRowItem title="Sales Register" description="Review live sales vouchers" href="/dashboard/books/sales-register" icon={<BookIcon />} />
             <ListRowItem title="Purchase Register" description="Review live purchase vouchers" href="/dashboard/books/purchase-register" icon={<BookIcon />} />
             <ListRowItem title="Day Book" description="Chronological operational register" href="/dashboard/books/day-book" icon={<BookIcon />} />
@@ -151,14 +150,14 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <section className="rounded-[32px] border border-white/70 bg-white/78 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] sm:p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Timeline</p>
-              <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Recent activity</h3>
+        <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Timeline</p>
+              <h3 className="mt-1 text-lg sm:text-xl font-semibold tracking-tight text-slate-950">Recent activity</h3>
             </div>
           </div>
-          <div className="space-y-2 rounded-[28px] border border-slate-100 bg-white/90 p-2">
+          <div className="space-y-2 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/90 p-1.5 sm:p-2">
             {(overview?.recent_vouchers || []).map((voucher) => (
               <ListRowItem
                 key={voucher.id}
@@ -173,26 +172,26 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-[32px] border border-white/70 bg-white/78 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] sm:p-6">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Inventory</p>
-              <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">Stock at a glance</h3>
+        <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-6 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Inventory</p>
+              <h3 className="mt-1 text-lg sm:text-xl font-semibold tracking-tight text-slate-950">Stock at a glance</h3>
             </div>
-            <Link href="/dashboard/inventory/stock-position" className="text-xs font-semibold text-tally-700">
+            <Link href="/dashboard/inventory/stock-position" className="text-[11px] sm:text-xs font-semibold text-tally-700">
               Open stock position
             </Link>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-[24px] border border-slate-100 bg-white/92 p-4 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Item Masters</p>
-              <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{overview?.inventory.items_count ?? 0}</p>
-              <p className="mt-2 text-sm text-slate-500">{overview?.inventory.uom_count ?? 0} UOM</p>
+          <div className="grid gap-3 sm:gap-4 grid-cols-2">
+            <div className="rounded-xl sm:rounded-[24px] border border-slate-100 bg-white/92 p-3 sm:p-4 shadow-sm">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Item Masters</p>
+              <p className="mt-2.5 text-xl sm:text-2xl font-semibold tracking-tight text-slate-950">{overview?.inventory.items_count ?? 0}</p>
+              <p className="mt-1.5 text-xs sm:text-sm text-slate-500">{overview?.inventory.uom_count ?? 0} UOM</p>
             </div>
-            <div className="rounded-[24px] border border-slate-100 bg-white/92 p-4 shadow-sm">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Closing Stock Value</p>
-              <p className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{formatCurrency(overview?.inventory.closing_value ?? 0)}</p>
-              <p className="mt-2 text-sm text-slate-500">{overview?.inventory.stock_items_count ?? 0} tracked items in stock flow</p>
+            <div className="rounded-xl sm:rounded-[24px] border border-slate-100 bg-white/92 p-3 sm:p-4 shadow-sm">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Closing Stock Value</p>
+              <p className="mt-2.5 text-xl sm:text-2xl font-semibold tracking-tight text-slate-950">{formatCurrency(overview?.inventory.closing_value ?? 0)}</p>
+              <p className="mt-1.5 text-xs sm:text-sm text-slate-500">{overview?.inventory.stock_items_count ?? 0} tracked items in stock flow</p>
             </div>
           </div>
         </section>

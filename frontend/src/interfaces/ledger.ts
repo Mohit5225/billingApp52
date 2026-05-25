@@ -69,6 +69,30 @@ export interface LedgerDetail extends Ledger {
   tax_details?: LedgerTaxDetails | null;
 }
 
+export interface LedgerStatementRow {
+  voucher_id: string;
+  voucher_number: string;
+  voucher_date: string;
+  category: string;
+  particulars: string;
+  narration?: string | null;
+  debit_amount: number;
+  credit_amount: number;
+  balance_amount: number;
+  balance_type: DrCrType;
+}
+
+export interface LedgerStatement {
+  ledger: LedgerDetail;
+  opening_balance: number;
+  opening_balance_type: DrCrType;
+  rows: LedgerStatementRow[];
+  total_debit: number;
+  total_credit: number;
+  closing_balance: number;
+  closing_balance_type: DrCrType;
+}
+
 export interface LedgerWritePayload {
   firm_id: string;
   group_id: string;

@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/context/OnboardingContext";
+import { useToast } from "@/context/ToastContext";
 
 export default function Manual1Page() {
   const router = useRouter();
   const { data, updateData } = useOnboarding();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     name: data.name || "",
     mailing_name: data.mailing_name || "",
@@ -47,7 +49,10 @@ export default function Manual1Page() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate()) {
+      showToast("Please correct the validation errors before proceeding.", "error");
+      return;
+    }
     
     updateData(formData);
     router.push("/onboarding/manual-2");

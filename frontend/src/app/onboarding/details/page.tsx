@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/context/OnboardingContext";
+import { useToast } from "@/context/ToastContext";
 
 export default function DetailsPage() {
   const router = useRouter();
-  const { data, updateData, submitOnboarding, isLoading: isSubmitting, error: submitError } = useOnboarding();
+  const { data, updateData, submitOnboarding, isLoading: isSubmitting } = useOnboarding();
+  const { showToast } = useToast();
 
   // Redirect if no GSTIN data is present (user skipped previous step)
   useEffect(() => {
@@ -115,6 +117,7 @@ export default function DetailsPage() {
       // Touch all fields to show errors
       const allTouched = Object.keys(formData).reduce((acc, key) => ({...acc, [key]: true}), {});
       setTouched(allTouched);
+      showToast("Please correct the highlighted fields before submitting.", "error");
       return;
     }
 
@@ -280,12 +283,6 @@ export default function DetailsPage() {
             </div>
           </div>
         </div>
-
-        {submitError && (
-          <div className="p-4 rounded-lg bg-red-50 text-red-600 text-sm">
-            {submitError}
-          </div>
-        )}
 
         <div className="flex gap-4 pt-4 border-t border-gray-100">
           <button
