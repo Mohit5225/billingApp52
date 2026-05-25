@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import "./globals.css";
 import { Providers } from "./providers";
@@ -6,6 +6,36 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "Billing App",
   description: "Modern Billing and Accounting App",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Billing App",
+    statusBarStyle: "black-translucent",
+  },
+  icons: [
+    {
+      rel: "icon",
+      url: "/icons/icon-192.png",
+      type: "image/png",
+      sizes: "192x192",
+    },
+    {
+      rel: "icon",
+      url: "/icons/icon-512.png",
+      type: "image/png",
+      sizes: "512x512",
+    },
+    {
+      rel: "apple-touch-icon",
+      url: "/icons/apple-touch-icon.png",
+      type: "image/png",
+      sizes: "180x180",
+    },
+  ],
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0B1021",
 };
 
 export default function RootLayout({

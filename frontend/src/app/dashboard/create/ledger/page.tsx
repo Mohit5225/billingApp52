@@ -148,6 +148,9 @@ const BANK_ACCOUNT_NUMBER_REGEX = /^[A-Z0-9]{9,18}$/;
 const BANK_IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 const BANK_SWIFT_REGEX = /^[A-Z0-9]{8}([A-Z0-9]{3})?$/;
 
+type TextFieldChangeEvent = React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>;
+type SelectFieldChangeEvent = React.ChangeEvent<HTMLSelectElement>;
+
 function validateBankSection(bankDetails: LedgerFormState["bank_details"], bankMeta: BankSectionMeta): BankSectionErrors {
   const errors: BankSectionErrors = {};
 
@@ -448,15 +451,15 @@ export default function LedgerCreatePage() {
       <SurfaceCard title="Core Details" description="Start with the ledger identity, group, and opening balance.">
         <div className="space-y-6">
           <Field label="Ledger Name *">
-            <Input placeholder="e.g. Mahalakshmi Enterprises" value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
+            <Input placeholder="e.g. Mahalakshmi Enterprises" value={form.name} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, name: event.target.value }))} />
           </Field>
           <div className="grid gap-6 md:grid-cols-2">
             <Field label="Alias">
-              <Input placeholder="Optional short name" value={form.alias} onChange={(event) => setForm((prev) => ({ ...prev, alias: event.target.value }))} />
+              <Input placeholder="Optional short name" value={form.alias} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, alias: event.target.value }))} />
             </Field>
             <Field label="Opening Balance">
               <div className="relative">
-                <Input type="number" step="0.01" placeholder="0.00" value={form.opening_balance || ""} onChange={(event) => setForm((prev) => ({ ...prev, opening_balance: Number(event.target.value) }))} className="pr-12" />
+                <Input type="number" step="0.01" placeholder="0.00" value={form.opening_balance || ""} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, opening_balance: Number(event.target.value) }))} className="pr-12" />
                 <button
                   type="button"
                   onClick={() => setForm((prev) => ({ ...prev, opening_balance_type: prev.opening_balance_type === "Dr" ? "Cr" : "Dr" }))}
@@ -469,7 +472,7 @@ export default function LedgerCreatePage() {
           </div>
           <Field label="Account Group *">
             <div className="relative">
-              <Select value={form.group_id} onChange={(event) => setForm((prev) => ({ ...prev, group_id: event.target.value }))} className="pl-3 pr-24">
+              <Select value={form.group_id} onChange={(event: SelectFieldChangeEvent) => setForm((prev) => ({ ...prev, group_id: event.target.value }))} className="pl-3 pr-24">
                 <option value="">Select group</option>
                 {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
               </Select>
@@ -513,10 +516,10 @@ export default function LedgerCreatePage() {
             />
             <div className="grid gap-6 md:grid-cols-2">
               <Field label="Default Credit Days">
-                <Input type="number" placeholder="0" value={form.party_details.default_credit_days || ""} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, default_credit_days: Number(event.target.value) } }))} />
+                <Input type="number" placeholder="0" value={form.party_details.default_credit_days || ""} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, default_credit_days: Number(event.target.value) } }))} />
               </Field>
               <Field label="PAN Number">
-                <Input placeholder="PAN number" value={form.party_details.pan_number} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pan_number: event.target.value } }))} />
+                <Input placeholder="PAN number" value={form.party_details.pan_number} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pan_number: event.target.value } }))} />
               </Field>
             </div>
             
@@ -527,28 +530,28 @@ export default function LedgerCreatePage() {
             />
 
             <Field label="Mailing Name">
-              <Input placeholder="Mailing name" value={form.party_details.mailing_name} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, mailing_name: event.target.value } }))} />
+              <Input placeholder="Mailing name" value={form.party_details.mailing_name} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, mailing_name: event.target.value } }))} />
             </Field>
             
             <Field label="Address">
-              <Input type="textarea" placeholder="Billing address" value={form.party_details.address} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, address: event.target.value } }))} />
+              <Input type="textarea" placeholder="Billing address" value={form.party_details.address} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, address: event.target.value } }))} />
             </Field>
 
             <div className="grid gap-6 md:grid-cols-2">
               <Field label="State">
-                <Input placeholder="State" value={form.party_details.state} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, state: event.target.value } }))} />
+                <Input placeholder="State" value={form.party_details.state} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, state: event.target.value } }))} />
               </Field>
               <Field label="Country">
-                <Input placeholder="Country" value={form.party_details.country} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, country: event.target.value } }))} />
+                <Input placeholder="Country" value={form.party_details.country} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, country: event.target.value } }))} />
               </Field>
               <Field label="Pincode">
-                <Input placeholder="Pincode" value={form.party_details.pincode} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pincode: event.target.value } }))} />
+                <Input placeholder="Pincode" value={form.party_details.pincode} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pincode: event.target.value } }))} />
               </Field>
               <Field label="GSTIN">
-                <Input placeholder="GSTIN" value={form.party_details.gstin} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gstin: event.target.value } }))} />
+                <Input placeholder="GSTIN" value={form.party_details.gstin} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gstin: event.target.value } }))} />
               </Field>
               <Field label="GST Registration Type">
-                <Select value={form.party_details.gst_registration_type} onChange={(event) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gst_registration_type: event.target.value as LedgerFormState["party_details"]["gst_registration_type"] } }))}>
+                <Select value={form.party_details.gst_registration_type} onChange={(event: SelectFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gst_registration_type: event.target.value as LedgerFormState["party_details"]["gst_registration_type"] } }))}>
                   <option value="">Select type</option>
                   <option value="Regular">Regular</option>
                   <option value="Composition">Composition</option>
@@ -603,7 +606,7 @@ export default function LedgerCreatePage() {
                   value={form.bank_details.account_number}
                   inputMode="text"
                   maxLength={18}
-                  onChange={(event) => {
+                  onChange={(event: TextFieldChangeEvent) => {
                     const value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
                     setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, account_number: value } }));
                     setBankErrors({});
@@ -616,7 +619,7 @@ export default function LedgerCreatePage() {
                   placeholder="IFSC code"
                   value={form.bank_details.ifsc_code}
                   maxLength={11}
-                  onChange={(event) => {
+                  onChange={(event: TextFieldChangeEvent) => {
                     const value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
                     setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, ifsc_code: value } }));
                     setBankErrors({});
@@ -629,7 +632,7 @@ export default function LedgerCreatePage() {
                   placeholder="SWIFT code"
                   value={form.bank_details.swift_code}
                   maxLength={11}
-                  onChange={(event) => {
+                  onChange={(event: TextFieldChangeEvent) => {
                     const value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
                     setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, swift_code: value } }));
                     setBankErrors({});
@@ -641,7 +644,7 @@ export default function LedgerCreatePage() {
                 <Input
                   placeholder="Bank name"
                   value={form.bank_details.bank_name}
-                  onChange={(event) => {
+                  onChange={(event: TextFieldChangeEvent) => {
                     setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, bank_name: event.target.value } }));
                     setBankErrors({});
                   }}
@@ -652,7 +655,7 @@ export default function LedgerCreatePage() {
                 <Input
                   placeholder="Branch name"
                   value={form.bank_details.branch_name}
-                  onChange={(event) => {
+                  onChange={(event: TextFieldChangeEvent) => {
                     setForm((prev) => ({ ...prev, bank_details: { ...prev.bank_details, branch_name: event.target.value } }));
                     setBankErrors({});
                   }}
@@ -667,7 +670,7 @@ export default function LedgerCreatePage() {
         <SurfaceCard title="Tax Details" description="Configure duty type and calculation percentage.">
           <div className="grid gap-6 md:grid-cols-2">
             <Field label="Duty/Tax Type">
-              <Select value={form.tax_details.duty_tax_type} onChange={(event) => setForm((prev) => ({ ...prev, tax_details: { ...prev.tax_details, duty_tax_type: event.target.value as LedgerFormState["tax_details"]["duty_tax_type"] } }))}>
+              <Select value={form.tax_details.duty_tax_type} onChange={(event: SelectFieldChangeEvent) => setForm((prev) => ({ ...prev, tax_details: { ...prev.tax_details, duty_tax_type: event.target.value as LedgerFormState["tax_details"]["duty_tax_type"] } }))}>
                 <option value="">Select type...</option>
                 <option value="GST">GST</option>
                 <option value="TDS">TDS</option>
@@ -677,7 +680,7 @@ export default function LedgerCreatePage() {
               </Select>
             </Field>
             <Field label="Tax Percentage">
-              <Input type="number" step="0.01" placeholder="0.00" value={form.tax_details.tax_percentage || ""} onChange={(event) => setForm((prev) => ({ ...prev, tax_details: { ...prev.tax_details, tax_percentage: Number(event.target.value) } }))} />
+              <Input type="number" step="0.01" placeholder="0.00" value={form.tax_details.tax_percentage || ""} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, tax_details: { ...prev.tax_details, tax_percentage: Number(event.target.value) } }))} />
             </Field>
           </div>
         </SurfaceCard>
