@@ -327,6 +327,7 @@ async def get_overview(
 
     items = supabase.table("items").select("id").eq("firm_id", target_firm_id).execute().data or []
     uom = supabase.table("uom").select("id").eq("firm_id", target_firm_id).execute().data or []
+    hsn = supabase.table("hsn_codes").select("id").eq("firm_id", target_firm_id).execute().data or []
 
     return {
         "total_vouchers": len(vouchers),
@@ -336,6 +337,7 @@ async def get_overview(
         "payments": metric_for(VoucherCategory.PAYMENT.value),
         "inventory": {
             "items_count": len(items),
+            "hsn_count": len(hsn),
             "uom_count": len(uom),
             "stock_items_count": len(stock_rows),
             "closing_quantity": round(sum(row["closing_quantity"] for row in stock_rows), 2),

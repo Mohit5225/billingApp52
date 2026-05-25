@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 from typing import Optional
 
@@ -38,8 +39,8 @@ class ItemBase(BaseSchema):
     def validate_hsn_code(cls, v: Optional[str]) -> Optional[str]:
         if not v:
             return v
-        if not (len(v) == 4 or len(v) == 6) or not v.isdigit():
-            raise ValueError("HSN code must be exactly 4 or 6 digits.")
+        if not re.match(r"^\d{2}(\d{2})?(\d{2})?(\d{2})?$", v):
+            raise ValueError("HSN code must be exactly 2, 4, 6, or 8 digits.")
         return v
 
     @field_validator("alias", mode="before")
@@ -82,6 +83,15 @@ class ItemUpdate(BaseSchema):
     uom_id: Optional[UUID4] = None
     name: Optional[str] = None
     alias: Optional[str] = None
+
+    @field_validator("hsn_code")
+    @classmethod
+    def validate_hsn_code(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return v
+        if not re.match(r"^\d{2}(\d{2})?(\d{2})?(\d{2})?$", v):
+            raise ValueError("HSN code must be exactly 2, 4, 6, or 8 digits.")
+        return v
 
     @field_validator("alias", mode="before")
     @classmethod

@@ -125,4 +125,16 @@ async def delete_uom(
 
     resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
-    supabase.table("uom").delete().eq("id", uom_id).execute()
+    try:
+        supabase.table("uom").delete().eq("id", uom_id).execute()
+    except Exception as e:
+        err_msg = str(e)
+        if "violates foreign key constraint" in err_msg or "23503" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete this UOM because it is currently referenced by items. Please update or delete those items first.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {err_msg}",
+        )

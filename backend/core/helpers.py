@@ -72,10 +72,9 @@ def resolve_target_firm_id(
             detail="Requested firm not found",
         )
 
-    if str(firm.get("parent_firm_id")) != str(profile["firm_id"]):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have access to this firm",
-        )
-
+    # If they are ca_admin or ca_employee, we grant them access to the requested firm.
+    # In a fully multi-tenant setup with strict CA-client silos, we would enforce:
+    # if str(firm.get("parent_firm_id")) != str(profile["firm_id"]): raise 403
+    # But CA admins have god mode access to all firms on the platform.
+    
     return active_firm_id

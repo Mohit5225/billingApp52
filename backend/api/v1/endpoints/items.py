@@ -204,4 +204,16 @@ async def delete_item(
 
     resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
-    supabase.table("items").delete().eq("id", item_id).execute()
+    try:
+        supabase.table("items").delete().eq("id", item_id).execute()
+    except Exception as e:
+        err_msg = str(e)
+        if "violates foreign key constraint" in err_msg or "23503" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete this item because it is currently used in vouchers. You can disable it instead.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error: {err_msg}",
+        )
