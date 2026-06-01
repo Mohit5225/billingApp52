@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 
 import { ItemDetail } from "@/interfaces/inventory";
 import { LedgerDetail } from "@/interfaces/ledger";
@@ -12,6 +13,8 @@ import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
 import { useDashboardChrome } from "@/context/DashboardChromeContext";
 import { DashboardChromeScope } from "@/context/DashboardChromeContext";
+import { getTemplateById } from "@/components/templates/TemplateRegistry";
+import type { InvoiceData, InvoiceType } from "@/components/templates/types";
 
 import { useFirmScope } from "./useFirmScope";
 import { ComboboxField } from "./ComboboxField";
@@ -300,8 +303,10 @@ export function VoucherWorkbench({
   const [ledgers, setLedgers] = useState<LedgerDetail[]>([]);
   const [items, setItems] = useState<ItemDetail[]>([]);
   const [firmState, setFirmState] = useState<string>("");
+  const [firmDetails, setFirmDetails] = useState<{ name: string; address: string; phone?: string; email?: string; gstin?: string; pan?: string; state?: string; bankName?: string; accountNumber?: string; ifscCode?: string; branchName?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const itemsScrollRef = useRef<HTMLDivElement>(null);
   const prevInvoiceLinesLength = useRef(invoiceLines.length);
@@ -384,7 +389,7 @@ export function VoucherWorkbench({
 
         const { data: firmData } = await supabase
           .from("firms")
-          .select("state")
+          .select("name, mailing_name, address_lane1, city, state, pincode, mobile, email, gstin, pan, bank_name, account_number, ifsc_code, branch_name")
           .eq("id", activeFirmId)
           .single();
 
@@ -393,6 +398,21 @@ export function VoucherWorkbench({
         setLedgers(ledgerData);
         setItems(itemData);
         setFirmState(firmData?.state || "");
+        if (firmData) {
+          setFirmDetails({
+            name: firmData.mailing_name || firmData.name || "",
+            address: [firmData.address_lane1, firmData.city, firmData.state ? `${firmData.state} - ${firmData.pincode || ""}` : firmData.pincode].filter(Boolean).join(",\n"),
+            phone: firmData.mobile || undefined,
+            email: firmData.email || undefined,
+            gstin: firmData.gstin || undefined,
+            pan: firmData.pan || undefined,
+            state: firmData.state || undefined,
+            bankName: firmData.bank_name || undefined,
+            accountNumber: firmData.account_number || undefined,
+            ifscCode: firmData.ifsc_code || undefined,
+            branchName: firmData.branch_name || undefined,
+          });
+        }
 
         if (voucherId) {
           const voucher = await apiRequest<VoucherDetail>(supabase, `/api/vouchers/${voucherId}`);
@@ -504,6 +524,110 @@ export function VoucherWorkbench({
       unit_price: item?.default_price || 0,
     });
   }
+
+  /** Serialize live form state into InvoiceData for template preview */
+  const buildPreviewData = useCallback((): InvoiceData | null => {
+    if (!firmDetails) return null;
+
+    const categoryToType: Record<string, InvoiceType> = {
+      Sales: "TAX INVOICE",
+      Purchase: "PURCHASE INVOICE",
+      "Debit Note": "DEBIT NOTE",
+      "Credit Note": "CREDIT NOTE",
+    };
+
+    const lineItems = invoiceLines.map((line, idx) => {
+      const item = items.find((i) => i.id === line.item_id);
+      return {
+        srNo: idx + 1,
+        name: item?.name || "(unnamed item)",
+        hsnSac: item?.hsn_code || "",
+        quantity: line.quantity,
+        uom: item?.uom_name || "NOS",
+        rate: line.unit_price,
+        discount: line.discount_amount,
+        taxableAmount: line.taxable_amount,
+        igstRate: line.igst_rate || undefined,
+        cgstRate: line.cgst_rate || undefined,
+        sgstRate: line.sgst_rate || undefined,
+        igstAmount: line.igst_amount || undefined,
+        cgstAmount: line.cgst_amount || undefined,
+        sgstAmount: line.sgst_amount || undefined,
+        cessAmount: line.cess_amount || undefined,
+      };
+    });
+
+    // Build HSN-level tax breakdown
+    const hsnMap = new Map<string, { taxableValue: number; igstRate: number; igstAmount: number; cgstRate: number; cgstAmount: number; sgstRate: number; sgstAmount: number }>();
+    for (const line of lineItems) {
+      const hsn = line.hsnSac || "—";
+      const existing = hsnMap.get(hsn) || { taxableValue: 0, igstRate: 0, igstAmount: 0, cgstRate: 0, cgstAmount: 0, sgstRate: 0, sgstAmount: 0 };
+      existing.taxableValue += line.taxableAmount;
+      existing.igstRate = line.igstRate || existing.igstRate;
+      existing.igstAmount += line.igstAmount || 0;
+      existing.cgstRate = line.cgstRate || existing.cgstRate;
+      existing.cgstAmount += line.cgstAmount || 0;
+      existing.sgstRate = line.sgstRate || existing.sgstRate;
+      existing.sgstAmount += line.sgstAmount || 0;
+      hsnMap.set(hsn, existing);
+    }
+
+    const taxBreakdown = Array.from(hsnMap.entries()).map(([hsn, data]) => ({
+      hsnSac: hsn,
+      taxableValue: data.taxableValue,
+      igstRate: data.igstRate || undefined,
+      igstAmount: data.igstAmount || undefined,
+      cgstRate: data.cgstRate || undefined,
+      cgstAmount: data.cgstAmount || undefined,
+      sgstRate: data.sgstRate || undefined,
+      sgstAmount: data.sgstAmount || undefined,
+      totalTax: data.igstAmount + data.cgstAmount + data.sgstAmount,
+    }));
+
+    const partyLedger = ledgers.find((l) => l.id === form.party_ledger_id);
+
+    return {
+      type: categoryToType[meta.category] || "TAX INVOICE",
+      invoiceNumber: form.voucher_number || "—",
+      invoiceDate: form.voucher_date
+        ? new Date(form.voucher_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+        : "—",
+      company: {
+        name: firmDetails.name,
+        address: firmDetails.address,
+        phone: firmDetails.phone,
+        email: firmDetails.email,
+        gstin: firmDetails.gstin,
+        pan: firmDetails.pan,
+        state: firmDetails.state,
+      },
+      party: {
+        name: partyLedger?.name || "—",
+        address: partyLedger?.party_details?.address || undefined,
+        phone: undefined,
+        gstin: partyLedger?.party_details?.gstin || undefined,
+        state: partyLedger?.party_details?.state || undefined,
+        placeOfSupply: partyLedger?.party_details?.state || undefined,
+      },
+      items: lineItems,
+      taxBreakdown,
+      subtotal: invoiceTotals.taxable,
+      igstTotal: invoiceTotals.igst || undefined,
+      cgstTotal: invoiceTotals.cgst || undefined,
+      sgstTotal: invoiceTotals.sgst || undefined,
+      cessTotal: invoiceTotals.cess || undefined,
+      grandTotal: invoiceTotals.grandTotal,
+      totalInWords: numberToWords(invoiceTotals.grandTotal),
+      bankDetails: firmDetails.bankName
+        ? {
+            bankName: firmDetails.bankName,
+            branch: firmDetails.branchName || "",
+            accountNumber: firmDetails.accountNumber || "",
+            ifsc: firmDetails.ifscCode || "",
+          }
+        : undefined,
+    };
+  }, [firmDetails, invoiceLines, items, invoiceTotals, form, ledgers, meta.category]);
 
   function buildPayload(): VoucherWritePayload {
     if (!activeFirmId) {
@@ -1158,6 +1282,18 @@ export function VoucherWorkbench({
         </Link>
         <div className="hidden sm:block" />
         <div className="flex items-center gap-3">
+          {meta.family === "invoice" && (
+            <button
+              onClick={() => setShowPreview(true)}
+              className="hidden items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow sm:flex"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+              Preview
+            </button>
+          )}
           <button
             onClick={() => router.back()}
             className="hidden rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow sm:block"
@@ -1197,6 +1333,154 @@ export function VoucherWorkbench({
           )}
         </div>
       </div>
+
+      {/* ── Invoice Preview Overlay ── */}
+      {showPreview && meta.family === "invoice" && (
+        <InvoicePreviewOverlay
+          buildPreviewData={buildPreviewData}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
     </div>
   );
+}
+
+/* ─────────────────────────────────────────────────
+   Invoice Preview Overlay — renders live form data
+   through the firm's default template
+───────────────────────────────────────────────── */
+function InvoicePreviewOverlay({
+  buildPreviewData,
+  onClose,
+}: {
+  buildPreviewData: () => InvoiceData | null;
+  onClose: () => void;
+}) {
+  const previewData = buildPreviewData();
+  const templateId = typeof window !== "undefined" ? localStorage.getItem("billingApp_defaultTemplate") || "classic" : "classic";
+  const template = getTemplateById(templateId);
+  const TemplateComp = template.component;
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  if (!previewData) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+        <div className="rounded-2xl bg-white p-8 text-center shadow-xl">
+          <p className="text-slate-600">Unable to generate preview. Make sure a firm is selected.</p>
+          <button onClick={onClose} className="mt-4 rounded-lg bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-200">
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const overlayContent = (
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-900/90 backdrop-blur-sm">
+      {/* Top bar */}
+      <div className="no-print flex shrink-0 items-center justify-between border-b border-white/10 bg-slate-900 px-4 py-4 sm:px-8">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            Back to Edit
+          </button>
+          <div className="h-5 w-px bg-white/20 hidden sm:block" />
+          <h2 className="hidden text-sm font-semibold text-white sm:block">
+            Invoice Preview
+          </h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 rounded-lg bg-tally-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-tally-500 active:scale-[0.97]"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
+            </svg>
+            Print
+          </button>
+        </div>
+      </div>
+
+      {/* Scrollable preview */}
+      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
+        <div 
+          className="mx-auto shadow-2xl origin-top" 
+          style={{ maxWidth: "210mm", transform: "scale(0.85)", marginBottom: "-15%" }}
+        >
+          <TemplateComp data={previewData} />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(overlayContent, document.body);
+}
+
+/* ─────────────────────────────────────────────────
+   Number to words — basic Indian-style converter
+───────────────────────────────────────────────── */
+function numberToWords(num: number): string {
+  if (num === 0) return "ZERO ONLY";
+
+  const ones = ["", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE",
+    "TEN", "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN"];
+  const tens = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY"];
+
+  function twoDigits(n: number): string {
+    if (n < 20) return ones[n];
+    return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
+  }
+
+  function threeDigits(n: number): string {
+    if (n === 0) return "";
+    if (n < 100) return twoDigits(n);
+    return ones[Math.floor(n / 100)] + " HUNDRED" + (n % 100 ? " AND " + twoDigits(n % 100) : "");
+  }
+
+  const rupees = Math.floor(num);
+  const paise = Math.round((num - rupees) * 100);
+
+  let result = "";
+  if (rupees >= 10000000) {
+    result += twoDigits(Math.floor(rupees / 10000000)) + " CRORE ";
+  }
+  const afterCrore = rupees % 10000000;
+  if (afterCrore >= 100000) {
+    result += twoDigits(Math.floor(afterCrore / 100000)) + " LAKH ";
+  }
+  const afterLakh = afterCrore % 100000;
+  if (afterLakh >= 1000) {
+    result += twoDigits(Math.floor(afterLakh / 1000)) + " THOUSAND ";
+  }
+  const afterThousand = afterLakh % 1000;
+  if (afterThousand > 0) {
+    result += threeDigits(afterThousand);
+  }
+
+  result = result.trim();
+  if (paise > 0) {
+    result += " RUPEES AND " + twoDigits(paise) + " PAISE ONLY";
+  } else {
+    result += " RUPEES ONLY";
+  }
+
+  return result;
 }

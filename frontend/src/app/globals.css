@@ -175,3 +175,44 @@ textarea {
 .stagger-6 {
   animation-delay: 0.3s;
 }
+
+/* ── Print styles — A4 invoice printing ── */
+@page {
+  size: A4;
+  margin: 15mm;
+}
+
+@media print {
+  /* Hide everything that isn't the invoice itself */
+  .no-print,
+  .no-print * {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Remove app background gradients */
+  body {
+    background-image: none !important;
+  }
+
+  /* Make sure the invoice fills the page */
+  .print-area {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
