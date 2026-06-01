@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState, useRef } from "react";
 
 import { ItemDetail } from "@/interfaces/inventory";
 import { LedgerDetail } from "@/interfaces/ledger";
@@ -302,6 +302,23 @@ export function VoucherWorkbench({
   const [firmState, setFirmState] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const itemsScrollRef = useRef<HTMLDivElement>(null);
+  const prevInvoiceLinesLength = useRef(invoiceLines.length);
+  const prevJournalLinesLength = useRef(journalLines.length);
+
+  useEffect(() => {
+    if (itemsScrollRef.current) {
+      if (
+        invoiceLines.length > prevInvoiceLinesLength.current ||
+        journalLines.length > prevJournalLinesLength.current
+      ) {
+        itemsScrollRef.current.scrollTop = itemsScrollRef.current.scrollHeight;
+      }
+    }
+    prevInvoiceLinesLength.current = invoiceLines.length;
+    prevJournalLinesLength.current = journalLines.length;
+  }, [invoiceLines.length, journalLines.length]);
 
   const partyLedgers = useMemo(
     () => ledgers.filter(isPartyLedger).map((ledger) => ({ value: ledger.id, label: `${ledger.name} • ${ledger.group_name || "Party"}` })),
@@ -711,11 +728,10 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="flex flex-col w-full h-[calc(100vh-220px)] sm:h-[calc(100vh-240px)] lg:h-[calc(100vh-180px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       {/* ── Voucher Command Ribbon ── */}
       <div
-        className="relative flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:px-6 sm:py-4 overflow-hidden"
+        className="shrink-0 relative flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:px-6 sm:py-4 overflow-hidden"
         style={{ background: `linear-gradient(135deg, var(--voucher-ribbon-from) 0%, var(--voucher-ribbon-to) 100%)` }}
       >
         {/* Faint radial glow */}
@@ -785,7 +801,7 @@ export function VoucherWorkbench({
 
       {/* ── Zone B: Party / Ledger ── */}
       <div
-        className="relative border-b border-slate-100"
+        className="shrink-0 relative border-b border-slate-100"
         style={{ background: "var(--voucher-zone-ledger)" }}
       >
         {/* Left accent bar */}
@@ -872,11 +888,10 @@ export function VoucherWorkbench({
 
       {/* ── Zone C: Items Table ── */}
       {meta.family === "invoice" ? (
-        <div className="border-b border-slate-100 bg-white">
+        <div className="border-b border-slate-100 bg-white flex-1 min-h-0 overflow-y-auto" ref={itemsScrollRef}>
           {/* Sticky table header */}
           <div
-            className="hidden grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 md:grid"
-            style={{ background: "var(--voucher-zone-table-header)" }}
+            className="sticky top-0 z-10 hidden grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
           >
             <div>Name of Item</div>
             <div>Qty</div>
@@ -978,10 +993,9 @@ export function VoucherWorkbench({
       ) : null}
 
       {meta.family === "journal" ? (
-        <div className="border-b border-slate-100 bg-white">
+        <div className="border-b border-slate-100 bg-white flex-1 min-h-0 overflow-y-auto" ref={itemsScrollRef}>
           <div
-            className="hidden grid-cols-[2fr_1fr_1fr_auto] gap-4 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 md:grid"
-            style={{ background: "var(--voucher-zone-table-header)" }}
+            className="sticky top-0 z-10 hidden grid-cols-[2fr_1fr_1fr_auto] gap-4 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
           >
             <div>Ledger</div>
             <div>Debit (Dr)</div>
@@ -1065,7 +1079,7 @@ export function VoucherWorkbench({
       ) : null}
 
       {/* ── Zone D: Narration + Totals ── */}
-      <div className="flex flex-col-reverse border-b border-slate-100 bg-white md:grid md:grid-cols-2 md:items-start">
+      <div className="shrink-0 mt-auto flex flex-col-reverse border-b border-slate-100 bg-white md:grid md:grid-cols-2 md:items-start">
         {/* Narration */}
         <div className="border-t border-slate-100 p-5 md:border-r md:border-t-0 sm:p-6">
           <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Narration</label>
@@ -1135,7 +1149,7 @@ export function VoucherWorkbench({
 
       {/* ── Zone E: Footer Actions ── */}
       <div
-        className="flex items-center justify-between px-5 py-4 sm:px-7 sm:py-5"
+        className="shrink-0 flex items-center justify-between px-5 py-4 sm:px-7 sm:py-5"
         style={{ background: "var(--voucher-zone-ledger)" }}
       >
         {/* Mobile cancel */}
@@ -1182,7 +1196,6 @@ export function VoucherWorkbench({
             </Link>
           )}
         </div>
-      </div>
       </div>
     </div>
   );
