@@ -4,9 +4,10 @@ import { redirect } from 'next/navigation'
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: { session } } = await supabase.auth.getSession()
 
-  if (!user || !session) {
+  // On the server, `getUser()` is the reliable auth check.
+  // `getSession()` can be temporarily unavailable during redirect/cookie refresh flows.
+  if (!user) {
     return redirect('/auth/login')
   }
 
@@ -32,4 +33,3 @@ export default async function Home() {
   // Fallback in case of an unknown role
   return redirect('/dashboard');
 }
-
