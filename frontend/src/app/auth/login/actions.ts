@@ -12,6 +12,7 @@ export async function signInWithGoogle() {
     process.env.NEXT_PUBLIC_SITE_URL ??
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
 
+    
   if (!siteUrl) {
     return redirect('/auth/login?error=' + encodeURIComponent('Unable to determine callback URL'))
   }
