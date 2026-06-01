@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import {
   AccountGroup,
@@ -11,6 +12,7 @@ import {
   LedgerWritePayload,
 } from "@/interfaces/ledger";
 import { apiRequest } from "@/lib/http";
+import { useDashboardChrome } from "@/context/DashboardChromeContext";
 import { useFirmScope } from "../../shared/useFirmScope";
 import { PageHero, SurfaceCard } from "../../shared/WorkspaceUi";
 import { useToast } from "@/context/ToastContext";
@@ -270,6 +272,15 @@ export default function LedgerCreatePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { showToast } = useToast();
+  const { setBottomNavVisible } = useDashboardChrome();
+
+  useLayoutEffect(() => {
+    setBottomNavVisible(false);
+
+    return () => {
+      setBottomNavVisible(true);
+    };
+  }, [setBottomNavVisible]);
 
   const selectedGroup = useMemo(
     () => groups.find((group) => group.id === form.group_id) || null,
@@ -448,6 +459,22 @@ export default function LedgerCreatePage() {
 
   return (
     <div className="space-y-6 pb-20">
+      <PageHero
+        eyebrow="Ledger setup"
+        title={ledgerId ? "Edit Ledger" : "Create Ledger"}
+        description="Create or update the account master, then return to the dashboard when you’re done."
+      >
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          <span>Back to dashboard</span>
+        </Link>
+      </PageHero>
+
       <SurfaceCard title="Core Details" description="Start with the ledger identity, group, and opening balance.">
         <div className="space-y-6">
           <Field label="Ledger Name *">
@@ -690,10 +717,10 @@ export default function LedgerCreatePage() {
         <div>
           <p className="text-sm font-semibold text-slate-900">{ledgerId ? "Ready to save this ledger?" : "Ready to save this ledger?"}</p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={() => router.back()} className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
-            Cancel
-          </button>
+          <div className="flex gap-3">
+            <Link href="/dashboard" className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+              Cancel
+            </Link>
           <button disabled={isSubmitting || isLoading} onClick={() => void submit()} className="rounded-xl bg-[#0B1021] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60">
             {isSubmitting ? "Saving..." : ledgerId ? "Update ledger" : "Create ledger"}
           </button>

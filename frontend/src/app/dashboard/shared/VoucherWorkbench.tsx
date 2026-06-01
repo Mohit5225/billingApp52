@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 
 import { ItemDetail } from "@/interfaces/inventory";
 import { LedgerDetail } from "@/interfaces/ledger";
@@ -10,6 +10,8 @@ import { VoucherCategory, VoucherDetail, VoucherWritePayload } from "@/interface
 import { apiRequest } from "@/lib/http";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
+import { useDashboardChrome } from "@/context/DashboardChromeContext";
+import { DashboardChromeScope } from "@/context/DashboardChromeContext";
 
 import { useFirmScope } from "./useFirmScope";
 import { ComboboxField } from "./ComboboxField";
@@ -279,6 +281,15 @@ export function VoucherWorkbench({
   const { showToast } = useToast();
   const meta = VOUCHER_META[slug];
   const isEditing = Boolean(voucherId);
+  const { setBottomNavVisible } = useDashboardChrome();
+
+  useLayoutEffect(() => {
+    setBottomNavVisible(false);
+
+    return () => {
+      setBottomNavVisible(true);
+    };
+  }, [setBottomNavVisible]);
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [invoiceLines, setInvoiceLines] = useState<InvoiceLineState[]>([{ ...EMPTY_INVOICE_LINE }]);
@@ -701,6 +712,7 @@ export function VoucherWorkbench({
 
   return (
     <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       {/* ── Voucher Command Ribbon ── */}
       <div
         className="relative flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:px-6 sm:py-4 overflow-hidden"
@@ -726,7 +738,7 @@ export function VoucherWorkbench({
           
           {/* Close button ONLY on mobile (right side of title) */}
           <Link
-            href={readOnly ? `/dashboard/vouchers/${voucherId}` : "/dashboard/create"}
+            href="/dashboard"
             className="flex h-7 w-7 items-center justify-center rounded-md border border-white/20 bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-white sm:hidden"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -760,13 +772,13 @@ export function VoucherWorkbench({
           
           {/* Close button ONLY on desktop */}
           <Link
-            href={readOnly ? `/dashboard/vouchers/${voucherId}` : "/dashboard/create"}
+            href="/dashboard"
             className="hidden sm:flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/20 hover:text-white"
           >
             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            <span>Close</span>
+            <span>Dashboard</span>
           </Link>
         </div>
       </div>
@@ -1170,6 +1182,7 @@ export function VoucherWorkbench({
             </Link>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

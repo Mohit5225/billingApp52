@@ -1,5 +1,6 @@
 "use client";
 
+import { useDashboardChrome } from "@/context/DashboardChromeContext";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -44,6 +45,11 @@ const BOTTOM_TABS = [
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { bottomNavVisible } = useDashboardChrome();
+
+  if (!bottomNavVisible) {
+    return null;
+  }
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-1.5 lg:hidden">

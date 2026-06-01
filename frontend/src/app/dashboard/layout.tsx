@@ -1,5 +1,6 @@
 "use client";
 
+import { DashboardChromeProvider } from "@/context/DashboardChromeContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useRouter } from "next/navigation";
 import { useEffect, Suspense, useRef } from "react";
@@ -56,26 +57,28 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   if (!profile) return null;
 
   return (
-    <div className="min-h-screen bg-canvas">
-      <Sidebar />
+    <DashboardChromeProvider>
+      <div className="min-h-screen bg-canvas">
+        <Sidebar />
 
-      <div className="min-h-screen lg:pl-[288px]">
-        <Suspense
-          fallback={<div className="h-[88px] border-b border-white/60 bg-white/70 backdrop-blur-xl" />}
-        >
-          <Header />
-        </Suspense>
+        <div className="min-h-screen lg:pl-[288px]">
+          <Suspense
+            fallback={<div className="h-[88px] border-b border-white/60 bg-white/70 backdrop-blur-xl" />}
+          >
+            <Header />
+          </Suspense>
 
-        <div className="relative isolate">
-          <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_top,_rgba(82,183,136,0.14),transparent_58%)]" />
-          <main className="mx-auto min-h-[calc(100vh-88px)] w-full max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8">
-            {children}
-          </main>
+          <div className="relative isolate">
+            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_top,rgba(82,183,136,0.14),transparent_58%)]" />
+            <main className="mx-auto min-h-[calc(100vh-88px)] w-full max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
 
-      <BottomNav />
-    </div>
+        <BottomNav />
+      </div>
+    </DashboardChromeProvider>
   );
 }
 
