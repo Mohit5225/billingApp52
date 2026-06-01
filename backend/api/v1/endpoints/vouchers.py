@@ -166,14 +166,17 @@ def _build_inventory_line_payloads(
                 ),
             )
 
+        hsn_code = item.get("hsn_code") or ""
+        uom_name = uom_map.get(str(item["uom_id"])) or ""
+
         payloads.append({
             "voucher_id": voucher_id,
             "firm_id": target_firm_id,
             "item_id": item_id,
             "line_number": line.line_number,
             "item_name": item["name"],
-            "hsn_code": item.get("hsn_code", ""),
-            "uom": uom_map.get(str(item["uom_id"]), ""),
+            "hsn_code": hsn_code,
+            "uom": uom_name,
             "taxability": item["taxability"],
             "is_rcm": item["is_rcm"],
             "quantity": float(line.quantity),

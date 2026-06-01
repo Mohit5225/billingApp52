@@ -214,6 +214,20 @@ function recalcLine(line: InvoiceLineState, item: ItemDetail | undefined, taxMod
   };
 }
 
+function requireSelection(value: string, label: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error(`Select ${label} before saving the voucher`);
+  }
+  return trimmed;
+}
+
+function requireLines<T>(lines: T[], label: string) {
+  if (lines.length === 0) {
+    throw new Error(`Add at least one ${label}`);
+  }
+}
+
 function InputField({
   label,
   value,
@@ -284,10 +298,6 @@ export function VoucherWorkbench({
   );
   const cashBankLedgers = useMemo(
     () => ledgers.filter(isCashBankLedger).map((ledger) => ({ value: ledger.id, label: ledger.name })),
-    [ledgers],
-  );
-  const taxLedgers = useMemo(
-    () => ledgers.filter(isTaxLedger).map((ledger) => ({ value: ledger.id, label: ledger.name })),
     [ledgers],
   );
   const mainLedgers = useMemo(
@@ -446,7 +456,7 @@ export function VoucherWorkbench({
     return () => {
       mounted = false;
     };
-  }, [activeFirmId, meta.family, supabase, voucherId, meta.category]);
+  }, [activeFirmId, meta.family, meta.category, showToast, supabase, voucherId]);
 
   function updateInvoiceLine(index: number, partial: Partial<InvoiceLineState>) {
     setInvoiceLines((prev) =>
@@ -472,23 +482,33 @@ export function VoucherWorkbench({
       throw new Error("No active firm selected");
     }
 
+    const voucherNumber = requireSelection(form.voucher_number, "voucher number");
+
     if (meta.family === "invoice") {
+      const partyLedgerId = requireSelection(form.party_ledger_id, "party ledger");
+      const mainLedgerId = requireSelection(form.main_ledger_id, "sales/purchase ledger");
+      requireLines(invoiceLines, "invoice line");
+
       const getTaxLedgerId = (type: string) => {
         const found = ledgers.find((l) => isTaxLedger(l) && l.name.toLowerCase().includes(type));
         if (!found) throw new Error(`Could not automatically find tax ledger for ${type.toUpperCase()}. Please create a tax ledger containing '${type}' in its name.`);
         return found.id;
       };
 
+      for (const [index, line] of invoiceLines.entries()) {
+        requireSelection(line.item_id, `item on line ${index + 1}`);
+      }
+
       const accountingLines = [];
       if (meta.category === "Sales" || meta.category === "Debit Note") {
         accountingLines.push({
-          ledger_id: form.party_ledger_id,
+          ledger_id: partyLedgerId,
           line_number: 1,
           debit_amount: invoiceTotals.grandTotal,
           credit_amount: 0,
         });
         accountingLines.push({
-          ledger_id: form.main_ledger_id,
+          ledger_id: mainLedgerId,
           line_number: 2,
           debit_amount: 0,
           credit_amount: invoiceTotals.taxable,
@@ -521,7 +541,7 @@ export function VoucherWorkbench({
         }
       } else {
         accountingLines.push({
-          ledger_id: form.main_ledger_id,
+          ledger_id: mainLedgerId,
           line_number: 1,
           debit_amount: invoiceTotals.taxable,
           credit_amount: 0,
@@ -553,7 +573,7 @@ export function VoucherWorkbench({
           }
         }
         accountingLines.push({
-          ledger_id: form.party_ledger_id,
+          ledger_id: partyLedgerId,
           line_number: lineNumber,
           debit_amount: 0,
           credit_amount: invoiceTotals.grandTotal,
@@ -563,10 +583,10 @@ export function VoucherWorkbench({
       return {
         firm_id: activeFirmId,
         category: meta.category,
-        voucher_number: form.voucher_number,
+        voucher_number: voucherNumber,
         voucher_date: form.voucher_date,
         narration: form.narration || null,
-        party_ledger_id: form.party_ledger_id,
+        party_ledger_id: partyLedgerId,
         accounting_lines: accountingLines,
         inventory_lines: invoiceLines.map((line, index) => ({
           ...line,
@@ -577,23 +597,26 @@ export function VoucherWorkbench({
     }
 
     if (meta.family === "payment") {
+      const partyLedgerId = requireSelection(form.party_ledger_id, "party ledger");
+      const cashBankLedgerId = requireSelection(form.cash_bank_ledger_id, "cash or bank ledger");
+
       const isReceipt = meta.category === "Receipt";
       return {
         firm_id: activeFirmId,
         category: meta.category,
-        voucher_number: form.voucher_number,
+        voucher_number: voucherNumber,
         voucher_date: form.voucher_date,
         narration: form.narration || null,
-        party_ledger_id: form.party_ledger_id,
+        party_ledger_id: partyLedgerId,
         accounting_lines: [
           {
-            ledger_id: isReceipt ? form.cash_bank_ledger_id : form.party_ledger_id,
+            ledger_id: isReceipt ? cashBankLedgerId : partyLedgerId,
             line_number: 1,
             debit_amount: isReceipt ? form.amount : 0,
             credit_amount: isReceipt ? 0 : form.amount,
           },
           {
-            ledger_id: isReceipt ? form.party_ledger_id : form.cash_bank_ledger_id,
+            ledger_id: isReceipt ? partyLedgerId : cashBankLedgerId,
             line_number: 2,
             debit_amount: isReceipt ? 0 : form.amount,
             credit_amount: isReceipt ? form.amount : 0,
@@ -604,22 +627,25 @@ export function VoucherWorkbench({
     }
 
     if (meta.family === "contra") {
+      const sourceLedgerId = requireSelection(form.source_ledger_id, "transfer-from ledger");
+      const destinationLedgerId = requireSelection(form.destination_ledger_id, "transfer-to ledger");
+
       return {
         firm_id: activeFirmId,
         category: meta.category,
-        voucher_number: form.voucher_number,
+        voucher_number: voucherNumber,
         voucher_date: form.voucher_date,
         narration: form.narration || null,
         party_ledger_id: null,
         accounting_lines: [
           {
-            ledger_id: form.destination_ledger_id,
+            ledger_id: destinationLedgerId,
             line_number: 1,
             debit_amount: form.amount,
             credit_amount: 0,
           },
           {
-            ledger_id: form.source_ledger_id,
+            ledger_id: sourceLedgerId,
             line_number: 2,
             debit_amount: 0,
             credit_amount: form.amount,
@@ -629,10 +655,15 @@ export function VoucherWorkbench({
       };
     }
 
+    requireLines(journalLines, "journal line");
+    for (const [index, line] of journalLines.entries()) {
+      requireSelection(line.ledger_id, `ledger on line ${index + 1}`);
+    }
+
     return {
       firm_id: activeFirmId,
       category: meta.category,
-      voucher_number: form.voucher_number,
+      voucher_number: voucherNumber,
       voucher_date: form.voucher_date,
       narration: form.narration || null,
       party_ledger_id: null,
