@@ -70,7 +70,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 
           <div className="relative isolate">
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_top,rgba(82,183,136,0.14),transparent_58%)]" />
-            <main className="mx-auto min-h-[calc(100vh-88px)] w-full max-w-[1400px] px-4 pb-28 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8">
+            <main className="mx-auto min-h-[calc(100vh-88px)] w-full max-w-[1800px] px-4 pb-28 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8">
               {children}
             </main>
           </div>

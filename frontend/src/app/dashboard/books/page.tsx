@@ -1,63 +1,56 @@
 "use client";
 
-import Link from "next/link";
+import ListRowItem from "../components/ListRowItem";
 
-import { PageHero, SurfaceCard } from "../shared/WorkspaceUi";
+const BookIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+  </svg>
+);
+
+const LedgerIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+  </svg>
+);
 
 const BOOKS = [
-  {
-    title: "Sales Register",
-    href: "/dashboard/books/sales-register",
-    description: "Review live sales vouchers with numbering, party context, and invoice value.",
-  },
-  {
-    title: "Purchase Register",
-    href: "/dashboard/books/purchase-register",
-    description: "Track inward billing activity without leaving the dashboard shell.",
-  },
-  {
-    title: "Day Book",
-    href: "/dashboard/books/day-book",
-    description: "Scan the chronological transaction stream across operational voucher types.",
-  },
-  {
-    title: "Cash Book",
-    href: "/dashboard/books/cash-book",
-    description: "See vouchers that hit cash or bank ledgers and move quickly into the detail view.",
-  },
-  {
-    title: "Ledger",
-    href: "/dashboard/books/ledger",
-    description: "Browse ledgers with group classification and configuration details from the aligned backend contract.",
-  },
+  { title: "Day Book", href: "/dashboard/books/day-book", description: "Chronological operational register", icon: <BookIcon /> },
+  { title: "Cash Book", href: "/dashboard/books/cash-book", description: "Cash and bank facing vouchers", icon: <BookIcon /> },
+  { title: "Ledger", href: "/dashboard/books/ledger", description: "Browse ledger masters and setup", icon: <LedgerIcon /> },
+  { title: "Sales Register", href: "/dashboard/books/sales-register", description: "Review live sales vouchers", icon: <BookIcon /> },
+  { title: "Purchase Register", href: "/dashboard/books/purchase-register", description: "Review live purchase vouchers", icon: <BookIcon /> },
+  { title: "Receipt Register", href: "/dashboard/books/receipt-register", description: "Inward payment tracking", icon: <BookIcon /> },
+  { title: "Payment Register", href: "/dashboard/books/payment-register", description: "Outward payment tracking", icon: <BookIcon /> },
+  { title: "Debit Note Register", href: "/dashboard/books/debit-note-register", description: "Purchase returns & adjustments", icon: <BookIcon /> },
+  { title: "Credit Note Register", href: "/dashboard/books/credit-note-register", description: "Sales returns & adjustments", icon: <BookIcon /> },
+  { title: "Journal Register", href: "/dashboard/books/journal-register", description: "Accounting adjustments", icon: <BookIcon /> },
+  { title: "Contra Register", href: "/dashboard/books/contra-register", description: "Internal bank & cash transfers", icon: <BookIcon /> },
 ];
 
 export default function BooksHubPage() {
   return (
-    <div className="space-y-6">
-      <PageHero
-        eyebrow="Books"
-        title="Operational books that are actually wired."
-        description="These are the live working registers for the current accounting slice, not placeholders. Use them to review activity, jump into voucher detail, and stay close to day-to-day operations."
-      />
+    <div className="mx-auto max-w-[1800px]">
+      <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-6 lg:p-8 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Workspace</p>
+            <h3 className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight text-slate-950">All Books & Registers</h3>
+          </div>
+        </div>
 
-      <SurfaceCard
-        title="Available books"
-        description="The broader reporting layer can come later. This pass focuses on books that need to work every day."
-      >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-2 sm:gap-3 md:grid-cols-2 lg:grid-cols-3 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/90 p-2 sm:p-3">
           {BOOKS.map((book) => (
-            <Link
-              key={book.href}
+            <ListRowItem
+              key={book.title}
+              title={book.title}
+              description={book.description}
               href={book.href}
-              className="rounded-[28px] border border-slate-100 bg-white/92 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
-            >
-              <p className="text-lg font-semibold text-slate-950">{book.title}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-500">{book.description}</p>
-            </Link>
+              icon={book.icon}
+            />
           ))}
         </div>
-      </SurfaceCard>
+      </section>
     </div>
   );
 }

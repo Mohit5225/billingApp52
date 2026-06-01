@@ -32,30 +32,30 @@ export default function ListRowItem({
   return (
     <Link
       href={href}
-      className="group flex items-start gap-2.5 rounded-2xl px-3 py-3 transition-colors hover:bg-slate-50/90 sm:items-center sm:px-5 sm:gap-3"
+      className="group flex items-start gap-3 rounded-2xl px-4 py-4 transition-colors hover:bg-slate-50/90 sm:items-center sm:px-6 sm:gap-4"
     >
       {icon && (
-        <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-tally-50 text-tally-700 transition-colors group-hover:bg-tally-100">
+        <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-tally-50 text-tally-700 transition-colors group-hover:bg-tally-100">
           {icon}
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-slate-900">{title}</p>
-        {description && <p className="mt-1 truncate text-sm text-slate-500">{description}</p>}
+        <p className="truncate text-base sm:text-lg font-semibold text-slate-900">{title}</p>
+        {description && <p className="mt-1.5 truncate text-sm sm:text-[15px] text-slate-500">{description}</p>}
       </div>
-      <div className="flex shrink-0 items-center gap-2 self-center">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3 self-center">
         {badge && (
-          <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${badgeColors[badge.color || "slate"]}`}>
+          <span className={`rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] ${badgeColors[badge.color || "slate"]}`}>
             {badge.label}
           </span>
         )}
         {rightText && (
           <div className="text-right">
-            <p className="text-xs font-semibold text-slate-600">{rightText}</p>
-            {rightSubText && <p className="text-[11px] text-slate-400">{rightSubText}</p>}
+            <p className="text-sm sm:text-base font-semibold text-slate-700">{rightText}</p>
+            {rightSubText && <p className="text-xs sm:text-sm text-slate-500">{rightSubText}</p>}
           </div>
         )}
-        <svg className="h-4 w-4 text-slate-300 transition-colors group-hover:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="h-4 w-4 sm:h-5 sm:w-5 text-slate-300 transition-colors group-hover:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
       </div>

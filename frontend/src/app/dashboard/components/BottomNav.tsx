@@ -14,15 +14,7 @@ const BOTTOM_TABS = [
       </svg>
     ),
   },
-  {
-    label: "Create",
-    href: "/dashboard/create",
-    icon: (
-      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-      </svg>
-    ),
-  },
+
   {
     label: "Books",
     href: "/dashboard/books",
@@ -55,7 +47,9 @@ export default function BottomNav() {
     <nav className="fixed inset-x-0 bottom-0 z-40 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-1.5 lg:hidden">
       <div className="mx-auto flex max-w-lg items-center justify-between gap-0.5 rounded-2xl border border-white/70 bg-white/88 p-1.5 shadow-[0_18px_40px_rgba(15,23,42,0.18)] backdrop-blur-xl">
         {BOTTOM_TABS.map((tab) => {
-          const isActive = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
+          const isActive = tab.href === "/dashboard"
+            ? pathname === "/dashboard"
+            : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
 
           return (
             <Link

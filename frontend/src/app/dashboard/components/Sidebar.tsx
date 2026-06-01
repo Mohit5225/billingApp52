@@ -69,6 +69,12 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { label: "Sales Register", href: "/dashboard/books/sales-register" },
       { label: "Purchase Register", href: "/dashboard/books/purchase-register" },
+      { label: "Receipt Register", href: "/dashboard/books/receipt-register" },
+      { label: "Payment Register", href: "/dashboard/books/payment-register" },
+      { label: "Debit Note Reg.", href: "/dashboard/books/debit-note-register" },
+      { label: "Credit Note Reg.", href: "/dashboard/books/credit-note-register" },
+      { label: "Journal Register", href: "/dashboard/books/journal-register" },
+      { label: "Contra Register", href: "/dashboard/books/contra-register" },
       { label: "Day Book", href: "/dashboard/books/day-book" },
       { label: "Cash Book", href: "/dashboard/books/cash-book" },
       { label: "Ledger", href: "/dashboard/books/ledger" },
@@ -120,11 +126,10 @@ export default function Sidebar() {
                 <div key={item.label} className="rounded-[26px] border border-transparent bg-white/[0.03] p-1">
                   <button
                     onClick={() => toggleSection(item.label)}
-                    className={`flex w-full items-center justify-between rounded-[22px] px-4 py-3.5 text-sm font-medium transition-all ${
-                      isOpen || childIsActive
+                    className={`flex w-full items-center justify-between rounded-[22px] px-4 py-3.5 text-sm font-medium transition-all ${isOpen || childIsActive
                         ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                         : "text-white/72 hover:bg-white/6 hover:text-white"
-                    }`}
+                      }`}
                   >
                     <span className="flex items-center gap-3.5">
                       <span className={childIsActive ? "text-tally-300" : "text-white/75"}>{item.icon}</span>
@@ -140,11 +145,10 @@ export default function Sidebar() {
                         <Link
                           key={child.href}
                           href={child.href}
-                          className={`block rounded-2xl px-3.5 py-2.5 text-[13px] leading-5 transition-all ${
-                            pathname.startsWith(child.href)
+                          className={`block rounded-2xl px-3.5 py-2.5 text-[13px] leading-5 transition-all ${pathname.startsWith(child.href)
                               ? "bg-white/10 font-semibold text-tally-200"
                               : "text-white/55 hover:bg-white/6 hover:text-white/88"
-                          }`}
+                            }`}
                         >
                           {child.label}
                         </Link>
@@ -159,11 +163,10 @@ export default function Sidebar() {
               <Link
                 key={item.label}
                 href={item.href!}
-                className={`flex items-center gap-3.5 rounded-[24px] px-4 py-3.5 text-sm font-medium transition-all ${
-                  active
+                className={`flex items-center gap-3.5 rounded-[24px] px-4 py-3.5 text-sm font-medium transition-all ${active
                     ? "bg-white/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     : "text-white/72 hover:bg-white/6 hover:text-white"
-                }`}
+                  }`}
               >
                 <span className={active ? "text-tally-300" : "text-white/75"}>{item.icon}</span>
                 {item.label}

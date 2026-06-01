@@ -35,7 +35,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/60 bg-[rgba(248,245,239,0.84)] backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
         <div className="flex w-full flex-wrap items-start justify-between gap-4 lg:flex-nowrap lg:items-center">
           <div className="flex min-w-0 flex-1 items-start gap-2.5 sm:gap-3">
             <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-tally-400 font-bold text-tally-900 shadow-lg shadow-emerald-950/10 lg:hidden">

@@ -1,31 +1,51 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-
 import { DashboardOverview } from "@/interfaces/workspace";
 import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatNumber } from "@/lib/format";
-
-import { MetricTile, PageHero, SurfaceCard } from "../shared/WorkspaceUi";
 import { useFirmScope } from "../shared/useFirmScope";
 import { useToast } from "@/context/ToastContext";
 
+import KpiCard from "../components/KpiCard";
+import ListRowItem from "../components/ListRowItem";
+
+const BoxIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="m21 7.5-9-5.25L3 7.5m18 0-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" />
+  </svg>
+);
+
+const ScaleIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.416 48.416 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.988 5.988 0 0 1-2.031.352 5.988 5.988 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L18.75 4.971Zm-16.5.52c.99-.203 1.99-.377 3-.52m0 0 2.62 10.726c.122.499-.106 1.028-.589 1.202a5.989 5.989 0 0 1-2.031.352 5.989 5.989 0 0 1-2.031-.352c-.483-.174-.711-.703-.59-1.202L5.25 4.971Z" />
+  </svg>
+);
+
+const ChartIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+  </svg>
+);
+
 const LINKS = [
   {
-    title: "Items",
+    title: "Item Masters",
     href: "/dashboard/inventory/items",
-    description: "Maintain sellable and purchasable stock masters with GST defaults, UOM, and opening balances.",
+    description: "Maintain sellable and purchasable stock",
+    icon: <BoxIcon />
   },
   {
-    title: "UOM",
+    title: "Unit of Measure",
     href: "/dashboard/inventory/uom",
-    description: "Keep GST-ready units clean so voucher quantity entry stays consistent across devices.",
+    description: "Keep GST-ready units clean",
+    icon: <ScaleIcon />
   },
   {
     title: "Stock Position",
     href: "/dashboard/inventory/stock-position",
-    description: "See opening balances, inward, outward, and live closing quantity without browser-side math.",
+    description: "Live inward, outward, and closing balances",
+    icon: <ChartIcon />
   },
 ];
 
@@ -56,58 +76,53 @@ export default function InventoryHubPage() {
   }, [activeFirmId, supabase]);
 
   return (
-    <div className="space-y-6">
-      <PageHero
-        eyebrow="Inventory"
-        title="Manage stock masters without losing accounting context."
-        description="Inventory stays close to vouchers here: build clean item masters, lock HSN and UOM, then step into stock position with the same warm dashboard treatment."
-      />
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricTile
-          label="Items"
-          value={String(overview?.inventory.items_count ?? 0)}
-          helper="Active item masters"
+    <div className="mx-auto max-w-[1800px] space-y-6 lg:space-y-8">
+      {/* KPIs */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <KpiCard
+          label="Total Items"
+          amount={String(overview?.inventory.items_count ?? 0)}
+          subtitle="Active item masters"
+          trend="up"
+          accentColor="#40916C"
         />
-
-        <MetricTile
-          label="Units"
-          value={String(overview?.inventory.uom_count ?? 0)}
-          helper="Measurement definitions"
+        <KpiCard
+          label="Measurement Units"
+          amount={String(overview?.inventory.uom_count ?? 0)}
+          subtitle="Configured UOMs"
+          trend="flat"
+          accentColor="#D49735"
         />
-        <MetricTile
-          label="Closing Stock"
-          value={formatCurrency(overview?.inventory.closing_value ?? 0)}
-          helper={`${formatNumber(overview?.inventory.closing_quantity ?? 0)} units across tracked items`}
+        <KpiCard
+          label="Closing Stock Value"
+          amount={formatCurrency(overview?.inventory.closing_value ?? 0)}
+          subtitle={`${formatNumber(overview?.inventory.closing_quantity ?? 0)} units in stock flow`}
+          trend="up"
+          accentColor="#2563EB"
         />
       </div>
 
-      <SurfaceCard
-        title="Inventory workspace"
-        description="Jump into the exact master or operational view you need. Each page is tuned for quick edits on desktop and phone."
-      >
-        <div className="grid gap-4 md:grid-cols-2">
+      {/* Links Surface */}
+      <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-6 lg:p-8 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Inventory Workspace</p>
+            <h3 className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight text-slate-950">Management Actions</h3>
+          </div>
+        </div>
+
+        <div className="grid gap-2 sm:gap-3 lg:grid-cols-3 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/90 p-2 sm:p-3">
           {LINKS.map((link) => (
-            <Link
-              key={link.href}
+            <ListRowItem
+              key={link.title}
+              title={link.title}
+              description={link.description}
               href={link.href}
-              className="group rounded-[28px] border border-slate-100 bg-white/92 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-lg font-semibold text-slate-950">{link.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{link.description}</p>
-                </div>
-                <div className="rounded-2xl bg-tally-50 p-3 text-tally-700 transition group-hover:bg-tally-100">
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 16.5 16.5 7.5m0 0H9.75m6.75 0v6.75" />
-                  </svg>
-                </div>
-              </div>
-            </Link>
+              icon={link.icon}
+            />
           ))}
         </div>
-      </SurfaceCard>
+      </section>
     </div>
   );
 }
