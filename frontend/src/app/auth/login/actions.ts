@@ -7,11 +7,12 @@ import { headers } from 'next/headers'
 export async function signInWithGoogle() {
   const supabase = await createClient()
   const origin = (await headers()).get('origin')
+  const siteUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : origin
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${origin}/auth/callback`,
+      redirectTo: `${siteUrl}/auth/callback`,
       queryParams: {
         prompt: 'select_account',
       },
