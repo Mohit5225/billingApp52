@@ -136,14 +136,14 @@ export default function LedgerStatementPage() {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="h-11 rounded-2xl bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-500"
+                  className="h-11 rounded-2xl bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-500 flex-1 md:flex-initial"
                 >
                   Apply
                 </button>
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+                  className="h-11 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 flex-1 md:flex-initial"
                 >
                   Clear
                 </button>

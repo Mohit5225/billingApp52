@@ -606,7 +606,7 @@ export default function InventorySectionPage() {
                         <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
                           GST rates — type IGST to auto-fill CGST &amp; SGST
                         </p>
-                        <div className="grid gap-3 grid-cols-3">
+                        <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
                           <div>
                             <label className="mb-1.5 block text-xs font-semibold text-slate-500">IGST %</label>
                             <TextInput

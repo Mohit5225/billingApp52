@@ -264,7 +264,7 @@ function InputField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:cursor-not-allowed disabled:opacity-60 sm:w-2/3"
+        className="h-11 sm:h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );
@@ -852,7 +852,7 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div className="flex flex-col w-full h-[calc(100vh-220px)] sm:h-[calc(100vh-240px)] lg:h-[calc(100vh-180px)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="flex flex-col w-full min-h-[calc(100vh-var(--header-height)-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-var(--header-height)-2rem)] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden lg:overflow-visible">
       {/* ── Voucher Command Ribbon ── */}
       <div
         className="shrink-0 relative flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:px-6 sm:py-4 overflow-hidden"
@@ -892,7 +892,7 @@ export function VoucherWorkbench({
           <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
             <label className="text-[10px] font-semibold uppercase tracking-wider text-white/50">No.</label>
             <input
-              className="h-8 w-full sm:w-20 rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white outline-none placeholder:text-white/40 transition focus:border-white/50 focus:bg-white/15 disabled:opacity-60"
+              className="h-11 w-full sm:h-8 sm:w-20 rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white outline-none placeholder:text-white/40 transition focus:border-white/50 focus:bg-white/15 disabled:opacity-60"
               placeholder="e.g. 1"
               value={form.voucher_number}
               onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
@@ -903,7 +903,7 @@ export function VoucherWorkbench({
             <label className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Date</label>
             <input
               type="date"
-              className="h-8 w-full sm:w-[135px] rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white outline-none transition focus:border-white/50 focus:bg-white/15 disabled:opacity-60"
+              className="h-11 w-full sm:h-8 sm:w-[135px] rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white outline-none transition focus:border-white/50 focus:bg-white/15 disabled:opacity-60"
               value={form.voucher_date}
               onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
               disabled={readOnly}
@@ -1028,12 +1028,12 @@ export function VoucherWorkbench({
             {invoiceLines.map((line, index) => (
               <div
                 key={`${index}-${line.item_id}`}
-                className="group grid gap-4 p-4 transition-colors duration-100 md:grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-5 md:py-2.5"
+                className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-5 md:py-2.5"
                 style={{ ['--tw-bg-opacity' as string]: '1' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
               >
-                <div className="flex flex-col md:block">
+                <div className="col-span-2 md:col-span-1 flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Item</span>
                   <ComboboxField
                     inline
@@ -1053,7 +1053,7 @@ export function VoucherWorkbench({
                     value={line.quantity || ""}
                     onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })}
                     placeholder="0"
-                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1065,7 +1065,7 @@ export function VoucherWorkbench({
                     value={line.unit_price || ""}
                     onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })}
                     placeholder="0.00"
-                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1077,21 +1077,21 @@ export function VoucherWorkbench({
                     value={line.discount_amount || ""}
                     onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
                     placeholder="0.00"
-                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
                   />
                 </div>
                 <div className="flex items-center justify-between md:justify-end md:pr-1">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Amount</span>
                   <span className="mono-num font-semibold text-slate-900">{formatCurrency(line.taxable_amount)}</span>
                 </div>
-                <div className="flex justify-end">
+                <div className="col-span-2 md:col-span-1 flex justify-end">
                   {!readOnly && (
                     <button
                       onClick={() => setInvoiceLines((prev) => prev.filter((_, i) => i !== index))}
                       title="Remove line"
-                      className="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                      className="flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <svg className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -1130,11 +1130,11 @@ export function VoucherWorkbench({
             {journalLines.map((line, index) => (
               <div
                 key={index}
-                className="grid gap-4 p-4 transition-colors duration-100 md:grid-cols-[2fr_1fr_1fr_auto] md:items-center md:gap-4 md:p-5 md:py-2.5"
+                className="grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[2fr_1fr_1fr_auto] md:items-center md:gap-4 md:p-5 md:py-2.5"
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
               >
-                <div className="flex flex-col md:block">
+                <div className="col-span-2 md:col-span-1 flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Ledger</span>
                   <ComboboxField
                     inline
@@ -1155,7 +1155,7 @@ export function VoucherWorkbench({
                     value={line.debit_amount || ""}
                     onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, debit_amount: Number(e.target.value), credit_amount: 0 } : entry))}
                     placeholder="0.00"
-                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1167,17 +1167,17 @@ export function VoucherWorkbench({
                     value={line.credit_amount || ""}
                     onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, credit_amount: Number(e.target.value), debit_amount: 0 } : entry))}
                     placeholder="0.00"
-                    className="mono-num h-10 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
+                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-sm font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-9"
                   />
                 </div>
-                <div className="flex justify-end">
+                <div className="col-span-2 md:col-span-1 flex justify-end">
                   {!readOnly && (
                     <button
                       onClick={() => setJournalLines((prev) => prev.filter((_, entryIndex) => entryIndex !== index))}
                       title="Remove line"
-                      className="flex h-7 w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                      className="flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <svg className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -1419,10 +1419,22 @@ function InvoicePreviewOverlay({
       </div>
 
       {/* Scrollable preview */}
-      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden flex items-start justify-center px-4 py-8 sm:px-8">
         <div 
-          className="mx-auto shadow-2xl origin-top" 
-          style={{ maxWidth: "210mm", transform: "scale(0.85)", marginBottom: "-15%" }}
+          className="origin-top-left transition-transform shadow-2xl bg-white"
+          style={{
+            width: "794px",
+            minHeight: "1123px",
+            transform: typeof window !== "undefined" && window.innerWidth < 1024 
+              ? `scale(${Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)})` 
+              : "scale(1)",
+            marginBottom: typeof window !== "undefined" && window.innerWidth < 1024
+              ? `-${(1 - Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)) * 1123}px`
+              : "0",
+            marginRight: typeof window !== "undefined" && window.innerWidth < 1024
+              ? `-${(1 - Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)) * 794}px`
+              : "0",
+          }}
         >
           <TemplateComp data={previewData} />
         </div>

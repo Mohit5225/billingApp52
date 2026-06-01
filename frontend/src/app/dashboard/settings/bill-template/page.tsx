@@ -222,9 +222,24 @@ function PreviewModal({
         </div>
       </div>
 
-      {/* Scrollable preview area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
-        <div className="mx-auto" style={{ maxWidth: "210mm" }}>
+      {/* Live Preview Pane */}
+      <div className="flex-1 bg-slate-400 overflow-y-auto overflow-x-hidden flex items-start justify-center p-4 sm:p-8">
+        <div 
+          className="origin-top-left transition-transform shadow-2xl bg-white"
+          style={{
+            width: "794px",
+            minHeight: "1123px",
+            transform: typeof window !== "undefined" && window.innerWidth < 1024 
+              ? `scale(${Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)})` 
+              : "scale(1)",
+            marginBottom: typeof window !== "undefined" && window.innerWidth < 1024
+              ? `-${(1 - Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)) * 1123}px`
+              : "0",
+            marginRight: typeof window !== "undefined" && window.innerWidth < 1024
+              ? `-${(1 - Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)) * 794}px`
+              : "0",
+          }}
+        >
           <TemplateComp data={MOCK_INVOICE_DATA} />
         </div>
       </div>
