@@ -406,7 +406,7 @@ export function getCellValue(
   col: ColumnDef
 ): string | number | undefined {
   if (col.getValue) return col.getValue(item);
-  return (item as Record<string, unknown>)[col.key] as
+  return (item as unknown as Record<string, unknown>)[col.key] as
     | string
     | number
     | undefined;
