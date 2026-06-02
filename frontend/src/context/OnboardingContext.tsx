@@ -71,6 +71,17 @@ export const OnboardingProvider = ({ children }: { children: ReactNode }) => {
       // Merge context data with any final manual data passed in to ensure we have the latest
       const finalData = { ...data, ...manualData };
       
+      // Trim sensitive string fields before submission
+      if (finalData.gstin && typeof finalData.gstin === 'string') {
+        finalData.gstin = finalData.gstin.trim();
+      }
+      if (finalData.pan && typeof finalData.pan === 'string') {
+        finalData.pan = finalData.pan.trim();
+      }
+      if (finalData.name && typeof finalData.name === 'string') {
+        finalData.name = finalData.name.trim();
+      }
+
       const response = await fetch(`${apiBaseUrl}/api/firms/`, {
         method: "POST",
         headers: {

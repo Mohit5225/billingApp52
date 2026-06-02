@@ -5,6 +5,8 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from postgrest.exceptions import APIError
+
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
 from core.supabase import supabase
@@ -411,6 +413,26 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
 
     _validate_group_access(str(ledger_in.group_id), target_firm_id)
 
+    # Pre-insertion uniqueness checks
+    clean_name = ledger_in.name.strip()
+    name_check = supabase.table("ledgers").select("id").eq("firm_id", target_firm_id).ilike("name", clean_name).execute()
+    if name_check.data:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A ledger with the name '{clean_name}' already exists.")
+
+    if ledger_in.party_details:
+        gstin = (ledger_in.party_details.gstin or "").strip()
+        pan = (ledger_in.party_details.pan_number or "").strip()
+        
+        if gstin:
+            gstin_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("gstin", gstin).eq("ledgers.firm_id", target_firm_id).execute()
+            if gstin_check.data:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this GSTIN already exists.")
+                
+        if pan:
+            pan_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("pan_number", pan).eq("ledgers.firm_id", target_firm_id).execute()
+            if pan_check.data:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this PAN number already exists.")
+
     payload = ledger_in.model_dump(
         mode="json",
         exclude_none=True,
@@ -418,14 +440,24 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
     )
     payload["firm_id"] = target_firm_id
 
-    response = supabase.table("ledgers").insert(payload).execute()
-    if not response.data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create ledger")
+    try:
+        response = supabase.table("ledgers").insert(payload).execute()
+        if not response.data:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create ledger")
 
-    ledger_id = response.data[0]["id"]
-    _replace_detail_row("ledger_bank_details", ledger_id, ledger_in.bank_details)
-    _replace_detail_row("ledger_party_details", ledger_id, ledger_in.party_details)
-    _replace_detail_row("ledger_tax_details", ledger_id, ledger_in.tax_details)
+        ledger_id = response.data[0]["id"]
+        _replace_detail_row("ledger_bank_details", ledger_id, ledger_in.bank_details)
+        _replace_detail_row("ledger_party_details", ledger_id, ledger_in.party_details)
+        _replace_detail_row("ledger_tax_details", ledger_id, ledger_in.tax_details)
+    except APIError as e:
+        error_message = e.message or str(e)
+        if "A party with this GSTIN already exists" in error_message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this GSTIN already exists.")
+        if "A party with this PAN number already exists" in error_message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this PAN number already exists.")
+        if "uq_ledger_name_trim_lower_firm" in error_message or "uq_ledger_name_per_firm" in error_message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A ledger with the name '{clean_name}' already exists.")
+        raise
 
     return _build_ledger_detail_rows([_get_ledger_or_404(ledger_id)])[0]
 
@@ -443,22 +475,54 @@ async def update_ledger(
     if ledger_in.group_id:
         _validate_group_access(str(ledger_in.group_id), target_firm_id)
 
+    # Pre-update uniqueness checks
+    clean_name = ledger_in.name.strip() if ledger_in.name else existing["name"]
+    if ledger_in.name:
+        name_check = supabase.table("ledgers").select("id").eq("firm_id", target_firm_id).ilike("name", clean_name).neq("id", ledger_id).execute()
+        if name_check.data:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A ledger with the name '{clean_name}' already exists.")
+
+    if ledger_in.party_details:
+        gstin = (ledger_in.party_details.gstin or "").strip()
+        pan = (ledger_in.party_details.pan_number or "").strip()
+        
+        if gstin:
+            gstin_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("gstin", gstin).eq("ledgers.firm_id", target_firm_id).neq("ledger_id", ledger_id).execute()
+            if gstin_check.data:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this GSTIN already exists.")
+                
+        if pan:
+            pan_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("pan_number", pan).eq("ledgers.firm_id", target_firm_id).neq("ledger_id", ledger_id).execute()
+            if pan_check.data:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this PAN number already exists.")
+
     payload = ledger_in.model_dump(
         mode="json",
         exclude_none=True,
         exclude={"bank_details", "party_details", "tax_details"},
     )
-    if payload:
-        response = supabase.table("ledgers").update(payload).eq("id", ledger_id).execute()
-        if not response.data:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update ledger")
+    
+    try:
+        if payload:
+            response = supabase.table("ledgers").update(payload).eq("id", ledger_id).execute()
+            if not response.data:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update ledger")
 
-    if "bank_details" in ledger_in.model_fields_set:
-        _replace_detail_row("ledger_bank_details", ledger_id, ledger_in.bank_details)
-    if "party_details" in ledger_in.model_fields_set:
-        _replace_detail_row("ledger_party_details", ledger_id, ledger_in.party_details)
-    if "tax_details" in ledger_in.model_fields_set:
-        _replace_detail_row("ledger_tax_details", ledger_id, ledger_in.tax_details)
+        if "bank_details" in ledger_in.model_fields_set:
+            _replace_detail_row("ledger_bank_details", ledger_id, ledger_in.bank_details)
+        if "party_details" in ledger_in.model_fields_set:
+            _replace_detail_row("ledger_party_details", ledger_id, ledger_in.party_details)
+        if "tax_details" in ledger_in.model_fields_set:
+            _replace_detail_row("ledger_tax_details", ledger_id, ledger_in.tax_details)
+    except APIError as e:
+        error_message = e.message or str(e)
+        if "A party with this GSTIN already exists" in error_message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this GSTIN already exists.")
+        if "A party with this PAN number already exists" in error_message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this PAN number already exists.")
+        if "uq_ledger_name_trim_lower_firm" in error_message or "uq_ledger_name_per_firm" in error_message:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A ledger with the name '{clean_name}' already exists.")
+        raise
 
     return _build_ledger_detail_rows([_get_ledger_or_404(ledger_id)])[0]
 

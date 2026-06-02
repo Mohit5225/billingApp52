@@ -271,6 +271,7 @@ export default function LedgerCreatePage() {
   const [bankErrors, setBankErrors] = useState<BankSectionErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFetchingGst, setIsFetchingGst] = useState(false);
   const { showToast } = useToast();
   const { setBottomNavVisible } = useDashboardChrome();
 
@@ -386,6 +387,37 @@ export default function LedgerCreatePage() {
     };
   }, [activeFirmId, ledgerId, supabase]);
 
+  const handleFetchGstDetails = async () => {
+    const gstin = form.party_details.gstin.trim();
+    if (!gstin.match(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)) {
+      showToast("Invalid GSTIN format", "error");
+      return;
+    }
+    
+    setIsFetchingGst(true);
+    try {
+      const data = await apiRequest<any>(supabase, `/api/firms/gst/fetch?gstin=${gstin}`);
+      
+      setForm((prev) => ({
+        ...prev,
+        party_details: {
+          ...prev.party_details,
+          mailing_name: data.name || prev.party_details.mailing_name,
+          address: data.address_lane1 ? `${data.address_lane1}${data.city ? `, ${data.city}` : ''}` : prev.party_details.address,
+          state: data.state || prev.party_details.state,
+          pincode: data.pincode || prev.party_details.pincode,
+          pan_number: data.pan || prev.party_details.pan_number,
+          gst_registration_type: data.gstin ? "Regular" : prev.party_details.gst_registration_type,
+        }
+      }));
+      showToast("GST details fetched successfully", "success");
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to fetch GST details", "error");
+    } finally {
+      setIsFetchingGst(false);
+    }
+  };
+
   async function submit() {
     if (!activeFirmId) return;
     try {
@@ -412,31 +444,31 @@ export default function LedgerCreatePage() {
       const payload: LedgerWritePayload = {
         firm_id: activeFirmId,
         group_id: form.group_id,
-        name: form.name,
-        alias: form.alias || null,
+        name: form.name.trim(),
+        alias: form.alias ? form.alias.trim() : null,
         opening_balance: Number(form.opening_balance || 0),
         opening_balance_type: form.opening_balance_type,
         inventory_values_affected: form.inventory_values_affected,
         cost_centre_applicable: form.cost_centre_applicable,
         bank_details: templateType === "bank" ? {
           ...form.bank_details,
-          account_number: form.bank_details.account_number || null,
-          ifsc_code: form.bank_details.ifsc_code || null,
-          swift_code: form.bank_details.swift_code || null,
-          bank_name: form.bank_details.bank_name || null,
-          branch_name: form.bank_details.branch_name || null,
+          account_number: form.bank_details.account_number ? form.bank_details.account_number.trim() : null,
+          ifsc_code: form.bank_details.ifsc_code ? form.bank_details.ifsc_code.trim() : null,
+          swift_code: form.bank_details.swift_code ? form.bank_details.swift_code.trim() : null,
+          bank_name: form.bank_details.bank_name ? form.bank_details.bank_name.trim() : null,
+          branch_name: form.bank_details.branch_name ? form.bank_details.branch_name.trim() : null,
         } : null,
         party_details: templateType === "party" ? {
           ...form.party_details,
           default_credit_days: form.party_details.default_credit_days || null,
-          mailing_name: form.party_details.mailing_name || null,
-          address: form.party_details.address || null,
-          state: form.party_details.state || null,
-          country: form.party_details.country || null,
-          pincode: form.party_details.pincode || null,
-          pan_number: form.party_details.pan_number || null,
+          mailing_name: form.party_details.mailing_name ? form.party_details.mailing_name.trim() : null,
+          address: form.party_details.address ? form.party_details.address.trim() : null,
+          state: form.party_details.state ? form.party_details.state.trim() : null,
+          country: form.party_details.country ? form.party_details.country.trim() : null,
+          pincode: form.party_details.pincode ? form.party_details.pincode.trim() : null,
+          pan_number: form.party_details.pan_number ? form.party_details.pan_number.trim() : null,
           gst_registration_type: form.party_details.gst_registration_type || null,
-          gstin: form.party_details.gstin || null,
+          gstin: form.party_details.gstin ? form.party_details.gstin.trim() : null,
         } : null,
         tax_details: templateType === "tax" ? {
           duty_tax_type: form.tax_details.duty_tax_type || null,
@@ -522,51 +554,39 @@ export default function LedgerCreatePage() {
         </div>
       </SurfaceCard>
 
-      <SurfaceCard title="Advanced Settings" description="Optional controls for stock valuation and cost centre tracking.">
-        <div className="grid gap-4 md:grid-cols-2">
-          <LabeledToggle
-            checked={form.inventory_values_affected}
-            label="Inventory values affected"
-            description="Use for ledgers that affect stock valuation."
-            onChange={(next) => setForm((prev) => ({ ...prev, inventory_values_affected: next }))}
-          />
-          <LabeledToggle
-            checked={form.cost_centre_applicable}
-            label="Cost centre applicable"
-            description="Enable if this ledger should accept cost centre tracking."
-            onChange={(next) => setForm((prev) => ({ ...prev, cost_centre_applicable: next }))}
-          />
-        </div>
-      </SurfaceCard>
-
       {templateType === "party" ? (
         <SurfaceCard title="Party Details" description="Capture billing, registration, and credit defaults for debtor or creditor ledgers.">
           <div className="space-y-6">
-            <LabeledToggle
-              checked={form.party_details.maintain_bill_by_bill}
-              label="Maintain bill-by-bill"
-              description="Useful for receivables and payables tracking."
-              onChange={(next) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, maintain_bill_by_bill: next } }))}
-            />
-            <div className="grid gap-6 md:grid-cols-2">
-              <Field label="Default Credit Days">
-                <Input type="number" placeholder="0" value={form.party_details.default_credit_days || ""} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, default_credit_days: Number(event.target.value) } }))} />
-              </Field>
-              <Field label="PAN Number">
-                <Input placeholder="PAN number" value={form.party_details.pan_number} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pan_number: event.target.value } }))} />
-              </Field>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <Field label="GSTIN">
+                  <Input placeholder="15-digit GSTIN" value={form.party_details.gstin} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gstin: event.target.value.toUpperCase() } }))} maxLength={15} />
+                </Field>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleFetchGstDetails()}
+                disabled={isFetchingGst || form.party_details.gstin.length !== 15}
+                className="h-11 rounded-xl bg-emerald-50 px-6 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-200 shadow-sm"
+              >
+                {isFetchingGst ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" className="opacity-25" />
+                      <path d="M4 12a8 8 0 018-8v8H4z" fill="currentColor" className="opacity-75" />
+                    </svg>
+                    Fetching...
+                  </span>
+                ) : (
+                  "Fetch Details"
+                )}
+              </button>
             </div>
-            
-            <LabeledToggle
-              checked={false} // Local UI only
-              label="Check for credit days during voucher entry"
-              onChange={() => {}}
-            />
 
             <Field label="Mailing Name">
               <Input placeholder="Mailing name" value={form.party_details.mailing_name} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, mailing_name: event.target.value } }))} />
             </Field>
-            
+
             <Field label="Address">
               <Input type="textarea" placeholder="Billing address" value={form.party_details.address} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, address: event.target.value } }))} />
             </Field>
@@ -581,8 +601,8 @@ export default function LedgerCreatePage() {
               <Field label="Pincode">
                 <Input placeholder="Pincode" value={form.party_details.pincode} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pincode: event.target.value } }))} />
               </Field>
-              <Field label="GSTIN">
-                <Input placeholder="GSTIN" value={form.party_details.gstin} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gstin: event.target.value } }))} />
+              <Field label="PAN Number">
+                <Input placeholder="PAN number" value={form.party_details.pan_number} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, pan_number: event.target.value.toUpperCase() } }))} />
               </Field>
               <Field label="GST Registration Type">
                 <Select value={form.party_details.gst_registration_type} onChange={(event: SelectFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gst_registration_type: event.target.value as LedgerFormState["party_details"]["gst_registration_type"] } }))}>
@@ -594,6 +614,25 @@ export default function LedgerCreatePage() {
                 </Select>
               </Field>
             </div>
+
+            <LabeledToggle
+              checked={form.party_details.maintain_bill_by_bill}
+              label="Maintain bill-by-bill"
+              description="Useful for receivables and payables tracking."
+              onChange={(next) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, maintain_bill_by_bill: next } }))}
+            />
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <Field label="Default Credit Days">
+                <Input type="number" placeholder="0" value={form.party_details.default_credit_days || ""} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, default_credit_days: Number(event.target.value) } }))} />
+              </Field>
+            </div>
+            
+            <LabeledToggle
+              checked={false} // Local UI only
+              label="Check for credit days during voucher entry"
+              onChange={() => {}}
+            />
 
             <LabeledToggle
               checked={false} // Local UI only

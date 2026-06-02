@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any
+from postgrest.exceptions import APIError
 from core.security import get_verified_jwt
 from core.supabase import supabase
 from models.firm import FirmCreate, Firm
@@ -114,6 +115,20 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
     Endpoint to create a firm and automatically link the user to it 
     by creating their initial profile.
     """
+    # Pre-insertion uniqueness checks
+    gstin = (firm_in.gstin or "").strip()
+    pan = (firm_in.pan or "").strip()
+    
+    if gstin:
+        gstin_check = supabase.table("firms").select("id").ilike("gstin", gstin).execute()
+        if gstin_check.data:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A firm with this GSTIN already exists.")
+            
+    if pan:
+        pan_check = supabase.table("firms").select("id").ilike("pan", pan).execute()
+        if pan_check.data:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A firm with this PAN number already exists.")
+
     try:
         # Exclude unset fields
         firm_data = firm_in.model_dump(mode="json", exclude_unset=True)
@@ -124,9 +139,17 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
         if not user:
             raise HTTPException(status_code=401, detail="Could not identify user from token")
 
-        # 2. Insert firm using the admin client
-        response = supabase.table("firms").insert(firm_data).execute()
-        
+        try:
+            # 2. Insert firm using the admin client
+            response = supabase.table("firms").insert(firm_data).execute()
+        except APIError as e:
+            error_message = e.message or str(e)
+            if "A firm with this GSTIN already exists" in error_message or "uq_firm_gstin_trim_lower" in error_message:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A firm with this GSTIN already exists.")
+            if "A firm with this PAN number already exists" in error_message or "uq_firm_pan_trim_lower" in error_message:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A firm with this PAN number already exists.")
+            raise
+
         if not response.data:
             raise HTTPException(status_code=400, detail="Failed to create firm")
             
@@ -151,6 +174,8 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
             
         return new_firm
         
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
