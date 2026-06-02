@@ -81,7 +81,7 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
 
     function handleKeyDown(e: KeyboardEvent) {
       const activeElement = document.activeElement as HTMLElement;
-      if (!activeElement || !container.contains(activeElement)) return;
+      if (!activeElement || !container?.contains(activeElement)) return;
 
       // Explicit < and > shortcuts for forced sideways navigation (useful for number inputs)
       if (
