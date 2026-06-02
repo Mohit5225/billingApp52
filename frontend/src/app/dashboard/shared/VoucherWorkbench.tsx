@@ -620,11 +620,11 @@ export function VoucherWorkbench({
       totalInWords: numberToWords(invoiceTotals.grandTotal),
       bankDetails: firmDetails.bankName
         ? {
-            bankName: firmDetails.bankName,
-            branch: firmDetails.branchName || "",
-            accountNumber: firmDetails.accountNumber || "",
-            ifsc: firmDetails.ifscCode || "",
-          }
+          bankName: firmDetails.bankName,
+          branch: firmDetails.branchName || "",
+          accountNumber: firmDetails.accountNumber || "",
+          ifsc: firmDetails.ifscCode || "",
+        }
         : undefined,
     };
   }, [firmDetails, invoiceLines, items, invoiceTotals, form, ledgers, meta.category]);
@@ -875,7 +875,7 @@ export function VoucherWorkbench({
               </span>
             )}
           </div>
-          
+
           {/* Close button ONLY on mobile (right side of title) */}
           <Link
             href="/dashboard"
@@ -909,7 +909,7 @@ export function VoucherWorkbench({
               disabled={readOnly}
             />
           </div>
-          
+
           {/* Close button ONLY on desktop */}
           <Link
             href="/dashboard"
@@ -1360,6 +1360,8 @@ function InvoicePreviewOverlay({
   const templateId = typeof window !== "undefined" ? localStorage.getItem("billingApp_defaultTemplate") || "classic" : "classic";
   const template = getTemplateById(templateId);
   const TemplateComp = template.component;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -1372,6 +1374,19 @@ function InvoicePreviewOverlay({
       document.body.style.overflow = "";
     };
   }, [onClose]);
+
+  useEffect(() => {
+    function calcScale() {
+      const container = containerRef.current;
+      if (!container) return;
+      const availableWidth = container.clientWidth;
+      // 794px is A4 width in pixels at 96dpi
+      setScale(Math.min(1, availableWidth / 794));
+    }
+    calcScale();
+    window.addEventListener("resize", calcScale);
+    return () => window.removeEventListener("resize", calcScale);
+  }, []);
 
   if (!previewData) {
     return (
@@ -1418,22 +1433,19 @@ function InvoicePreviewOverlay({
         </div>
       </div>
 
-      {/* Scrollable preview */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden flex items-start justify-center px-4 py-8 sm:px-8">
-        <div 
-          className="origin-top-left transition-transform shadow-2xl bg-white"
+      {/* Scrollable preview — ref measures available width */}
+      <div ref={containerRef} className="flex-1 overflow-auto p-4 sm:p-8">
+        <div
+          className="mx-auto shadow-2xl bg-white"
           style={{
             width: "794px",
             minHeight: "1123px",
-            transform: typeof window !== "undefined" && window.innerWidth < 1024 
-              ? `scale(${Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)})` 
-              : "scale(1)",
-            marginBottom: typeof window !== "undefined" && window.innerWidth < 1024
-              ? `-${(1 - Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)) * 1123}px`
-              : "0",
-            marginRight: typeof window !== "undefined" && window.innerWidth < 1024
-              ? `-${(1 - Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)) * 794}px`
-              : "0",
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+            /* Collapse the dead space left by scale so the scroll area
+               wraps tightly around the visually-shrunken invoice */
+            marginRight: scale < 1 ? `${-(794 * (1 - scale))}px` : undefined,
+            marginBottom: scale < 1 ? `${-(1123 * (1 - scale))}px` : undefined,
           }}
         >
           <TemplateComp data={previewData} />

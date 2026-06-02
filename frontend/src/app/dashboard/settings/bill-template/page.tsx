@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { TEMPLATE_REGISTRY, getTemplateById } from "@/components/templates/TemplateRegistry";
 import { MOCK_INVOICE_DATA } from "@/components/templates/mockData";
 import type { TemplateRegistryEntry } from "@/components/templates/types";
@@ -52,11 +52,10 @@ export default function BillTemplatePage() {
           return (
             <div
               key={template.id}
-              className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition-all duration-200 hover:shadow-xl ${
-                isDefault
+              className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 bg-white shadow-sm transition-all duration-200 hover:shadow-xl ${isDefault
                   ? "border-tally-500 ring-2 ring-tally-500/20 shadow-lg"
                   : "border-slate-200 hover:border-tally-300"
-              }`}
+                }`}
             >
               {/* Default badge */}
               {isDefault && (
@@ -163,6 +162,8 @@ function PreviewModal({
   onClose: () => void;
 }) {
   const TemplateComp = template.component;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -175,6 +176,17 @@ function PreviewModal({
       document.body.style.overflow = "";
     };
   }, [onClose]);
+
+  useEffect(() => {
+    function calcScale() {
+      const container = containerRef.current;
+      if (!container) return;
+      setScale(Math.min(1, container.clientWidth / 794));
+    }
+    calcScale();
+    window.addEventListener("resize", calcScale);
+    return () => window.removeEventListener("resize", calcScale);
+  }, []);
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-slate-900/80 backdrop-blur-sm">
@@ -222,22 +234,17 @@ function PreviewModal({
         </div>
       </div>
 
-      {/* Live Preview Pane */}
-      <div className="flex-1 bg-slate-400 overflow-y-auto overflow-x-hidden flex items-start justify-center p-4 sm:p-8">
-        <div 
-          className="origin-top-left transition-transform shadow-2xl bg-white"
+      {/* Live Preview Pane — ref measures available width */}
+      <div ref={containerRef} className="flex-1 bg-slate-400 overflow-auto p-4 sm:p-8">
+        <div
+          className="mx-auto shadow-2xl bg-white"
           style={{
             width: "794px",
             minHeight: "1123px",
-            transform: typeof window !== "undefined" && window.innerWidth < 1024 
-              ? `scale(${Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)})` 
-              : "scale(1)",
-            marginBottom: typeof window !== "undefined" && window.innerWidth < 1024
-              ? `-${(1 - Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)) * 1123}px`
-              : "0",
-            marginRight: typeof window !== "undefined" && window.innerWidth < 1024
-              ? `-${(1 - Math.min(1, (window.innerWidth - (window.innerWidth < 640 ? 32 : 64)) / 794)) * 794}px`
-              : "0",
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+            marginRight: scale < 1 ? `${-(794 * (1 - scale))}px` : undefined,
+            marginBottom: scale < 1 ? `${-(1123 * (1 - scale))}px` : undefined,
           }}
         >
           <TemplateComp data={MOCK_INVOICE_DATA} />
