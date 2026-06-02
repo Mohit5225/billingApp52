@@ -649,13 +649,16 @@ export function VoucherWorkbench({
       requireLines(invoiceLines, "invoice line");
 
       const partyLedger = ledgers.find((l) => l.id === partyLedgerId);
-      if (!partyLedger?.party_details?.state?.trim() || !firmState?.trim()) {
-        throw new Error("Cannot determine GST Tax Mode: Both Firm State and Party State must be present.");
-      }
 
       const getTaxLedgerId = (type: string) => {
-        const found = ledgers.find((l) => isTaxLedger(l) && l.name.toLowerCase().includes(type));
-        if (!found) throw new Error(`Could not automatically find tax ledger for ${type.toUpperCase()}. Please create a tax ledger containing '${type}' in its name.`);
+        const aliases: Record<string, string[]> = {
+          igst: ["igst", "inter", "integrated"],
+          cgst: ["cgst", "central"],
+          sgst: ["sgst", "state", "utgst"],
+        };
+        const searchTerms = aliases[type.toLowerCase()] || [type.toLowerCase()];
+        const found = ledgers.find((l) => isTaxLedger(l) && searchTerms.some(term => l.name.toLowerCase().includes(term)));
+        if (!found) throw new Error(`Could not automatically find tax ledger for ${type.toUpperCase()}. Please create a tax ledger containing '${searchTerms.join("' or '")}' in its name.`);
         return found.id;
       };
 
@@ -1261,16 +1264,17 @@ export function VoucherWorkbench({
         </Link>
         <div className="hidden sm:block" />
         <div className="flex items-center gap-3">
-          {meta.family === "invoice" && (
+          {meta.family === "invoice" && meta.category !== "Purchase" && (
             <button
               onClick={() => setShowPreview(true)}
-              className="hidden items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow sm:flex"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white p-3 sm:px-4 sm:py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
+              title="Preview Invoice"
             >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               </svg>
-              Preview
+              <span className="hidden sm:inline">Preview</span>
             </button>
           )}
           <button
@@ -1358,7 +1362,9 @@ function InvoicePreviewOverlay({
     function calcScale() {
       const container = containerRef.current;
       if (!container) return;
-      const availableWidth = container.clientWidth;
+      // Subtract padding: p-4 (32px) on mobile, p-8 (64px) on sm+
+      const padding = window.innerWidth >= 640 ? 64 : 32;
+      const availableWidth = container.clientWidth - padding;
       // 794px is A4 width in pixels at 96dpi
       setScale(Math.min(1, availableWidth / 794));
     }
@@ -1381,9 +1387,62 @@ function InvoicePreviewOverlay({
   }
 
   const overlayContent = (
-    <div className="fixed inset-0 z-[9999] flex flex-col bg-slate-900/90 backdrop-blur-sm">
+    <div id="invoice-preview-root" className="fixed inset-0 z-[9999] flex flex-col bg-slate-900/90 backdrop-blur-sm print:static print:bg-white print:backdrop-blur-none">
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
+          body > *:not(#invoice-preview-root) {
+            display: none !important;
+          }
+          body {
+            background-color: white !important;
+          }
+          .no-print, .print\\:hidden {
+            display: none !important;
+          }
+          .print-reset {
+            transform: none !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-height: auto !important;
+            height: auto !important;
+          }
+          .page-gap {
+            display: none !important;
+          }
+          .page-wrapper {
+            margin: 0 !important;
+            box-shadow: none !important;
+            min-height: auto !important;
+            page-break-after: always;
+          }
+          .page-wrapper:last-child {
+            page-break-after: avoid;
+          }
+          * {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+
+        @media screen {
+          .page-wrapper {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+          }
+          .page-gap {
+            height: 32px;
+            background: transparent;
+          }
+        }
+      `}</style>
+      
       {/* Top bar */}
-      <div className="no-print flex shrink-0 items-center justify-between border-b border-white/10 bg-slate-900 px-4 py-4 sm:px-8">
+      <div className="no-print print:hidden flex shrink-0 items-center justify-between border-b border-white/10 bg-slate-900 px-4 py-4 sm:px-8">
         <div className="flex items-center gap-4">
           <button
             onClick={onClose}
@@ -1402,6 +1461,15 @@ function InvoicePreviewOverlay({
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.print()}
+            className="flex items-center gap-2 rounded-lg bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/20"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Download PDF
+          </button>
+          <button
+            onClick={() => window.print()}
             className="flex items-center gap-2 rounded-lg bg-tally-600 px-6 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-tally-500 active:scale-[0.97]"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1412,19 +1480,15 @@ function InvoicePreviewOverlay({
         </div>
       </div>
 
-      {/* Scrollable preview — ref measures available width */}
-      <div ref={containerRef} className="flex-1 overflow-auto p-4 sm:p-8">
+      {/* Scrollable preview — template renders its own page-wrapper divs */}
+      <div ref={containerRef} className="flex-1 overflow-auto flex flex-col items-center p-4 sm:p-8 print:p-0 print:overflow-visible print:block">
         <div
-          className="mx-auto shadow-2xl bg-white"
+          className="shrink-0 print-reset"
           style={{
             width: "794px",
-            minHeight: "1123px",
             transform: `scale(${scale})`,
             transformOrigin: "top left",
-            /* Collapse the dead space left by scale so the scroll area
-               wraps tightly around the visually-shrunken invoice */
             marginRight: scale < 1 ? `${-(794 * (1 - scale))}px` : undefined,
-            marginBottom: scale < 1 ? `${-(1123 * (1 - scale))}px` : undefined,
           }}
         >
           <TemplateComp data={previewData} />
@@ -1448,6 +1512,7 @@ function numberToWords(num: number): string {
   const tens = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY"];
 
   function twoDigits(n: number): string {
+    if (n >= 100) return "";
     if (n < 20) return ones[n];
     return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
   }
@@ -1458,12 +1523,14 @@ function numberToWords(num: number): string {
     return ones[Math.floor(n / 100)] + " HUNDRED" + (n % 100 ? " AND " + twoDigits(n % 100) : "");
   }
 
-  const rupees = Math.floor(num);
-  const paise = Math.round((num - rupees) * 100);
+  const numFixed = Math.round(num * 100) / 100;
+  const rupees = Math.floor(numFixed);
+  const paise = Math.round((numFixed - rupees) * 100);
 
   let result = "";
   if (rupees >= 10000000) {
-    result += twoDigits(Math.floor(rupees / 10000000)) + " CRORE ";
+    const crorePart = Math.floor(rupees / 10000000);
+    result += (crorePart >= 100 ? threeDigits(crorePart) : twoDigits(crorePart)) + " CRORE ";
   }
   const afterCrore = rupees % 10000000;
   if (afterCrore >= 100000) {

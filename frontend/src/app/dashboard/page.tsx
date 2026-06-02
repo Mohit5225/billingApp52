@@ -107,14 +107,14 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="flex h-full flex-col rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-7 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 xl:grid-cols-[1.1fr_0.9fr]">
+        <section className="flex h-full flex-col min-w-0 rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-7 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs sm:text-[14px] font-semibold uppercase tracking-[0.24em] text-slate-500">Quick actions</p>
               <h3 className="mt-1.5 text-2xl sm:text-3xl font-semibold tracking-tight text-slate-950">Voucher families</h3>
             </div>
-            <Link href="#" className="rounded-full border border-slate-200 bg-white px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600">
+            <Link href="/dashboard/create" className="rounded-full border border-slate-200 bg-white px-4 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-sm font-semibold text-slate-600">
               View all
             </Link>
           </div>
@@ -149,8 +149,8 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-5 sm:p-7 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-2">
+        <section className="min-w-0 rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-5 sm:p-7 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-sm sm:text-[14px] font-semibold uppercase tracking-[0.24em] text-slate-500">Timeline</p>

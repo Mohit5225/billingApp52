@@ -1,54 +1,65 @@
 "use client";
 
-import Link from "next/link";
+import ListRowItem from "../components/ListRowItem";
 
-function QuickLinkCard({ href, title, description }: { href: string; title: string; description: string }) {
-  return (
-    <Link
-      href={href}
-      className="group rounded-[28px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(255,255,255,0.82))] p-5 shadow-[0_16px_34px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-[0_24px_46px_rgba(15,23,42,0.12)]"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-semibold text-slate-950">{title}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
-        </div>
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-tally-50 text-tally-700 transition group-hover:bg-tally-100">
-          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 16.5 16.5 7.5m0 0H9.75m6.75 0v6.75" />
-          </svg>
-        </div>
-      </div>
-    </Link>
-  );
-}
+const InvoiceIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+  </svg>
+);
+
+const ReceiptIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+  </svg>
+);
+
+const JournalIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+  </svg>
+);
+
+const LedgerIcon = () => (
+  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+  </svg>
+);
+
+const CREATE_ACTIONS = [
+  { title: "Sales Invoice", href: "/dashboard/create/sales-invoice", description: "Inventory lines, tax engine, and accounting lines generated for outward billing.", icon: <InvoiceIcon /> },
+  { title: "Purchase Invoice", href: "/dashboard/create/purchase-invoice", description: "Supplier-facing invoice flow with stock, taxes, and purchase posting structure.", icon: <InvoiceIcon /> },
+  { title: "Debit Note", href: "/dashboard/create/debit-note", description: "Inventory-backed return or reversal flow with invoice-style logic.", icon: <InvoiceIcon /> },
+  { title: "Credit Note", href: "/dashboard/create/credit-note", description: "Reverse commercial impact with stock and tax kept explicit.", icon: <InvoiceIcon /> },
+  { title: "Receipt Voucher", href: "/dashboard/create/receipt", description: "Party + cash or bank + amount in one compact payment family form.", icon: <ReceiptIcon /> },
+  { title: "Payment Voucher", href: "/dashboard/create/payment", description: "Focused outgoing payment flow without invoice complexity.", icon: <ReceiptIcon /> },
+  { title: "Contra Entry", href: "/dashboard/create/contra-entry", description: "Direct cash and bank movement between two financial ledgers.", icon: <ReceiptIcon /> },
+  { title: "Journal Entry", href: "/dashboard/create/journal-entry", description: "Free-form accounting lines for adjustments, provisions, and internal postings.", icon: <JournalIcon /> },
+  { title: "Ledger", href: "/dashboard/create/ledger", description: "Create or edit account masters with nested bank, party, or tax details.", icon: <LedgerIcon /> },
+];
 
 export default function CreateHubPage() {
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(255,255,255,0.96),rgba(244,255,248,0.88))] px-6 py-7 shadow-[0_24px_58px_rgba(15,23,42,0.08)] sm:px-8 sm:py-9">
-        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(82,183,136,0.18),transparent_58%)]" />
-        <div className="relative z-10 max-w-3xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-tally-700">Create</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-            Start from the right voucher shape, not a one-form compromise.
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
-            Invoice-grade workflows stay separate from payment, contra, and journal flows, while still sharing the same overall dashboard shell and mobile treatment.
-          </p>
+    <div className="mx-auto max-w-[1800px]">
+      <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-6 lg:p-8 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
+          <div className="min-w-0">
+            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Workspace</p>
+            <h3 className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight text-slate-950">Create Voucher</h3>
+          </div>
         </div>
-      </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <QuickLinkCard href="/dashboard/create/sales-invoice" title="Sales Invoice" description="Inventory lines, tax engine, and accounting lines generated for outward billing." />
-        <QuickLinkCard href="/dashboard/create/purchase-invoice" title="Purchase Invoice" description="Supplier-facing invoice flow with stock, taxes, and purchase posting structure." />
-        <QuickLinkCard href="/dashboard/create/debit-note" title="Debit Note" description="Inventory-backed return or reversal flow with invoice-style logic." />
-        <QuickLinkCard href="/dashboard/create/credit-note" title="Credit Note" description="Reverse commercial impact with stock and tax kept explicit." />
-        <QuickLinkCard href="/dashboard/create/receipt" title="Receipt Voucher" description="Party + cash or bank + amount in one compact payment family form." />
-        <QuickLinkCard href="/dashboard/create/payment" title="Payment Voucher" description="Focused outgoing payment flow without invoice complexity." />
-        <QuickLinkCard href="/dashboard/create/contra-entry" title="Contra Entry" description="Direct cash and bank movement between two financial ledgers." />
-        <QuickLinkCard href="/dashboard/create/journal-entry" title="Journal Entry" description="Free-form accounting lines for adjustments, provisions, and internal postings." />
-        <QuickLinkCard href="/dashboard/create/ledger" title="Ledger" description="Create or edit account masters with nested bank, party, or tax details." />
+        <div className="grid gap-2 sm:gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/90 p-2 sm:p-3">
+          {CREATE_ACTIONS.map((action) => (
+            <ListRowItem
+              key={action.title}
+              title={action.title}
+              description={action.description}
+              href={action.href}
+              icon={action.icon}
+            />
+          ))}
+        </div>
       </section>
     </div>
   );

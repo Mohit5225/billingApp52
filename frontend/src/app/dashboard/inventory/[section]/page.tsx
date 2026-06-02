@@ -401,7 +401,7 @@ export default function InventorySectionPage() {
           title={editingId ? "Edit UOM" : "Add UOM"}
           description="Define the GST-ready unit once and keep quantity entry consistent everywhere."
         >
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <TextInput
               placeholder="Type"
               value="Simple"
@@ -476,7 +476,7 @@ export default function InventorySectionPage() {
                   />
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <label className="mb-1.5 block text-xs font-semibold text-slate-500">Alias</label>
                     <TextInput
@@ -506,7 +506,7 @@ export default function InventorySectionPage() {
                   </div>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                   <div>
                     <div className="mb-1.5 flex items-center justify-between">
                       <label className="text-xs font-semibold text-slate-500">
@@ -573,7 +573,7 @@ export default function InventorySectionPage() {
                 {itemForm.is_gst_applicable && (
                   <div className="space-y-4 rounded-2xl bg-slate-50/70 p-4">
 
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                       <div>
                         <label className="mb-1.5 block text-xs font-semibold text-slate-500">Taxability</label>
                         <SelectInput
@@ -642,7 +642,7 @@ export default function InventorySectionPage() {
                     )}
 
                     {itemForm.cess_type !== "none" && (
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
                         <div>
                           <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cess %</label>
                           <TextInput

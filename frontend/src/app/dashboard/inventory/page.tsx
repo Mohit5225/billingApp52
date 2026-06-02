@@ -111,7 +111,7 @@ export default function InventoryHubPage() {
           </div>
         </div>
 
-        <div className="grid gap-2 sm:gap-3 lg:grid-cols-3 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/90 p-2 sm:p-3">
+        <div className="grid gap-2 sm:gap-3 grid-cols-1 lg:grid-cols-3 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/90 p-2 sm:p-3">
           {LINKS.map((link) => (
             <ListRowItem
               key={link.title}

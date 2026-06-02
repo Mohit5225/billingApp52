@@ -50,12 +50,12 @@ export default function ListRowItem({
           </span>
         )}
         {rightText && (
-          <div className="text-right">
-            <p className="text-sm sm:text-base font-semibold text-slate-700">{rightText}</p>
-            {rightSubText && <p className="text-xs sm:text-sm text-slate-500">{rightSubText}</p>}
+          <div className="text-right min-w-0">
+            <p className="text-sm sm:text-base font-semibold text-slate-700 truncate">{rightText}</p>
+            {rightSubText && <p className="text-xs sm:text-sm text-slate-500 truncate">{rightSubText}</p>}
           </div>
         )}
-        <svg className="h-4 w-4 sm:h-5 sm:w-5 text-slate-300 transition-colors group-hover:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-slate-300 transition-colors group-hover:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
       </div>
