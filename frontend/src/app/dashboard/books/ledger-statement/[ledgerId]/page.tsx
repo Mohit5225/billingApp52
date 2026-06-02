@@ -11,6 +11,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 
 import { EmptyState, MetricTile, PageHero, SurfaceCard } from "../../../shared/WorkspaceUi";
 import { useFirmScope } from "../../../shared/useFirmScope";
+import { useDateFilter } from "@/context/DateFilterContext";
 
 function formatBalance(amount: number, balanceType: string) {
   return `${balanceType} ${formatCurrency(amount)}`;
@@ -20,11 +21,19 @@ export default function LedgerStatementPage() {
   const params = useParams<{ ledgerId: string }>();
   const ledgerId = params.ledgerId;
   const { activeFirmId, supabase } = useFirmScope();
+  const { fromDate: globalFromDate, toDate: globalToDate } = useDateFilter();
   const { showToast } = useToast();
   const [statement, setStatement] = useState<LedgerStatementData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [filters, setFilters] = useState({ fromDate: "", toDate: "" });
-  const [appliedFilters, setAppliedFilters] = useState({ fromDate: "", toDate: "" });
+  
+  const [filters, setFilters] = useState({ fromDate: globalFromDate, toDate: globalToDate });
+  const [appliedFilters, setAppliedFilters] = useState({ fromDate: globalFromDate, toDate: globalToDate });
+
+  useEffect(() => {
+    // Sync filters if global changes and we haven't touched local ones
+    setFilters({ fromDate: globalFromDate, toDate: globalToDate });
+    setAppliedFilters({ fromDate: globalFromDate, toDate: globalToDate });
+  }, [globalFromDate, globalToDate]);
 
   useEffect(() => {
     if (!activeFirmId || !ledgerId) return;
@@ -60,7 +69,7 @@ export default function LedgerStatementPage() {
   }
 
   function clearFilters() {
-    const emptyFilters = { fromDate: "", toDate: "" };
+    const emptyFilters = { fromDate: globalFromDate, toDate: globalToDate };
     setFilters(emptyFilters);
     setAppliedFilters(emptyFilters);
   }
@@ -120,6 +129,8 @@ export default function LedgerStatementPage() {
                 <input
                   type="date"
                   value={filters.fromDate}
+                  min={globalFromDate}
+                  max={globalToDate}
                   onChange={(event) => setFilters((prev) => ({ ...prev, fromDate: event.target.value }))}
                   className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-300"
                 />
@@ -129,6 +140,8 @@ export default function LedgerStatementPage() {
                 <input
                   type="date"
                   value={filters.toDate}
+                  min={globalFromDate}
+                  max={globalToDate}
                   onChange={(event) => setFilters((prev) => ({ ...prev, toDate: event.target.value }))}
                   className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-300"
                 />

@@ -17,4 +17,6 @@ export interface Profile extends BaseEntity {
   role: UserRole;
   full_name: string;
   email: string;
+  filter_from_date?: string;
+  filter_to_date?: string;
 }

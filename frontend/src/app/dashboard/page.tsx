@@ -7,6 +7,7 @@ import ActionIconCard from "./components/ActionIconCard";
 import KpiCard from "./components/KpiCard";
 import ListRowItem from "./components/ListRowItem";
 import { useFirmScope } from "./shared/useFirmScope";
+import { useDateFilter } from "@/context/DateFilterContext";
 import { apiRequest } from "@/lib/http";
 import { DashboardOverview } from "@/interfaces/workspace";
 import { formatCurrency } from "@/lib/format";
@@ -50,6 +51,7 @@ const LedgerIcon = () => (
 
 export default function DashboardPage() {
   const { activeFirmId, supabase } = useFirmScope();
+  const { fromDate, toDate } = useDateFilter();
   const { showToast } = useToast();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
@@ -60,7 +62,7 @@ export default function DashboardPage() {
     const load = async () => {
       try {
         const data = await apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
-          query: { firm_id: activeFirmId },
+          query: { firm_id: activeFirmId, from_date: fromDate, to_date: toDate },
         });
         if (mounted) setOverview(data);
       } catch (err) {
@@ -72,7 +74,7 @@ export default function DashboardPage() {
     return () => {
       mounted = false;
     };
-  }, [activeFirmId, supabase]);
+  }, [activeFirmId, supabase, fromDate, toDate]);
 
   return (
     <div className="mx-auto max-w-[1800px] space-y-6 lg:space-y-8">

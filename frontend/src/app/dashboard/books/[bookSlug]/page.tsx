@@ -12,6 +12,7 @@ import { useToast } from "@/context/ToastContext";
 
 import { EmptyState, PageHero, SurfaceCard } from "../../shared/WorkspaceUi";
 import { useFirmScope } from "../../shared/useFirmScope";
+import { useDateFilter } from "@/context/DateFilterContext";
 
 const BOOK_LABELS: Record<string, { title: string; description: string }> = {
   "sales-register": {
@@ -40,6 +41,7 @@ export default function BookDetailPage() {
   const params = useParams<{ bookSlug: string }>();
   const bookSlug = params.bookSlug;
   const { activeFirmId, supabase } = useFirmScope();
+  const { fromDate, toDate } = useDateFilter();
   const { showToast } = useToast();
   const [rows, setRows] = useState<RegisterRow[]>([]);
   const [ledgers, setLedgers] = useState<LedgerDetail[]>([]);
@@ -62,7 +64,7 @@ export default function BookDetailPage() {
           if (mounted) setLedgers(data);
         } else {
           const data = await apiRequest<RegisterRow[]>(supabase, `/api/workspace/books/${bookSlug}`, {
-            query: { firm_id: activeFirmId },
+            query: { firm_id: activeFirmId, from_date: fromDate, to_date: toDate },
           });
           if (mounted) setRows(data);
         }
@@ -77,7 +79,7 @@ export default function BookDetailPage() {
     return () => {
       mounted = false;
     };
-  }, [activeFirmId, bookSlug, supabase]);
+  }, [activeFirmId, bookSlug, supabase, fromDate, toDate]);
 
   return (
     <div className="space-y-6">

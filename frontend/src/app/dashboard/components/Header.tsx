@@ -5,8 +5,11 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import SignOutButton from "../../components/SignOutButton";
 
+import { useDateFilter } from "@/context/DateFilterContext";
+
 export default function Header() {
   const { profile, isCAAdmin, isCAEmployee, supabase } = useProfile();
+  const { fromDate, toDate, setDateRange } = useDateFilter();
   const searchParams = useSearchParams();
   const [firmName, setFirmName] = useState("");
   const [firmDetails, setFirmDetails] = useState<{ gstin?: string; state?: string }>({});
@@ -87,12 +90,23 @@ export default function Header() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <button className="hidden items-center gap-2 rounded-2xl border border-white/70 bg-white/78 px-3.5 py-2.5 text-xs font-medium text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] transition hover:bg-white xl:flex">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-              </svg>
-              <span>Apr 2024 - Mar 2025</span>
-            </button>
+            <div className="hidden items-center gap-4 rounded-2xl border border-white/80 bg-white/90 px-5 py-2.5 text-[15px] font-semibold text-slate-700 shadow-sm shadow-emerald-950/5 xl:flex">
+              <input
+                type="date"
+                value={fromDate}
+                max={toDate}
+                onChange={(e) => setDateRange(e.target.value, toDate)}
+                className="bg-transparent outline-none cursor-pointer text-slate-900"
+              />
+              <span className="text-slate-400 text-sm font-medium">to</span>
+              <input
+                type="date"
+                value={toDate}
+                min={fromDate}
+                onChange={(e) => setDateRange(fromDate, e.target.value)}
+                className="bg-transparent outline-none cursor-pointer text-slate-900"
+              />
+            </div>
 
             <button className="relative rounded-2xl border border-transparent bg-white/55 p-2.5 text-slate-500 transition hover:border-white/70 hover:bg-white/80 hover:text-slate-700">
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -125,17 +139,37 @@ export default function Header() {
           </div>
         </div>
 
-        <div className="relative lg:hidden">
-          <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-            <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-            </svg>
+        <div className="flex flex-col gap-3 lg:hidden">
+          <div className="relative">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search vouchers, ledgers, reports"
+              className="h-11 w-full rounded-2xl border border-white/70 bg-white/78 pl-11 pr-4 text-sm text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Search vouchers, ledgers, reports"
-            className="h-11 w-full rounded-2xl border border-white/70 bg-white/78 pl-11 pr-4 text-sm text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
-          />
+          
+          <div className="flex items-center justify-center gap-2 rounded-2xl border border-white/70 bg-white/78 px-3 py-2.5 text-xs font-medium text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+            <input
+              type="date"
+              value={fromDate}
+              max={toDate}
+              onChange={(e) => setDateRange(e.target.value, toDate)}
+              className="bg-transparent outline-none cursor-pointer w-[115px] sm:w-auto"
+            />
+            <span className="text-slate-400">to</span>
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate}
+              onChange={(e) => setDateRange(fromDate, e.target.value)}
+              className="bg-transparent outline-none cursor-pointer w-[115px] sm:w-auto"
+            />
+          </div>
         </div>
       </div>
     </header>

@@ -287,12 +287,14 @@ def _build_stock_rows(target_firm_id: str, search: Optional[str] = None) -> list
 @router.get("/overview", response_model=DashboardOverview)
 async def get_overview(
     firm_id: Optional[str] = None,
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     profile = get_profile_context(jwt)
     target_firm_id = resolve_target_firm_id(profile, firm_id)
 
-    vouchers = _fetch_vouchers(target_firm_id)
+    vouchers = _fetch_vouchers(target_firm_id, from_date=from_date, to_date=to_date)
     voucher_ids = [str(voucher["id"]) for voucher in vouchers]
     accounting_lines_by_voucher = _fetch_accounting_lines(voucher_ids)
     inventory_lines_by_voucher = _fetch_inventory_lines(voucher_ids)
