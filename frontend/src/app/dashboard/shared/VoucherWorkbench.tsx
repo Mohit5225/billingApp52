@@ -869,137 +869,247 @@ export function VoucherWorkbench({
   return (
     <div className="flex flex-col w-full min-h-[calc(100vh-var(--header-height)-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-var(--header-height)-2rem)] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden lg:overflow-visible">
       {/* ── Voucher Command Ribbon ── */}
-      <div
-        className="shrink-0 relative flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-x-4 sm:gap-y-2 sm:px-6 sm:py-4 overflow-hidden"
-        style={{ background: `linear-gradient(135deg, var(--voucher-ribbon-from) 0%, var(--voucher-ribbon-to) 100%)` }}
-      >
-        {/* Faint radial glow */}
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-2/3 bg-[radial-gradient(circle_at_top_right,rgba(216,243,220,0.22),transparent_55%)]" />
-
-        {/* Top row on mobile / Left side on desktop — type pill + title + close on mobile */}
-        <div className="relative z-10 flex items-center justify-between w-full sm:w-auto gap-2.5">
-          <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-[0.16em] text-white/80 ring-1 ring-white/20">
-              {meta.category}
-            </span>
-            <span className="h-3.5 w-px bg-white/20" />
-            <h1 className="text-sm font-semibold tracking-tight text-white sm:text-base">{meta.title}</h1>
+      <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-4">
+        {/* Left Side: Title and Inputs */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 w-full sm:w-auto">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap">{meta.title}</h1>
             {isEditing && (
-              <span className="hidden sm:inline-flex items-center rounded-full bg-amber-400/20 px-2 py-0.5 text-[11px] font-semibold text-amber-200 ring-1 ring-amber-400/30">
+              <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/20">
                 Editing
               </span>
             )}
           </div>
-
-          {/* Close button ONLY on mobile (right side of title) */}
-          <Link
-            href="/dashboard"
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/20 bg-white/10 text-white/70 transition hover:bg-white/20 hover:text-white sm:hidden"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </Link>
+          
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-1 w-24">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">No.</label>
+              <input
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                placeholder="e.g. 1"
+                value={form.voucher_number}
+                onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
+                disabled={readOnly}
+              />
+            </div>
+            <div className="flex flex-col gap-1 w-36">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Date</label>
+              <input
+                type="date"
+                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                value={form.voucher_date}
+                onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
+                disabled={readOnly}
+              />
+            </div>
+          </div>
         </div>
-
-        {/* Bottom row on mobile / Right side on desktop — number, date, close */}
-        <div className="relative z-10 flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-          <div className="flex items-center gap-1.5 flex-1 sm:flex-initial">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-white/50">No.</label>
-            <input
-              className="h-11 w-full sm:h-8 sm:w-20 rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white outline-none placeholder:text-white/40 transition focus:border-white/50 focus:bg-white/15 disabled:opacity-60"
-              placeholder="e.g. 1"
-              value={form.voucher_number}
-              onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
-              disabled={readOnly}
-            />
-          </div>
-          <div className="flex items-center gap-1.5 flex-[2] sm:flex-initial">
-            <label className="text-[10px] font-semibold uppercase tracking-wider text-white/50">Date</label>
-            <input
-              type="date"
-              className="h-11 w-full sm:h-8 sm:w-[135px] rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white outline-none transition focus:border-white/50 focus:bg-white/15 disabled:opacity-60"
-              value={form.voucher_date}
-              onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
-              disabled={readOnly}
-            />
-          </div>
-
-          {/* Close button ONLY on desktop */}
+        
+        {/* Right Side: Actions */}
+        <div className="flex items-center gap-3 self-end sm:self-auto">
           <Link
             href="/dashboard"
-            className="hidden sm:flex items-center gap-1.5 rounded-md border border-white/20 bg-white/10 px-2.5 py-1.5 text-xs font-semibold text-white/70 transition hover:bg-white/20 hover:text-white"
+            className="hidden sm:flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
           >
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+            </svg>
+            Dashboard
+          </Link>
+          
+          <Link
+            href="/dashboard"
+            className="flex sm:hidden h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-            <span>Dashboard</span>
           </Link>
         </div>
       </div>
 
-      {/* ── Zone B: Party / Ledger ── */}
-      <div
-        className="shrink-0 relative border-b border-slate-100"
-        style={{ background: "var(--voucher-zone-ledger)" }}
-      >
-        {/* Left accent bar */}
-        <div className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-tally-500/40" />
-        <div className={`grid gap-6 p-5 pl-7 sm:p-6 sm:pl-8 lg:gap-8 ${meta.family === "invoice" ? "max-w-xl" : "md:grid-cols-2"}`}>
-          <div className="space-y-4">
-            {meta.family === "invoice" || meta.family === "payment" ? (
+      {/* ── Zone B & C: Party / Ledger / Payment Table ── */}
+      {meta.family === "payment" ? (
+        <div className="flex-1 flex flex-col min-h-0 bg-white">
+          {/* Account Bar (Tally style) */}
+          <div className="shrink-0 border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 bg-sky-50/50">
+            <label className="w-16 sm:w-20 text-sm font-semibold text-slate-700">Account</label>
+            <div className="w-full max-w-sm">
               <ComboboxField
-                label="Party A/c Name"
-                value={form.party_ledger_id}
-                onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
-                options={partyLedgers}
-                placeholder="Type to search party…"
-                createHref="/dashboard/create/ledger"
-                disabled={readOnly}
-              />
-            ) : null}
-            {meta.family === "payment" ? (
-              <ComboboxField
-                label="Cash/Bank Ledger"
+                inline
                 value={form.cash_bank_ledger_id}
                 onChange={(value) => setForm((prev) => ({ ...prev, cash_bank_ledger_id: value }))}
                 options={cashBankLedgers}
-                placeholder="Type to search account…"
+                placeholder="Select Cash/Bank Account…"
                 createHref="/dashboard/create/ledger"
                 disabled={readOnly}
               />
-            ) : null}
-            {meta.family === "contra" ? (
-              <>
-                <ComboboxField label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger" disabled={readOnly} />
-                <ComboboxField label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Type to search…" createHref="/dashboard/create/ledger" disabled={readOnly} />
-              </>
-            ) : null}
+            </div>
           </div>
-          <div className="space-y-4">
-            {meta.family === "payment" || meta.family === "contra" ? (
-              <InputField
-                label="Amount"
-                type="number"
-                step="0.01"
-                value={form.amount}
-                onChange={(value) => setForm((prev) => ({ ...prev, amount: Number(value) }))}
-                placeholder="0.00"
-                disabled={readOnly}
-              />
-            ) : null}
+          
+          {/* Particulars Table */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+              <div>Particulars</div>
+              <div className="text-right">Amount</div>
+            </div>
+            <div className="divide-y divide-slate-100">
+              <div className="grid grid-cols-[1fr_200px] gap-4 p-4 md:px-6 md:py-3 items-start hover:bg-amber-50/30 transition-colors">
+                <div>
+                  <ComboboxField
+                    inline
+                    value={form.party_ledger_id}
+                    onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
+                    options={partyLedgers}
+                    placeholder="Select Party…"
+                    createHref="/dashboard/create/ledger"
+                    disabled={readOnly}
+                  />
+                  {selectedPartyLedger && (
+                    <div className="mt-1.5 text-[11px] text-slate-500 italic flex gap-2 ml-1">
+                      <span>Cur Bal:</span> 
+                      <span>0.00 Cr</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <input
+                    className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-900 text-right outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                    type="number"
+                    step="0.01"
+                    value={form.amount}
+                    onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
+                    placeholder="0.00"
+                    disabled={readOnly}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      ) : meta.family !== "journal" ? (
+        <div className="shrink-0 border-b border-slate-200 bg-slate-50/50 p-4 sm:p-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:gap-6 max-w-5xl">
+            {/* Card 1: Bill To / Party / Primary Ledger */}
+            {(meta.family === "invoice" || meta.family === "contra") && (
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                  {meta.family === "contra" ? "Transfer Details" : "Bill To"}
+                </h3>
+                
+                <div className="space-y-4">
+                  {meta.family === "contra" ? (
+                    <>
+                      <ComboboxField inline label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Source Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
+                      <ComboboxField inline label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Destination Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-semibold text-slate-600">Party Name <span className="text-rose-500">*</span></label>
+                        <ComboboxField
+                          inline
+                          value={form.party_ledger_id}
+                          onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
+                          options={partyLedgers}
+                          placeholder="Select Party…"
+                          createHref="/dashboard/create/ledger"
+                          disabled={readOnly}
+                        />
+                      </div>
+                      
+                      {selectedPartyLedger?.party_details && (
+                        <div className="mt-2 flex flex-col gap-2.5 rounded-lg border border-slate-100 bg-slate-50/80 p-3.5 text-sm text-slate-600">
+                          {selectedPartyLedger.party_details.address && (
+                            <div className="flex items-start gap-2.5">
+                              <svg className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                              </svg>
+                              <span className="leading-relaxed whitespace-pre-wrap">{selectedPartyLedger.party_details.address}</span>
+                            </div>
+                          )}
+                          {selectedPartyLedger.party_details.gstin && (
+                            <div className="flex items-center gap-2.5">
+                              <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                              </svg>
+                              <span className="font-mono text-slate-700">{selectedPartyLedger.party_details.gstin}</span>
+                            </div>
+                          )}
+                          {selectedPartyLedger.party_details.state && (
+                            <div className="flex items-center gap-2.5">
+                              <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
+                              </svg>
+                              <span className="text-slate-700">{selectedPartyLedger.party_details.state}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Card 2: Additional Details / Cash-Bank / Amount */}
+            {(meta.family === "invoice" || meta.family === "contra") && (
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h3 className="mb-4 text-xs font-bold uppercase tracking-wider text-slate-500">
+                  {meta.family === "invoice" ? "Voucher Details" : "Transaction Details"}
+                </h3>
+                <div className="space-y-4">
+                  {meta.family === "contra" ? (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[11px] font-semibold text-slate-600">Amount <span className="text-rose-500">*</span></label>
+                      <input
+                        className="h-9 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                        type="number"
+                        step="0.01"
+                        value={form.amount}
+                        onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
+                        placeholder="0.00"
+                        disabled={readOnly}
+                      />
+                    </div>
+                  ) : null}
+
+                  {meta.family === "invoice" ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Place of Supply (just a visual representation of State for now) */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-semibold text-slate-600">Place of Supply</label>
+                        <div className="flex h-9 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600">
+                          {selectedPartyLedger?.party_details?.state || "—"}
+                        </div>
+                      </div>
+                      
+                      {/* Tax Mode (derived) */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[11px] font-semibold text-slate-600">Tax Mode</label>
+                        <div className="flex h-9 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-600 capitalize">
+                          {taxMode === "intra" ? "Intra-State" : "Inter-State"}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Zone C: Items Table ── */}
       {meta.family === "invoice" ? (
         <div className="border-b border-slate-100 bg-white flex-1 min-h-0 overflow-y-auto" ref={itemsScrollRef}>
           {/* Sticky table header */}
           <div
-            className="sticky top-0 z-10 hidden grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
+            className="sticky top-0 z-10 hidden grid-cols-[3fr_1fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
           >
             <div>Name of Item</div>
+            <div>HSN/SAC</div>
             <div>Qty</div>
             <div>Rate</div>
             <div>Discount</div>
@@ -1010,7 +1120,7 @@ export function VoucherWorkbench({
             {invoiceLines.map((line, index) => (
               <div
                 key={`${index}-${line.item_id}`}
-                className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[3fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-5 md:py-2.5"
+                className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[3fr_1fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-5 md:py-2.5"
                 style={{ ['--tw-bg-opacity' as string]: '1' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
@@ -1025,6 +1135,12 @@ export function VoucherWorkbench({
                     placeholder="Type to search item…"
                     disabled={readOnly}
                   />
+                </div>
+                <div className="flex flex-col md:block">
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">HSN/SAC</span>
+                  <div className="mono-num flex h-11 md:h-9 w-full items-center px-2 text-sm text-slate-500 opacity-80">
+                    {items.find((i) => i.id === line.item_id)?.hsn_code || "—"}
+                  </div>
                 </div>
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Qty</span>
