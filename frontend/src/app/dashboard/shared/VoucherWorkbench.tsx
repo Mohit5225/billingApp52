@@ -661,7 +661,13 @@ export function VoucherWorkbench({
     if (meta.family === "invoice") {
       const partyLedgerId = requireSelection(form.party_ledger_id, "party ledger");
       const mainLedgerId = requireSelection(form.main_ledger_id, "sales/purchase ledger");
-      requireLines(invoiceLines, "invoice line");
+      
+      const finalInvoiceLines = invoiceLines.filter((line) => {
+        const isPristine = !line.item_id && (line.quantity === 1 || !line.quantity) && !line.unit_price && !line.discount_amount;
+        return !isPristine;
+      });
+
+      requireLines(finalInvoiceLines, "invoice line");
 
       const partyLedger = ledgers.find((l) => l.id === partyLedgerId);
 
@@ -677,7 +683,7 @@ export function VoucherWorkbench({
         return found.id;
       };
 
-      for (const [index, line] of invoiceLines.entries()) {
+      for (const [index, line] of finalInvoiceLines.entries()) {
         requireSelection(line.item_id, `item on line ${index + 1}`);
       }
 
@@ -770,7 +776,7 @@ export function VoucherWorkbench({
         narration: form.narration || null,
         party_ledger_id: partyLedgerId,
         accounting_lines: accountingLines,
-        inventory_lines: invoiceLines.map((line, index) => ({
+        inventory_lines: finalInvoiceLines.map((line, index) => ({
           ...line,
           item_id: line.item_id,
           line_number: index + 1,
@@ -837,8 +843,13 @@ export function VoucherWorkbench({
       };
     }
 
-    requireLines(journalLines, "journal line");
-    for (const [index, line] of journalLines.entries()) {
+    const finalJournalLines = journalLines.filter((line) => {
+      const isPristine = !line.ledger_id && !line.debit_amount && !line.credit_amount;
+      return !isPristine;
+    });
+
+    requireLines(finalJournalLines, "journal line");
+    for (const [index, line] of finalJournalLines.entries()) {
       requireSelection(line.ledger_id, `ledger on line ${index + 1}`);
     }
 
@@ -849,7 +860,7 @@ export function VoucherWorkbench({
       voucher_date: form.voucher_date,
       narration: form.narration || null,
       party_ledger_id: null,
-      accounting_lines: journalLines.map((line, index) => ({
+      accounting_lines: finalJournalLines.map((line, index) => ({
         ...line,
         line_number: index + 1,
       })),
@@ -873,7 +884,24 @@ export function VoucherWorkbench({
         });
 
       showToast(`Voucher ${isEditing ? "updated" : "saved"} successfully!`, "success");
-      router.push(`/dashboard/vouchers/${result.id}`);
+      
+      if (isEditing) {
+        router.push(`/dashboard/vouchers/${result.id}`);
+      } else {
+        setForm((prev) => ({
+          ...EMPTY_FORM,
+          voucher_date: prev.voucher_date,
+        }));
+        setInvoiceLines([{ ...EMPTY_INVOICE_LINE }]);
+        setJournalLines([
+          { ...EMPTY_JOURNAL_LINE },
+          { ...EMPTY_JOURNAL_LINE },
+        ]);
+        
+        setTimeout(() => {
+          initFocus();
+        }, 50);
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Unable to save voucher", "error");
     } finally {

@@ -197,33 +197,99 @@ const AMOUNT_WIDTHS: Record<string, number> = {
   lineTotal: 11,
 };
 
-export function calcWidths(columns: ColumnDef[]): ColumnDef[] {
-  let fixedTotal = 0;
-  let amountTotal = 0;
-  let flexCount = 0;
-
-  for (const col of columns) {
-    if (col.bucket === "fixed" && FIXED_WIDTHS[col.key]) {
-      fixedTotal += FIXED_WIDTHS[col.key];
-    } else if (col.bucket === "amount" && AMOUNT_WIDTHS[col.key]) {
-      amountTotal += AMOUNT_WIDTHS[col.key];
-    } else if (col.bucket === "flex") {
-      flexCount++;
+export function calcWidths(columns: ColumnDef[], data?: InvoiceData): ColumnDef[] {
+  const maxLenMap: Record<string, number> = {};
+  
+  if (data) {
+    for (const col of columns) {
+      let maxLen = col.label.length; 
+      for (const item of data.items) {
+        const val = getCellValue(item, col);
+        const str = formatCell(val, col.format);
+        if (str.length > maxLen) maxLen = str.length;
+      }
+      
+      // Check totals for specific columns
+      if (col.key === "taxableAmount" && data.subtotal != null) {
+         const str = formatCell(data.subtotal, "currency");
+         if (str.length > maxLen) maxLen = str.length;
+      }
+      if (col.key === "lineTotal" && data.grandTotal != null) {
+         const str = formatCell(data.grandTotal, "currency");
+         if (str.length + 3 > maxLen) maxLen = str.length + 3; // +3 for "₹ " and space
+      }
+      if (col.key === "quantity" && data.items.length > 0) {
+         const totalQty = data.items.reduce((s, i) => s + (i.quantity || 0), 0);
+         const str = `${totalQty} ${data.items[0]?.uom || ""}`.trim();
+         if (str.length > maxLen) maxLen = str.length;
+      }
+  
+      maxLenMap[col.key] = maxLen;
     }
   }
 
-  const flexRemaining = Math.max(10, 100 - fixedTotal - amountTotal);
+  let fixedTotal = 0;
+  let amountTotal = 0;
+  let flexCount = 0;
+  
+  const resolvedWidths: Record<string, number> = {};
+
+  for (const col of columns) {
+    if (col.bucket === "flex") {
+      flexCount++;
+      continue;
+    }
+
+    // Estimate width: ~1.1% per char + ~2.5% for padding
+    const chars = maxLenMap[col.key] || 5;
+    const dynamicWidth = data ? (chars * 1.1 + 2.5) : 0;
+
+    let w = 10;
+    if (col.bucket === "fixed" && FIXED_WIDTHS[col.key]) {
+      w = Math.max(FIXED_WIDTHS[col.key], dynamicWidth);
+      resolvedWidths[col.key] = w;
+      fixedTotal += w;
+    } else if (col.bucket === "amount" && AMOUNT_WIDTHS[col.key]) {
+      w = Math.max(AMOUNT_WIDTHS[col.key], dynamicWidth);
+      resolvedWidths[col.key] = w;
+      amountTotal += w;
+    } else {
+      w = Math.max(10, dynamicWidth);
+      resolvedWidths[col.key] = w;
+      amountTotal += w;
+    }
+  }
+
+  // Ensure we leave at least 15% for the flex column (Name of Product)
+  const maxAllowedNonFlex = 85; 
+  let totalNonFlex = fixedTotal + amountTotal;
+  
+  // If non-flex columns exceed the max allowed, scale them down proportionally
+  if (totalNonFlex > maxAllowedNonFlex) {
+    const scale = maxAllowedNonFlex / totalNonFlex;
+    fixedTotal = 0;
+    amountTotal = 0;
+    for (const col of columns) {
+      if (col.bucket === "flex") continue;
+      const scaledW = resolvedWidths[col.key] * scale;
+      resolvedWidths[col.key] = scaledW;
+      if (col.bucket === "fixed") fixedTotal += scaledW;
+      else amountTotal += scaledW;
+    }
+  }
+
+  const flexRemaining = Math.max(15, 100 - fixedTotal - amountTotal);
   const flexEach = flexRemaining / Math.max(1, flexCount);
 
   return columns.map((col) => {
     let w: number;
-    if (col.bucket === "fixed" && FIXED_WIDTHS[col.key]) {
-      w = FIXED_WIDTHS[col.key];
-    } else if (col.bucket === "amount" && AMOUNT_WIDTHS[col.key]) {
-      w = AMOUNT_WIDTHS[col.key];
-    } else {
+    if (col.bucket === "flex") {
       w = flexEach;
+    } else {
+      w = resolvedWidths[col.key];
     }
+    // Round to 1 decimal place
+    w = Math.round(w * 10) / 10;
     return { ...col, width: `${w}%` };
   });
 }
@@ -430,7 +496,7 @@ export function prepareInvoice(
   options?: ChunkOptions
 ): PreparedInvoice {
   const rawColumns = detectColumns(data);
-  const columns = calcWidths(rawColumns);
+  const columns = calcWidths(rawColumns, data);
   const pages = chunkPages(data, options);
 
   return { columns, pages, original: data };

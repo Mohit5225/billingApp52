@@ -26,7 +26,7 @@ type Props = {
 export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, disabled, dataItemField }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const [highlighted, setHighlighted] = useState(0);
+  const [highlighted, setHighlighted] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -44,7 +44,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
 
   /* Reset highlight whenever the filtered list changes */
   useEffect(() => {
-    setHighlighted(0);
+    setHighlighted(-1);
   }, [query]);
 
   /* Scroll highlighted item into view */
@@ -103,19 +103,31 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setHighlighted((h) => Math.min(h + 1, filtered.length - 1));
+        setHighlighted((h) => Math.min(h === -1 ? 0 : h + 1, filtered.length - 1));
         break;
       case "ArrowUp":
         e.preventDefault();
-        setHighlighted((h) => Math.max(h - 1, 0));
+        setHighlighted((h) => Math.max(h - 1, -1));
         break;
       case "Enter":
         if (open) {
-          if (filtered[highlighted]) {
+          if (highlighted !== -1 && filtered[highlighted]) {
             e.preventDefault();
             handleSelect(filtered[highlighted]);
           } else {
+            e.preventDefault();
             setOpen(false);
+            // If they didn't select anything, just pass through/skip
+            setTimeout(() => {
+              if (inputRef.current) {
+                inputRef.current.dispatchEvent(
+                  new CustomEvent("tally-focus-next", { 
+                    bubbles: true, 
+                    detail: { origin: inputRef.current } 
+                  })
+                );
+              }
+            }, 10);
           }
           return;
         }
