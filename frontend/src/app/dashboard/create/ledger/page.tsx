@@ -389,7 +389,7 @@ export default function LedgerCreatePage() {
 
   const handleFetchGstDetails = async () => {
     const gstin = form.party_details.gstin.trim();
-    if (!gstin.match(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/)) {
+    if (!gstin.match(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[A-Z0-9]{3}$/)) {
       showToast("Invalid GSTIN format", "error");
       return;
     }
@@ -400,6 +400,7 @@ export default function LedgerCreatePage() {
       
       setForm((prev) => ({
         ...prev,
+        name: prev.name.trim() ? prev.name : (data.name || prev.name),
         party_details: {
           ...prev.party_details,
           mailing_name: data.name || prev.party_details.mailing_name,
@@ -557,17 +558,17 @@ export default function LedgerCreatePage() {
       {templateType === "party" ? (
         <SurfaceCard title="Party Details" description="Capture billing, registration, and credit defaults for debtor or creditor ledgers.">
           <div className="space-y-6">
-            <div className="flex gap-4 items-end">
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
               <div className="flex-1">
                 <Field label="GSTIN">
-                  <Input placeholder="15-digit GSTIN" value={form.party_details.gstin} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gstin: event.target.value.toUpperCase() } }))} maxLength={15} />
+                  <Input placeholder="15-digit GSTIN" value={form.party_details.gstin} onChange={(event: TextFieldChangeEvent) => setForm((prev) => ({ ...prev, party_details: { ...prev.party_details, gstin: event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') } }))} maxLength={15} />
                 </Field>
               </div>
               <button
                 type="button"
                 onClick={() => void handleFetchGstDetails()}
                 disabled={isFetchingGst || form.party_details.gstin.length !== 15}
-                className="h-11 rounded-xl bg-emerald-50 px-6 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed border border-emerald-200 shadow-sm"
+                className="h-11 w-full sm:w-auto rounded-xl bg-emerald-50 px-6 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100 disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 disabled:shadow-none disabled:cursor-not-allowed border border-emerald-200 shadow-sm flex items-center justify-center"
               >
                 {isFetchingGst ? (
                   <span className="flex items-center gap-2">

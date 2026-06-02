@@ -86,7 +86,7 @@ export default function GSTPage() {
             maxLength={15}
             minLength={15}
             value={gstin}
-            onChange={(e) => setGstin(e.target.value.toUpperCase())}
+            onChange={(e) => setGstin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
             placeholder="e.g. 22AAAAA0000A1Z5"
             className="w-full px-5 py-4 text-lg rounded-xl border border-gray-200 focus:border-black focus:ring-1 focus:ring-black outline-none transition-all uppercase"
           />
