@@ -31,15 +31,15 @@ const BOOKS = [
 export default function BooksHubPage() {
   return (
     <div className="mx-auto max-w-[1800px]">
-      <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-6 lg:p-8 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
+      <section className="rounded-2xl sm:rounded-[32px] border border-white/80 bg-white/80 backdrop-blur-md p-4 sm:p-6 lg:p-10 shadow-[0_8px_40px_rgba(15,23,42,0.04)]">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8 lg:mb-10">
           <div className="min-w-0">
-            <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-500">Workspace</p>
-            <h3 className="mt-1 text-lg sm:text-2xl font-semibold tracking-tight text-slate-950">All Books & Registers</h3>
+            <p className="text-[10px] sm:text-[11px] lg:text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Workspace</p>
+            <h3 className="mt-1.5 text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">All Books & Registers</h3>
           </div>
         </div>
 
-        <div className="grid gap-2 sm:gap-3 md:grid-cols-2 lg:grid-cols-3 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/90 p-2 sm:p-3">
+        <div className="grid gap-2 sm:gap-3 lg:gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 rounded-2xl sm:rounded-[28px] border border-slate-100 bg-white/40 p-2 sm:p-3 lg:p-4">
           {BOOKS.map((book) => (
             <ListRowItem
               key={book.title}
@@ -47,6 +47,7 @@ export default function BooksHubPage() {
               description={book.description}
               href={book.href}
               icon={book.icon}
+              variant="card"
             />
           ))}
         </div>
