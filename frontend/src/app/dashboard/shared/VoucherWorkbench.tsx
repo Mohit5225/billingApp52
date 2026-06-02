@@ -18,6 +18,7 @@ import type { InvoiceData, InvoiceType } from "@/components/templates/types";
 
 import { useFirmScope } from "./useFirmScope";
 import { ComboboxField } from "./ComboboxField";
+import { useFocusTraversal } from "./useFocusTraversal";
 
 type VoucherSlug =
   | "sales-invoice"
@@ -311,6 +312,14 @@ export function VoucherWorkbench({
   const itemsScrollRef = useRef<HTMLDivElement>(null);
   const prevInvoiceLinesLength = useRef(invoiceLines.length);
   const prevJournalLinesLength = useRef(journalLines.length);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { initFocus } = useFocusTraversal(containerRef);
+
+  useEffect(() => {
+    if (!isLoading && activeFirmId) {
+      initFocus();
+    }
+  }, [isLoading, activeFirmId, initFocus]);
 
   useEffect(() => {
     if (itemsScrollRef.current) {
@@ -529,6 +538,12 @@ export function VoucherWorkbench({
     updateInvoiceLine(index, {
       item_id: itemId,
       unit_price: item?.default_price || 0,
+    });
+    setInvoiceLines((prev) => {
+      if (index === prev.length - 1 && itemId) {
+        return [...prev, { ...EMPTY_INVOICE_LINE }];
+      }
+      return prev;
     });
   }
 
@@ -867,7 +882,7 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div className="flex flex-col w-full min-h-[calc(100vh-var(--header-height)-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-var(--header-height)-2rem)] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden lg:overflow-visible">
+    <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--header-height)-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-var(--header-height)-2rem)] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden lg:overflow-visible">
       {/* ── Voucher Command Ribbon ── */}
       <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-4">
         {/* Left Side: Title and Inputs */}
@@ -909,6 +924,7 @@ export function VoucherWorkbench({
         <div className="flex items-center gap-3 self-end sm:self-auto">
           <Link
             href="/dashboard"
+            data-skip-enter="true"
             className="hidden sm:flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -919,6 +935,7 @@ export function VoucherWorkbench({
           
           <Link
             href="/dashboard"
+            data-skip-enter="true"
             className="flex sm:hidden h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1106,8 +1123,9 @@ export function VoucherWorkbench({
         <div className="border-b border-slate-100 bg-white flex-1 min-h-0 overflow-y-auto" ref={itemsScrollRef}>
           {/* Sticky table header */}
           <div
-            className="sticky top-0 z-10 hidden grid-cols-[3fr_1fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
+            className="sticky top-0 z-10 hidden grid-cols-[40px_3fr_1fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 px-6 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
           >
+            <div className="text-center">#</div>
             <div>Name of Item</div>
             <div>HSN/SAC</div>
             <div>Qty</div>
@@ -1119,14 +1137,17 @@ export function VoucherWorkbench({
           <div className="divide-y divide-slate-100">
             {invoiceLines.map((line, index) => (
               <div
-                key={`${index}-${line.item_id}`}
-                className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[3fr_1fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-5 md:py-2.5"
+                key={index}
+                className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[40px_3fr_1fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-5 md:py-2.5"
                 style={{ ['--tw-bg-opacity' as string]: '1' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
               >
+                <div className="hidden md:flex h-9 items-center justify-center text-sm font-medium text-slate-400">
+                  {index + 1}
+                </div>
                 <div className="col-span-2 md:col-span-1 flex flex-col md:block">
-                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Item</span>
+                  <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Item {index + 1}</span>
                   <ComboboxField
                     inline
                     value={line.item_id}
@@ -1134,6 +1155,7 @@ export function VoucherWorkbench({
                     options={items.map((item) => ({ value: item.id, label: item.name }))}
                     placeholder="Type to search item…"
                     disabled={readOnly}
+                    dataItemField={true}
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1145,7 +1167,7 @@ export function VoucherWorkbench({
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Qty</span>
                   <input
-                    disabled={readOnly}
+                    disabled={readOnly || !line.item_id}
                     type="number"
                     step="0.01"
                     value={line.quantity || ""}
@@ -1157,7 +1179,7 @@ export function VoucherWorkbench({
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Rate</span>
                   <input
-                    disabled={readOnly}
+                    disabled={readOnly || !line.item_id}
                     type="number"
                     step="0.01"
                     value={line.unit_price || ""}
@@ -1169,7 +1191,7 @@ export function VoucherWorkbench({
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Discount</span>
                   <input
-                    disabled={readOnly}
+                    disabled={readOnly || !line.item_id}
                     type="number"
                     step="0.01"
                     value={line.discount_amount || ""}
@@ -1185,6 +1207,7 @@ export function VoucherWorkbench({
                 <div className="col-span-2 md:col-span-1 flex justify-end">
                   {!readOnly && (
                     <button
+                      data-skip-enter="true"
                       onClick={() => setInvoiceLines((prev) => prev.filter((_, i) => i !== index))}
                       title="Remove line"
                       className="flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
@@ -1201,6 +1224,7 @@ export function VoucherWorkbench({
           <div className="border-t border-slate-100 px-5 py-3">
             {!readOnly && (
               <button
+                data-skip-enter="true"
                 onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])}
                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
               >
@@ -1237,17 +1261,26 @@ export function VoucherWorkbench({
                   <ComboboxField
                     inline
                     value={line.ledger_id}
-                    onChange={(id) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, ledger_id: id } : entry))}
+                    onChange={(id) => {
+                      setJournalLines((prev) => {
+                        const newLines = prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, ledger_id: id } : entry);
+                        if (index === prev.length - 1 && id) {
+                          newLines.push({ ...EMPTY_JOURNAL_LINE });
+                        }
+                        return newLines;
+                      });
+                    }}
                     options={allLedgerOptions}
                     placeholder="Type to search ledger…"
                     createHref="/dashboard/create/ledger"
                     disabled={readOnly}
+                    dataItemField={true}
                   />
                 </div>
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Debit</span>
                   <input
-                    disabled={readOnly}
+                    disabled={readOnly || !line.ledger_id}
                     type="number"
                     step="0.01"
                     value={line.debit_amount || ""}
@@ -1259,7 +1292,7 @@ export function VoucherWorkbench({
                 <div className="flex flex-col md:block">
                   <span className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Credit</span>
                   <input
-                    disabled={readOnly}
+                    disabled={readOnly || !line.ledger_id}
                     type="number"
                     step="0.01"
                     value={line.credit_amount || ""}
@@ -1271,6 +1304,7 @@ export function VoucherWorkbench({
                 <div className="col-span-2 md:col-span-1 flex justify-end">
                   {!readOnly && (
                     <button
+                      data-skip-enter="true"
                       onClick={() => setJournalLines((prev) => prev.filter((_, entryIndex) => entryIndex !== index))}
                       title="Remove line"
                       className="flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
@@ -1287,6 +1321,7 @@ export function VoucherWorkbench({
           <div className="border-t border-slate-100 px-5 py-3">
             {!readOnly && (
               <button
+                data-skip-enter="true"
                 onClick={() => setJournalLines((prev) => [...prev, { ...EMPTY_JOURNAL_LINE }])}
                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
               >
@@ -1306,6 +1341,7 @@ export function VoucherWorkbench({
         <div className="border-t border-slate-100 p-5 md:border-r md:border-t-0 sm:p-6">
           <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Narration</label>
           <textarea
+            data-escape-target="true"
             disabled={readOnly}
             className="min-h-[120px] w-full rounded-lg border border-slate-200 bg-white/80 p-3 text-sm text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
             placeholder="Enter narration for this voucher…"
@@ -1375,13 +1411,14 @@ export function VoucherWorkbench({
         style={{ background: "var(--voucher-zone-ledger)" }}
       >
         {/* Mobile cancel */}
-        <Link href="/dashboard/create" className="text-sm font-medium text-slate-600 hover:text-slate-900 sm:hidden">
+        <Link href="/dashboard/create" data-skip-enter="true" className="text-sm font-medium text-slate-600 hover:text-slate-900 sm:hidden">
           Cancel
         </Link>
         <div className="hidden sm:block" />
         <div className="flex items-center gap-3">
           {meta.family === "invoice" && meta.category !== "Purchase" && (
             <button
+              data-skip-enter="true"
               onClick={() => setShowPreview(true)}
               className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white p-3 sm:px-4 sm:py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
               title="Preview Invoice"
@@ -1394,6 +1431,7 @@ export function VoucherWorkbench({
             </button>
           )}
           <button
+            data-skip-enter="true"
             onClick={() => router.back()}
             className="hidden rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow sm:block"
           >
@@ -1401,6 +1439,7 @@ export function VoucherWorkbench({
           </button>
           {!readOnly ? (
             <button
+              data-entry-action="true"
               disabled={isSubmitting || isLoading}
               onClick={() => void submit()}
               className="group relative flex items-center gap-3 overflow-hidden rounded-xl bg-tally-700 px-7 py-3 text-sm font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tally-600 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"

@@ -218,3 +218,11 @@ textarea {
     border: none !important;
   }
 }
+
+/* ── Keyboard Navigation Focus ── */
+.voucher-container *:focus-visible,
+.voucher-container *:focus {
+  outline: 2px solid #0f766e;
+  outline-offset: 2px;
+  background-color: rgba(15, 118, 110, 0.05) !important;
+}

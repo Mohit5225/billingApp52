@@ -20,9 +20,10 @@ type Props = {
   /** If provided, renders a small "+" icon link to open the create page */
   createHref?: string;
   disabled?: boolean;
+  dataItemField?: boolean;
 };
 
-export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, disabled }: Props) {
+export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, disabled, dataItemField }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
@@ -76,12 +77,25 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
     onChange(option.value);
     setQuery("");
     setOpen(false);
-    inputRef.current?.blur();
+    
+    // Use setTimeout to guarantee React has committed the DOM updates,
+    // and explicitly pass the input element as the origin to prevent focus loss issues.
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.dispatchEvent(
+          new CustomEvent("tally-focus-next", { 
+            bubbles: true, 
+            detail: { origin: inputRef.current } 
+          })
+        );
+      }
+    }, 10);
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (!open) {
-      if (e.key === "ArrowDown" || e.key === "Enter") {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
         setOpen(true);
         return;
       }
@@ -96,8 +110,15 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
         setHighlighted((h) => Math.max(h - 1, 0));
         break;
       case "Enter":
-        e.preventDefault();
-        if (filtered[highlighted]) handleSelect(filtered[highlighted]);
+        if (open) {
+          if (filtered[highlighted]) {
+            e.preventDefault();
+            handleSelect(filtered[highlighted]);
+          } else {
+            setOpen(false);
+          }
+          return;
+        }
         break;
       case "Escape":
         setOpen(false);
@@ -115,7 +136,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
 
   if (inline) {
     return (
-      <div ref={containerRef} className="relative flex w-full items-center gap-1">
+      <div ref={containerRef} data-dropdown-open={open} className="relative flex w-full items-center gap-1">
         <div className="relative flex-1">
           <input
             ref={inputRef}
@@ -126,9 +147,10 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             placeholder={placeholder}
             value={displayValue}
             onChange={handleInputChange}
-            onFocus={() => setOpen(true)}
+            onClick={() => setOpen(true)}
             onKeyDown={handleKeyDown}
             disabled={disabled}
+            data-item-field={dataItemField ? "true" : undefined}
           />
           {open && filtered.length > 0 && !disabled && (
             <Dropdown listRef={listRef} filtered={filtered} highlighted={highlighted} onSelect={handleSelect} onHighlight={setHighlighted} />
@@ -141,6 +163,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             target="_blank"
             rel="noopener noreferrer"
             title="Create new"
+            data-skip-enter="true"
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -153,7 +176,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
   }
 
   return (
-    <div ref={containerRef} className="relative flex flex-col sm:flex-row sm:items-center">
+    <div ref={containerRef} data-dropdown-open={open} className="relative flex flex-col sm:flex-row sm:items-center">
       {label && (
         <label className="mb-1 shrink-0 text-sm font-medium text-slate-600 sm:mb-0 sm:w-1/3">{label}</label>
       )}
@@ -168,9 +191,10 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             placeholder={placeholder}
             value={displayValue}
             onChange={handleInputChange}
-            onFocus={() => setOpen(true)}
+            onClick={() => setOpen(true)}
             onKeyDown={handleKeyDown}
             disabled={disabled}
+            data-item-field={dataItemField ? "true" : undefined}
           />
           {open && filtered.length > 0 && !disabled && (
             <Dropdown listRef={listRef} filtered={filtered} highlighted={highlighted} onSelect={handleSelect} onHighlight={setHighlighted} />
@@ -183,6 +207,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             target="_blank"
             rel="noopener noreferrer"
             title="Create new"
+            data-skip-enter="true"
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
