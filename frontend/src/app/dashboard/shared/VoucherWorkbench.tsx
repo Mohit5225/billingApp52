@@ -1397,8 +1397,18 @@ function InvoicePreviewOverlay({
           body > *:not(#invoice-preview-root) {
             display: none !important;
           }
-          body {
+          html, body {
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
             background-color: white !important;
+          }
+          #invoice-preview-root {
+            display: block !important;
+            height: auto !important;
+            min-height: auto !important;
+            overflow: visible !important;
+            position: static !important;
           }
           .no-print, .print\\:hidden {
             display: none !important;
@@ -1407,8 +1417,8 @@ function InvoicePreviewOverlay({
             transform: none !important;
             margin: 0 !important;
             box-shadow: none !important;
-            width: 100% !important;
-            max-width: 100% !important;
+            width: 794px !important;
+            max-width: none !important;
             min-height: auto !important;
             height: auto !important;
           }
