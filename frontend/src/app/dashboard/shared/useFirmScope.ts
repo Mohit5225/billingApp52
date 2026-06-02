@@ -15,6 +15,8 @@ export function useFirmScope() {
     urlFirmId: searchParams.get("firm_id"),
   });
 
+
+
   return {
     profile,
     supabase,
