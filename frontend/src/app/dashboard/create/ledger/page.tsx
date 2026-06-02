@@ -400,6 +400,13 @@ export default function LedgerCreatePage() {
         }
       }
 
+      if (templateType === "party") {
+        if (!form.party_details.state.trim()) {
+          showToast("State is mandatory for Party ledgers (Debtors/Creditors) to calculate GST.", "error");
+          return;
+        }
+      }
+
       setBankErrors({});
 
       const payload: LedgerWritePayload = {

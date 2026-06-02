@@ -353,8 +353,9 @@ export function VoucherWorkbench({
     if (partyState && normalizedFirmState) {
       return partyState === normalizedFirmState ? "intra" : "inter";
     }
-    return form.manual_tax_mode;
-  }, [firmState, form.manual_tax_mode, selectedPartyLedger]);
+    // We no longer fallback to manual_tax_mode. Validation in buildPayload will catch missing states.
+    return "intra"; 
+  }, [firmState, selectedPartyLedger]);
 
   const invoiceTotals = useMemo(() => {
     const taxable = round2(invoiceLines.reduce((sum, line) => sum + line.taxable_amount, 0));
@@ -506,6 +507,12 @@ export function VoucherWorkbench({
     };
   }, [activeFirmId, meta.family, meta.category, showToast, supabase, voucherId]);
 
+  useEffect(() => {
+    if (meta.family === "invoice" && !isEditing && mainLedgers.length > 0 && !form.main_ledger_id) {
+      setForm((prev) => ({ ...prev, main_ledger_id: mainLedgers[0].value }));
+    }
+  }, [meta.family, isEditing, mainLedgers, form.main_ledger_id]);
+
   function updateInvoiceLine(index: number, partial: Partial<InvoiceLineState>) {
     setInvoiceLines((prev) =>
       prev.map((line, lineIndex) => {
@@ -640,6 +647,11 @@ export function VoucherWorkbench({
       const partyLedgerId = requireSelection(form.party_ledger_id, "party ledger");
       const mainLedgerId = requireSelection(form.main_ledger_id, "sales/purchase ledger");
       requireLines(invoiceLines, "invoice line");
+
+      const partyLedger = ledgers.find((l) => l.id === partyLedgerId);
+      if (!partyLedger?.party_details?.state?.trim() || !firmState?.trim()) {
+        throw new Error("Cannot determine GST Tax Mode: Both Firm State and Party State must be present.");
+      }
 
       const getTaxLedgerId = (type: string) => {
         const found = ledgers.find((l) => isTaxLedger(l) && l.name.toLowerCase().includes(type));
@@ -930,7 +942,7 @@ export function VoucherWorkbench({
       >
         {/* Left accent bar */}
         <div className="absolute inset-y-0 left-0 w-[3px] rounded-r-full bg-tally-500/40" />
-        <div className="grid gap-6 p-5 pl-7 sm:p-6 sm:pl-8 md:grid-cols-2 lg:gap-8">
+        <div className={`grid gap-6 p-5 pl-7 sm:p-6 sm:pl-8 lg:gap-8 ${meta.family === "invoice" ? "max-w-xl" : "md:grid-cols-2"}`}>
           <div className="space-y-4">
             {meta.family === "invoice" || meta.family === "payment" ? (
               <ComboboxField
@@ -962,39 +974,6 @@ export function VoucherWorkbench({
             ) : null}
           </div>
           <div className="space-y-4">
-            {meta.family === "invoice" ? (
-              <>
-                <ComboboxField
-                  label="Sales/Purchase Ledger"
-                  value={form.main_ledger_id}
-                  onChange={(value) => setForm((prev) => ({ ...prev, main_ledger_id: value }))}
-                  options={mainLedgers}
-                  placeholder="Type to search ledger…"
-                  createHref="/dashboard/create/ledger"
-                  disabled={readOnly}
-                />
-                {selectedPartyLedger?.party_details?.state && firmState ? (
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-                    <label className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500 sm:mb-0 sm:w-1/3">Tax Mode</label>
-                    <div className="flex h-11 w-full items-center rounded-lg border border-slate-200 bg-white/80 px-3 text-sm font-medium text-slate-700 sm:w-2/3">
-                      {taxMode === "inter" ? "Inter-state / IGST" : "Intra-state / CGST + SGST"}
-                    </div>
-                  </div>
-                ) : (
-                  <ComboboxField
-                    label="Tax Mode"
-                    value={form.manual_tax_mode}
-                    onChange={(value) => setForm((prev) => ({ ...prev, manual_tax_mode: value as TaxMode }))}
-                    options={[
-                      { value: "intra", label: "Intra-state / CGST + SGST" },
-                      { value: "inter", label: "Inter-state / IGST" },
-                    ]}
-                    placeholder="Type intra or inter…"
-                    disabled={readOnly}
-                  />
-                )}
-              </>
-            ) : null}
             {meta.family === "payment" || meta.family === "contra" ? (
               <InputField
                 label="Amount"
