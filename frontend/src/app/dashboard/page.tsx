@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import ActionIconCard from "./components/ActionIconCard";
 import KpiCard from "./components/KpiCard";
@@ -53,28 +53,15 @@ export default function DashboardPage() {
   const { activeFirmId, supabase } = useFirmScope();
   const { fromDate, toDate } = useDateFilter();
   const { showToast } = useToast();
-  const [overview, setOverview] = useState<DashboardOverview | null>(null);
 
-  useEffect(() => {
-    if (!activeFirmId) return;
-
-    let mounted = true;
-    const load = async () => {
-      try {
-        const data = await apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
-          query: { firm_id: activeFirmId, from_date: fromDate, to_date: toDate },
-        });
-        if (mounted) setOverview(data);
-      } catch (err) {
-        if (mounted) showToast(err instanceof Error ? err.message : "Unable to load dashboard", "error");
-      }
-    };
-
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, [activeFirmId, supabase, fromDate, toDate]);
+  const { data: overview } = useQuery({
+    queryKey: ["overview", activeFirmId, fromDate, toDate],
+    queryFn: () =>
+      apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
+        query: { firm_id: activeFirmId, from_date: fromDate, to_date: toDate },
+      }),
+    enabled: !!activeFirmId,
+  });
 
   return (
     <div className="mx-auto max-w-[1800px] space-y-6 lg:space-y-8">

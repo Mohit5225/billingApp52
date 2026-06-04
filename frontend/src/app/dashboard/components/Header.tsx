@@ -6,16 +6,14 @@ import { useEffect, useState } from "react";
 import SignOutButton from "../../components/SignOutButton";
 
 import { useDateFilter } from "@/context/DateFilterContext";
+import { useFirmScope } from "../shared/useFirmScope";
 
 export default function Header() {
-  const { profile, isCAAdmin, isCAEmployee, supabase } = useProfile();
   const { fromDate, toDate, setDateRange } = useDateFilter();
-  const searchParams = useSearchParams();
+  const { profile, isCA, activeFirmId, supabase } = useFirmScope();
+  
   const [firmName, setFirmName] = useState("");
   const [firmDetails, setFirmDetails] = useState<{ gstin?: string; state?: string }>({});
-  const isCA = isCAAdmin || isCAEmployee;
-  const urlFirmId = searchParams.get("firm_id");
-  const activeFirmId = isCA && urlFirmId ? urlFirmId : profile?.firm_id;
 
   useEffect(() => {
     async function fetchFirmName() {

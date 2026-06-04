@@ -20,6 +20,10 @@ class FirmBase(TimestampSchema):
     ifsc_code: Optional[str] = None
     branch_name: Optional[str] = None
     parent_firm_id: Optional[UUID4] = None
+    sales_prefix: Optional[str] = None
+    purchase_prefix: Optional[str] = None
+    payment_prefix: Optional[str] = None
+    receipt_prefix: Optional[str] = None
 
 class FirmCreate(FirmBase):
     """Schema for creating a new Firm."""

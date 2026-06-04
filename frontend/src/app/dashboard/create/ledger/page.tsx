@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   AccountGroup,
@@ -262,18 +263,35 @@ export default function LedgerCreatePage() {
   const searchParams = useSearchParams();
   const ledgerId = searchParams.get("ledger_id");
   const { activeFirmId, supabase } = useFirmScope();
-  const [groups, setGroups] = useState<AccountGroup[]>([]);
   const [form, setForm] = useState<LedgerFormState>(EMPTY_FORM);
   const [bankMeta, setBankMeta] = useState<BankSectionMeta>({
     transaction_type: "Cheque / DD",
     international_account: false,
   });
   const [bankErrors, setBankErrors] = useState<BankSectionErrors>({});
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingGst, setIsFetchingGst] = useState(false);
   const { showToast } = useToast();
   const { setBottomNavVisible } = useDashboardChrome();
+
+  // ── Data fetching via React Query ──
+  const { data: groups = [], isLoading: groupsLoading } = useQuery({
+    queryKey: ["account-groups", activeFirmId],
+    queryFn: () =>
+      apiRequest<AccountGroup[]>(supabase, "/api/ledgers/account-groups", {
+        query: { firm_id: activeFirmId },
+      }),
+    enabled: !!activeFirmId,
+  });
+
+  const { data: existingLedger, isLoading: ledgerLoading } = useQuery({
+    queryKey: ["ledger", activeFirmId, ledgerId],
+    queryFn: () =>
+      apiRequest<LedgerDetail>(supabase, `/api/ledgers/${ledgerId}`),
+    enabled: !!activeFirmId && !!ledgerId,
+  });
+
+  const isLoading = groupsLoading || ledgerLoading;
 
   useLayoutEffect(() => {
     setBottomNavVisible(false);
@@ -322,70 +340,51 @@ export default function LedgerCreatePage() {
     }
   }, [templateType]);
 
+  // Default group_id when groups load (only for new ledgers)
   useEffect(() => {
-    if (!activeFirmId) return;
+    if (!ledgerId && groups.length > 0 && !form.group_id) {
+      setForm((prev) => ({ ...prev, group_id: prev.group_id || groups[0].id }));
+    }
+  }, [groups, ledgerId, form.group_id]);
 
-    let mounted = true;
-    const load = async () => {
-      try {
-        setIsLoading(true);
-        const accountGroups = await apiRequest<AccountGroup[]>(supabase, "/api/ledgers/account-groups", {
-          query: { firm_id: activeFirmId },
-        });
-        if (!mounted) return;
-        setGroups(accountGroups);
-        if (!ledgerId && accountGroups[0]) {
-          setForm((prev) => ({ ...prev, group_id: prev.group_id || accountGroups[0].id }));
-        }
-
-        if (ledgerId) {
-          const ledger = await apiRequest<LedgerDetail>(supabase, `/api/ledgers/${ledgerId}`);
-          if (!mounted) return;
-          setForm({
-            name: ledger.name,
-            alias: ledger.alias || "",
-            group_id: ledger.group_id,
-            opening_balance: ledger.opening_balance,
-            opening_balance_type: ledger.opening_balance_type,
-            inventory_values_affected: ledger.inventory_values_affected,
-            cost_centre_applicable: ledger.cost_centre_applicable,
-            bank_details: {
-              account_number: ledger.bank_details?.account_number || "",
-              ifsc_code: ledger.bank_details?.ifsc_code || "",
-              swift_code: ledger.bank_details?.swift_code || "",
-              bank_name: ledger.bank_details?.bank_name || "",
-              branch_name: ledger.bank_details?.branch_name || "",
-            },
-            party_details: {
-              maintain_bill_by_bill: ledger.party_details?.maintain_bill_by_bill || false,
-              default_credit_days: ledger.party_details?.default_credit_days || 0,
-              mailing_name: ledger.party_details?.mailing_name || "",
-              address: ledger.party_details?.address || "",
-              state: ledger.party_details?.state || "",
-              country: ledger.party_details?.country || "India",
-              pincode: ledger.party_details?.pincode || "",
-              pan_number: ledger.party_details?.pan_number || "",
-              gst_registration_type: ledger.party_details?.gst_registration_type || "",
-              gstin: ledger.party_details?.gstin || "",
-            },
-            tax_details: {
-              duty_tax_type: ledger.tax_details?.duty_tax_type || "",
-              tax_percentage: ledger.tax_details?.tax_percentage || 0,
-            },
-          });
-        }
-      } catch (err) {
-        if (mounted) showToast(err instanceof Error ? err.message : "Unable to load ledger setup", "error");
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, [activeFirmId, ledgerId, supabase]);
+  // Hydrate form when editing an existing ledger
+  const [hasHydrated, setHasHydrated] = useState(false);
+  useEffect(() => {
+    if (!existingLedger || hasHydrated) return;
+    setForm({
+      name: existingLedger.name,
+      alias: existingLedger.alias || "",
+      group_id: existingLedger.group_id,
+      opening_balance: existingLedger.opening_balance,
+      opening_balance_type: existingLedger.opening_balance_type,
+      inventory_values_affected: existingLedger.inventory_values_affected,
+      cost_centre_applicable: existingLedger.cost_centre_applicable,
+      bank_details: {
+        account_number: existingLedger.bank_details?.account_number || "",
+        ifsc_code: existingLedger.bank_details?.ifsc_code || "",
+        swift_code: existingLedger.bank_details?.swift_code || "",
+        bank_name: existingLedger.bank_details?.bank_name || "",
+        branch_name: existingLedger.bank_details?.branch_name || "",
+      },
+      party_details: {
+        maintain_bill_by_bill: existingLedger.party_details?.maintain_bill_by_bill || false,
+        default_credit_days: existingLedger.party_details?.default_credit_days || 0,
+        mailing_name: existingLedger.party_details?.mailing_name || "",
+        address: existingLedger.party_details?.address || "",
+        state: existingLedger.party_details?.state || "",
+        country: existingLedger.party_details?.country || "India",
+        pincode: existingLedger.party_details?.pincode || "",
+        pan_number: existingLedger.party_details?.pan_number || "",
+        gst_registration_type: existingLedger.party_details?.gst_registration_type || "",
+        gstin: existingLedger.party_details?.gstin || "",
+      },
+      tax_details: {
+        duty_tax_type: existingLedger.tax_details?.duty_tax_type || "",
+        tax_percentage: existingLedger.tax_details?.tax_percentage || 0,
+      },
+    });
+    setHasHydrated(true);
+  }, [existingLedger, hasHydrated]);
 
   const handleFetchGstDetails = async () => {
     const gstin = form.party_details.gstin.trim();

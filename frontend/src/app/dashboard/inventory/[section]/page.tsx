@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Hsn, ItemDetail, StockPositionRow, Uom } from "@/interfaces/inventory";
 import { apiRequest } from "@/lib/http";
@@ -189,20 +190,74 @@ function TogglePill({
   );
 }
 
+
 export default function InventorySectionPage() {
   const params = useParams<{ section: string }>();
   const section = (params.section || "items") as SectionKey;
   const { activeFirmId, supabase } = useFirmScope();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
-  const [items, setItems] = useState<ItemDetail[]>([]);
+  const { data: itemData, isLoading: itemsLoading } = useQuery({
+    queryKey: ["items", activeFirmId, search],
+    queryFn: () =>
+      apiRequest<ItemDetail[]>(supabase, "/api/items", {
+        query: { firm_id: activeFirmId, active_only: false, search },
+      }),
+    enabled: !!activeFirmId && section === "items",
+  });
 
-  const [hsn, setHsn] = useState<Hsn[]>([]);
-  const [uom, setUom] = useState<Uom[]>([]);
-  const [stockRows, setStockRows] = useState<StockPositionRow[]>([]);
+  const { data: uomData, isLoading: uomLoading } = useQuery({
+    queryKey: ["uom", activeFirmId, search],
+    queryFn: async () => {
+      const data = await apiRequest<Uom[]>(supabase, "/api/uom", {
+        query: { firm_id: activeFirmId },
+      });
+      if (section === "uom") {
+        return (data || []).filter((row) =>
+          row.name.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+      return data;
+    },
+    enabled: !!activeFirmId && (section === "items" || section === "uom"),
+  });
+
+  const { data: stockData, isLoading: stockLoading } = useQuery({
+    queryKey: ["stock-position", activeFirmId, search],
+    queryFn: () =>
+      apiRequest<StockPositionRow[]>(supabase, "/api/workspace/stock-position", {
+        query: {
+          firm_id: activeFirmId,
+          search: section === "stock-position" ? search : "",
+        },
+      }),
+    enabled: !!activeFirmId && (section === "items" || section === "stock-position"),
+  });
+
+  const { data: hsnData, isLoading: hsnLoading } = useQuery({
+    queryKey: ["hsn", activeFirmId, search],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hsn_codes")
+        .select("*")
+        .eq("firm_id", activeFirmId);
+      if (error) throw error;
+      return (data || []).filter((row) =>
+        row.hsn_code.toLowerCase().includes(search.toLowerCase())
+      );
+    },
+    enabled: !!activeFirmId && section === "hsn",
+  });
+
+  const items = itemData || [];
+  const uom = uomData || [];
+  const stockRows = stockData || [];
+  const hsn = hsnData || [];
+
+  const isLoading = itemsLoading || uomLoading || stockLoading || hsnLoading;
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -213,8 +268,6 @@ export default function InventorySectionPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
-
-
   async function handleMakeInactive(id: string) {
     try {
       await apiRequest<ItemDetail>(supabase, `/api/items/${id}`, {
@@ -223,66 +276,13 @@ export default function InventorySectionPage() {
       });
       showToast("Item made inactive successfully!", "success");
       setDeleteTarget(null);
-      await loadSection();
+      void queryClient.invalidateQueries({ queryKey: ["items"] });
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to make item inactive", "error");
     }
   }
 
   const copy = SECTION_COPY[section];
-
-  async function loadSection() {
-    if (!activeFirmId) return;
-    setIsLoading(true);
-
-    try {
-      if (section === "items") {
-        const [itemData, uomData, stockData] = await Promise.all([
-          apiRequest<ItemDetail[]>(supabase, "/api/items", {
-            query: { firm_id: activeFirmId, active_only: false, search },
-          }),
-          apiRequest<Uom[]>(supabase, "/api/uom", {
-            query: { firm_id: activeFirmId },
-          }),
-          apiRequest<StockPositionRow[]>(supabase, "/api/workspace/stock-position", {
-            query: { firm_id: activeFirmId },
-          }),
-        ]);
-        setItems(itemData);
-        setUom(uomData);
-        setStockRows(stockData);
-      } else if (section === "uom") {
-        const data = await apiRequest<Uom[]>(supabase, "/api/uom", {
-          query: { firm_id: activeFirmId },
-        });
-        setUom((data || []).filter((row) => row.name.toLowerCase().includes(search.toLowerCase())));
-      } else if (section === "hsn") {
-        const { data, error } = await supabase.from("hsn_codes").select("*").eq("firm_id", activeFirmId);
-        if (error) throw error;
-        setHsn((data || []).filter((row) => row.hsn_code.toLowerCase().includes(search.toLowerCase())));
-      } else {
-        const data = await apiRequest<StockPositionRow[]>(supabase, "/api/workspace/stock-position", {
-          query: { firm_id: activeFirmId, search },
-        });
-        setStockRows(data);
-      }
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : "Unable to load this section", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void loadSection();
-    }, 0);
-
-    return () => {
-      clearTimeout(timer);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFirmId, section, search]);
 
   const stockByItemId = useMemo(
     () => Object.fromEntries(stockRows.map((row) => [row.item_id, row])),
@@ -342,7 +342,7 @@ export default function InventorySectionPage() {
         showToast("UOM created successfully!", "success");
       }
       resetForms();
-      await loadSection();
+      void queryClient.invalidateQueries({ queryKey: ["uom"] });
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to save UOM", "error");
     }
@@ -369,7 +369,7 @@ export default function InventorySectionPage() {
         showToast("Item created successfully!", "success");
       }
       resetForms();
-      await loadSection();
+      void queryClient.invalidateQueries({ queryKey: ["items"] });
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to save item", "error");
     }
@@ -381,7 +381,7 @@ export default function InventorySectionPage() {
       await apiRequest<void>(supabase, path, { method: "DELETE" });
       showToast(`${section === "uom" ? "UOM" : "Item"} deleted successfully!`, "success");
       if (editingId === id) resetForms();
-      await loadSection();
+      void queryClient.invalidateQueries({ queryKey: [section] });
     } catch (err) {
       let errMsg = "Failed to delete item";
       if (err instanceof Error) {
@@ -919,9 +919,9 @@ export default function InventorySectionPage() {
       ) : (
         <SurfaceCard
           title={copy.title}
-          description={isLoading ? "Loading..." : "Live records from the backend."}
+          description="Live records from the backend."
         >
-          {(section === "items" || section === "uom") && (
+          {(section === "items" || section === "uom") && !isLoading && (
             <div className="mb-4 flex justify-end">
               <button
                 onClick={() => { setIsFormOpen(true); window.scrollTo({ top: 0, behavior: "smooth" }); }}
@@ -931,7 +931,34 @@ export default function InventorySectionPage() {
               </button>
             </div>
           )}
-          {content}
+          {isLoading ? (
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="rounded-[26px] border border-slate-100 bg-white/92 p-5 shadow-sm">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-5 w-40 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1}s` }} />
+                        <div className="h-5 w-16 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.02}s` }} />
+                      </div>
+                      <div className="h-4 w-48 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.04}s` }} />
+                      <div className="flex gap-4 pt-1">
+                        <div className="h-3 w-28 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.06}s` }} />
+                        <div className="h-3 w-20 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.06}s` }} />
+                        <div className="h-3 w-24 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.08}s` }} />
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="h-9 w-16 animate-shimmer-fast rounded-2xl" style={{ animationDelay: `${i * 0.1 + 0.08}s` }} />
+                      <div className="h-9 w-20 animate-shimmer-fast rounded-2xl" style={{ animationDelay: `${i * 0.1 + 0.1}s` }} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            content
+          )}
         </SurfaceCard>
       )}
       

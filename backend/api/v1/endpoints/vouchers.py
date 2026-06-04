@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
+import re
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -338,6 +339,78 @@ async def create_voucher(
     return _fetch_voucher_detail(voucher_id)
 
 
+@router.get("/next-number")
+async def get_next_number(
+    firm_id: str,
+    category: VoucherCategory,
+    jwt: str = Depends(get_verified_jwt),
+) -> dict[str, str]:
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+
+    # 1. Fetch the prefix setting from the firm
+    firm_resp = supabase.table("firms").select("*").eq("id", target_firm_id).single().execute()
+    if not firm_resp.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Firm not found")
+    firm = firm_resp.data
+
+    prefix = ""
+    if category == VoucherCategory.SALES:
+        prefix = firm.get("sales_prefix") or ""
+    elif category == VoucherCategory.PURCHASE:
+        prefix = firm.get("purchase_prefix") or ""
+    elif category == VoucherCategory.PAYMENT:
+        prefix = firm.get("payment_prefix") or ""
+    elif category == VoucherCategory.RECEIPT:
+        prefix = firm.get("receipt_prefix") or ""
+
+    # 2. Query existing non-cancelled vouchers for this firm and category
+    vouchers_resp = (
+        supabase.table("vouchers")
+        .select("voucher_number")
+        .eq("firm_id", target_firm_id)
+        .eq("category", category)
+        .execute()
+    )
+    existing_numbers = [v["voucher_number"] for v in vouchers_resp.data or []]
+
+    # 3. Handle cases where the user included the starting number in the prefix
+    match = re.search(r"(\d+)$", prefix)
+    if match:
+        base_prefix = prefix[:match.start()]
+        start_num_str = match.group(1)
+        start_val = int(start_num_str)
+        padding = len(start_num_str)
+    else:
+        base_prefix = prefix
+        start_val = 1
+        padding = 1
+
+    matching_numbers = [num for num in existing_numbers if num.startswith(base_prefix)]
+
+    if not matching_numbers:
+        # If no vouchers exist, use the exact prefix the user configured (if it had a number),
+        # or append '1' if it didn't.
+        return {"next_number": prefix if match else f"{prefix}1"}
+
+    max_val = start_val - 1
+    best_padding = padding
+
+    for num in matching_numbers:
+        suffix = num[len(base_prefix):]
+        m = re.match(r"^(\d+)", suffix)
+        if m:
+            val_str = m.group(1)
+            val = int(val_str)
+            if val > max_val:
+                max_val = val
+                best_padding = len(val_str)
+
+    next_val = max_val + 1
+    next_val_str = str(next_val).zfill(best_padding)
+    return {"next_number": f"{base_prefix}{next_val_str}"}
+
+
 @router.get("/{voucher_id}", response_model=VoucherDetail)
 async def get_voucher(
     voucher_id: str,
@@ -510,3 +583,4 @@ async def cancel_voucher(
 
     resolve_target_firm_id(profile, str(existing.data["firm_id"]))
     supabase.table("vouchers").update({"is_cancelled": True}).eq("id", voucher_id).execute()
+

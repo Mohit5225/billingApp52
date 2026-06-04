@@ -1,9 +1,13 @@
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from io import BytesIO
+import re
 from typing import Any, Optional
+from xml.sax.saxutils import escape
+from zipfile import ZIP_DEFLATED, ZipFile
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from postgrest.exceptions import APIError
 
@@ -170,83 +174,155 @@ def _parse_statement_date(value: Any) -> date:
     return date.fromisoformat(str(value))
 
 
-@router.get("/account-groups", response_model=list[AccountGroup])
-async def list_account_groups(
-    firm_id: Optional[str] = None,
-    jwt: str = Depends(get_verified_jwt),
-) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+def _safe_filename_component(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", value.strip())
+    return cleaned.strip("._-") or "ledger"
 
-    response = (
-        supabase.table("account_groups")
-        .select("id, firm_id, name, alias, nature, is_primary, parent_id, affects_gross_profit, is_control_account, is_system, sort_order, created_at, updated_at")
-        .execute()
+
+def _column_name(index: int) -> str:
+    name = ""
+    while index > 0:
+        index, remainder = divmod(index - 1, 26)
+        name = chr(65 + remainder) + name
+    return name
+
+
+def _xml_cell(reference: str, value: Any) -> str:
+    if value is None:
+        value = ""
+
+    if isinstance(value, bool):
+        value = int(value)
+
+    if isinstance(value, (int, float, Decimal)):
+        return f'<c r="{reference}"><v>{value}</v></c>'
+
+    if isinstance(value, date):
+        value = value.isoformat()
+
+    text = escape(str(value)).replace("\n", "&#10;")
+    return f'<c r="{reference}" t="inlineStr"><is><t xml:space="preserve">{text}</t></is></c>'
+
+
+def _build_xlsx(sheet_name: str, rows: list[list[Any]]) -> bytes:
+    sheet_name = _safe_filename_component(sheet_name or "Sheet1")[:31] or "Sheet1"
+
+    sheet_rows: list[str] = []
+    for row_index, row in enumerate(rows, start=1):
+        cells = "".join(
+            _xml_cell(f"{_column_name(column_index)}{row_index}", value)
+            for column_index, value in enumerate(row, start=1)
+        )
+        sheet_rows.append(f'<row r="{row_index}">{cells}</row>')
+
+    sheet_dimension = f"A1:{_column_name(max(len(row) for row in rows) if rows else 1)}{len(rows) or 1}"
+    sheet_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'<dimension ref="{sheet_dimension}"/>'
+        f'<sheetData>{"".join(sheet_rows)}</sheetData>'
+        '</worksheet>'
     )
 
-    all_groups = response.data or []
-    group_name_by_id = {
-        str(group["id"]): group["name"]
-        for group in all_groups
-        if group.get("id") is not None and group.get("name") is not None
-    }
+    workbook_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets>'
+        f'<sheet name="{escape(sheet_name)}" sheetId="1" r:id="rId1"/>'
+        '</sheets>'
+        '</workbook>'
+    )
 
-    groups = [
-        group
-        for group in all_groups
-        if group.get("firm_id") is None or str(group.get("firm_id")) == target_firm_id
+    content_types_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '</Types>'
+    )
+
+    rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        '</Relationships>'
+    )
+
+    workbook_rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>'
+        '</Relationships>'
+    )
+
+    buffer = BytesIO()
+    with ZipFile(buffer, mode="w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("[Content_Types].xml", content_types_xml)
+        archive.writestr("_rels/.rels", rels_xml)
+        archive.writestr("xl/workbook.xml", workbook_xml)
+        archive.writestr("xl/_rels/workbook.xml.rels", workbook_rels_xml)
+        archive.writestr("xl/worksheets/sheet1.xml", sheet_xml)
+    return buffer.getvalue()
+
+
+def _build_statement_rows(statement: dict[str, Any]) -> list[list[Any]]:
+    ledger = statement["ledger"]
+    rows: list[list[Any]] = [
+        ["Ledger Statement Export"],
+        [ledger["name"]],
+        [
+            "Group",
+            ledger.get("group_name") or "Ungrouped",
+            "Template",
+            ledger.get("template_type") or "default",
+        ],
+        [
+            "Opening Balance",
+            f'{statement["opening_balance_type"]} {statement["opening_balance"]}',
+            "Closing Balance",
+            f'{statement["closing_balance_type"]} {statement["closing_balance"]}',
+        ],
+        [
+            "Totals",
+            f'Dr {statement["total_debit"]}',
+            f'Cr {statement["total_credit"]}',
+        ],
+        [],
+        ["Date", "Voucher No", "Category", "Particulars", "Narration", "Dr", "Cr", "Balance", "Balance Type"],
+        [
+            "Opening",
+            "-",
+            "-",
+            "Opening balance",
+            "",
+            "",
+            "",
+            f'{statement["opening_balance_type"]} {statement["opening_balance"]}',
+            statement["opening_balance_type"],
+        ],
     ]
 
-    for group in groups:
-        parent_id = group.get("parent_id")
-        group["parent_name"] = group_name_by_id.get(str(parent_id)) if parent_id is not None else None
+    for row in statement["rows"]:
+        rows.append([
+            row["voucher_date"],
+            row["voucher_number"],
+            row["category"],
+            row["particulars"],
+            row.get("narration") or "",
+            row["debit_amount"] or "",
+            row["credit_amount"] or "",
+            f'{row["balance_type"]} {row["balance_amount"]}',
+            row["balance_type"],
+        ])
 
-    groups.sort(key=lambda group: (
-        group.get("nature") or "",
-        group.get("sort_order") or 999,
-        (group.get("name") or "").lower(),
-    ))
-    return groups
-
-
-@router.get("/", response_model=list[LedgerDetail])
-async def list_ledgers(
-    firm_id: Optional[str] = None,
-    search: Optional[str] = None,
-    group_id: Optional[str] = None,
-    jwt: str = Depends(get_verified_jwt),
-) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
-
-    query = supabase.table("ledgers").select("*").eq("firm_id", target_firm_id)
-    if group_id:
-        query = query.eq("group_id", group_id)
-    if search:
-        query = query.or_(f"name.ilike.%{search}%,alias.ilike.%{search}%")
-
-    response = query.order("name").execute()
-    return _build_ledger_detail_rows(response.data or [])
+    return rows
 
 
-@router.get("/{ledger_id}", response_model=LedgerDetail)
-async def get_ledger(
-    ledger_id: str,
-    jwt: str = Depends(get_verified_jwt),
-) -> Any:
-    profile = get_profile_context(jwt)
-    ledger = _get_ledger_or_404(ledger_id)
-    resolve_target_firm_id(profile, str(ledger["firm_id"]))
-    return _build_ledger_detail_rows([ledger])[0]
-
-
-@router.get("/{ledger_id}/statement", response_model=LedgerStatement)
-async def get_ledger_statement(
-    ledger_id: str,
-    from_date: Optional[date] = Query(None),
-    to_date: Optional[date] = Query(None),
-    jwt: str = Depends(get_verified_jwt),
-) -> Any:
+def _get_ledger_statement(ledger_id: str, from_date: Optional[date], to_date: Optional[date], jwt: str) -> dict[str, Any]:
     profile = get_profile_context(jwt)
     ledger = _get_ledger_or_404(ledger_id)
     target_firm_id = resolve_target_firm_id(profile, str(ledger["firm_id"]))
@@ -267,14 +343,15 @@ async def get_ledger_statement(
 
     voucher_ids = [str(voucher["id"]) for voucher in vouchers]
     if not voucher_ids:
+        opening_balance = float(ledger.get("opening_balance") or 0)
         return {
             "ledger": ledger_detail,
-            "opening_balance": float(ledger.get("opening_balance") or 0),
+            "opening_balance": opening_balance,
             "opening_balance_type": ledger["opening_balance_type"],
             "rows": [],
             "total_debit": 0.0,
             "total_credit": 0.0,
-            "closing_balance": float(ledger.get("opening_balance") or 0),
+            "closing_balance": opening_balance,
             "closing_balance_type": ledger["opening_balance_type"],
         }
 
@@ -404,6 +481,117 @@ async def get_ledger_statement(
         "closing_balance": closing_amount,
         "closing_balance_type": closing_type,
     }
+
+
+@router.get("/account-groups", response_model=list[AccountGroup])
+async def list_account_groups(
+    firm_id: Optional[str] = None,
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+
+    response = (
+        supabase.table("account_groups")
+        .select("id, firm_id, name, alias, nature, is_primary, parent_id, affects_gross_profit, is_control_account, is_system, sort_order, created_at, updated_at")
+        .execute()
+    )
+
+    all_groups = response.data or []
+    group_name_by_id = {
+        str(group["id"]): group["name"]
+        for group in all_groups
+        if group.get("id") is not None and group.get("name") is not None
+    }
+
+    groups = [
+        group
+        for group in all_groups
+        if group.get("firm_id") is None or str(group.get("firm_id")) == target_firm_id
+    ]
+
+    for group in groups:
+        parent_id = group.get("parent_id")
+        group["parent_name"] = group_name_by_id.get(str(parent_id)) if parent_id is not None else None
+
+    groups.sort(key=lambda group: (
+        group.get("nature") or "",
+        group.get("sort_order") or 999,
+        (group.get("name") or "").lower(),
+    ))
+    return groups
+
+
+@router.get("/", response_model=list[LedgerDetail])
+async def list_ledgers(
+    firm_id: Optional[str] = None,
+    search: Optional[str] = None,
+    group_id: Optional[str] = None,
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+
+    query = supabase.table("ledgers").select("*").eq("firm_id", target_firm_id)
+    if group_id:
+        query = query.eq("group_id", group_id)
+    if search:
+        query = query.or_(f"name.ilike.%{search}%,alias.ilike.%{search}%")
+
+    response = query.order("name").execute()
+    return _build_ledger_detail_rows(response.data or [])
+
+
+@router.get("/{ledger_id}", response_model=LedgerDetail)
+async def get_ledger(
+    ledger_id: str,
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    profile = get_profile_context(jwt)
+    ledger = _get_ledger_or_404(ledger_id)
+    resolve_target_firm_id(profile, str(ledger["firm_id"]))
+    return _build_ledger_detail_rows([ledger])[0]
+
+
+@router.get("/{ledger_id}/statement", response_model=LedgerStatement)
+async def get_ledger_statement(
+    ledger_id: str,
+    from_date: Optional[date] = Query(None),
+    to_date: Optional[date] = Query(None),
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    return _get_ledger_statement(ledger_id, from_date, to_date, jwt)
+
+
+@router.get("/{ledger_id}/statement/export")
+async def export_ledger_statement(
+    ledger_id: str,
+    from_date: Optional[date] = Query(None),
+    to_date: Optional[date] = Query(None),
+    jwt: str = Depends(get_verified_jwt),
+) -> Response:
+    statement = _get_ledger_statement(ledger_id, from_date, to_date, jwt)
+    ledger_name = statement["ledger"]["name"]
+    file_label = _safe_filename_component(ledger_name)
+    xlsx_bytes = _build_xlsx(f"{ledger_name} Statement", _build_statement_rows(statement))
+
+    filename_bits = [file_label, "statement"]
+    if from_date:
+        filename_bits.append(from_date.isoformat())
+    if to_date:
+        filename_bits.append(to_date.isoformat())
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{"_".join(filename_bits)}.xlsx"',
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+    return Response(
+        content=xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers=headers,
+    )
 
 
 @router.post("/", response_model=LedgerDetail, status_code=status.HTTP_201_CREATED)

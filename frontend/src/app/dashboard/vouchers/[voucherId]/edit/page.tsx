@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { VoucherDetail } from "@/interfaces/voucher";
 import { apiRequest } from "@/lib/http";
@@ -22,23 +22,16 @@ const CATEGORY_TO_SLUG: Record<string, Parameters<typeof VoucherWorkbench>[0]["s
 
 export default function VoucherEditPage() {
   const params = useParams<{ voucherId: string }>();
-  const { supabase } = useFirmScope();
-  const [slug, setSlug] = useState<Parameters<typeof VoucherWorkbench>[0]["slug"] | null>(null);
+  const { activeFirmId, supabase } = useFirmScope();
 
-  useEffect(() => {
-    let mounted = true;
-    const load = async () => {
-      const voucher = await apiRequest<VoucherDetail>(supabase, `/api/vouchers/${params.voucherId}`);
-      if (mounted) {
-        setSlug(CATEGORY_TO_SLUG[voucher.category]);
-      }
-    };
+  const { data: voucher } = useQuery({
+    queryKey: ["voucher", activeFirmId, params.voucherId],
+    queryFn: () =>
+      apiRequest<VoucherDetail>(supabase, `/api/vouchers/${params.voucherId}`),
+    enabled: !!activeFirmId,
+  });
 
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, [params.voucherId, supabase]);
+  const slug = voucher ? CATEGORY_TO_SLUG[voucher.category] : null;
 
   if (!slug) {
     return null;

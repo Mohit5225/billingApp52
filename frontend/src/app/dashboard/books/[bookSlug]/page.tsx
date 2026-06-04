@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { LedgerDetail } from "@/interfaces/ledger";
 import { RegisterRow } from "@/interfaces/workspace";
+import { getApiBaseUrl } from "@/lib/api";
 import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
@@ -43,51 +45,134 @@ export default function BookDetailPage() {
   const { activeFirmId, supabase } = useFirmScope();
   const { fromDate, toDate } = useDateFilter();
   const { showToast } = useToast();
-  const [rows, setRows] = useState<RegisterRow[]>([]);
-  const [ledgers, setLedgers] = useState<LedgerDetail[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [exportingLedgerId, setExportingLedgerId] = useState<string | null>(null);
+  const [isExportingBook, setIsExportingBook] = useState(false);
 
   const copy = BOOK_LABELS[bookSlug] || BOOK_LABELS["day-book"];
 
-  useEffect(() => {
+  const { data: ledgers = [], isLoading: ledgersLoading } = useQuery({
+    queryKey: ["ledgers", activeFirmId],
+    queryFn: () =>
+      apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", {
+        query: { firm_id: activeFirmId },
+      }),
+    enabled: !!activeFirmId && bookSlug === "ledger",
+  });
+
+  const { data: rows = [], isLoading: rowsLoading } = useQuery({
+    queryKey: ["register", bookSlug, activeFirmId, fromDate, toDate],
+    queryFn: () =>
+      apiRequest<RegisterRow[]>(supabase, `/api/workspace/books/${bookSlug}`, {
+        query: { firm_id: activeFirmId, from_date: fromDate, to_date: toDate },
+      }),
+    enabled: !!activeFirmId && bookSlug !== "ledger",
+  });
+
+  const isLoading = ledgersLoading || rowsLoading;
+
+  async function downloadXlsx(url: string, downloadName: string) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error("No active session");
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(await response.text());
+    }
+
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = blobUrl;
+    anchor.download = downloadName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  }
+
+  async function exportLedgerExcel(ledger: LedgerDetail) {
     if (!activeFirmId) return;
+    setExportingLedgerId(ledger.id);
+    try {
+      const url = new URL(`${getApiBaseUrl()}/api/ledgers/${ledger.id}/statement/export`);
+      url.searchParams.set("firm_id", activeFirmId);
+      const downloadName = `${ledger.name.replace(/[^A-Za-z0-9._-]+/g, "_")}-statement.xlsx`;
+      await downloadXlsx(url.toString(), downloadName);
+      showToast(`${ledger.name} exported to Excel`, "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to export ledger", "error");
+    } finally {
+      setExportingLedgerId(null);
+    }
+  }
 
-    let mounted = true;
-    const load = async () => {
-      try {
-        setIsLoading(true);
-
-        if (bookSlug === "ledger") {
-          const data = await apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", {
-            query: { firm_id: activeFirmId },
-          });
-          if (mounted) setLedgers(data);
-        } else {
-          const data = await apiRequest<RegisterRow[]>(supabase, `/api/workspace/books/${bookSlug}`, {
-            query: { firm_id: activeFirmId, from_date: fromDate, to_date: toDate },
-          });
-          if (mounted) setRows(data);
-        }
-      } catch (err) {
-        if (mounted) showToast(err instanceof Error ? err.message : "Unable to load this book", "error");
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, [activeFirmId, bookSlug, supabase, fromDate, toDate]);
+  async function exportBookExcel() {
+    if (!activeFirmId || bookSlug === "ledger") return;
+    setIsExportingBook(true);
+    try {
+      const url = new URL(`${getApiBaseUrl()}/api/workspace/books/${bookSlug}/export`);
+      url.searchParams.set("firm_id", activeFirmId);
+      if (fromDate) url.searchParams.set("from_date", fromDate);
+      if (toDate) url.searchParams.set("to_date", toDate);
+      const downloadName = `${bookSlug.replace(/[^A-Za-z0-9._-]+/g, "_")}-export.xlsx`;
+      await downloadXlsx(url.toString(), downloadName);
+      showToast(`${copy.title} exported to Excel`, "success");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Unable to export register", "error");
+    } finally {
+      setIsExportingBook(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
       <PageHero eyebrow="Book Detail" title={copy.title} description={copy.description} />
+      {bookSlug !== "ledger" ? (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={exportBookExcel}
+            disabled={isExportingBook || rows.length === 0}
+            className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isExportingBook ? "Exporting..." : "Export Excel"}
+          </button>
+        </div>
+      ) : null}
 
 
-      <SurfaceCard title={copy.title} description={isLoading ? "Loading..." : "Live rows from the operational backend."}>
-        {bookSlug === "ledger" ? (
+      <SurfaceCard title={copy.title} description="Live rows from the operational backend.">
+        {isLoading ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="rounded-3xl border border-slate-100 bg-white/92 p-5 shadow-sm"
+              >
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex-1 space-y-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="h-5 w-32 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1}s` }} />
+                      <div className="h-5 w-16 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.02}s` }} />
+                    </div>
+                    <div className="h-4 w-48 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.04}s` }} />
+                    <div className="h-3 w-64 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.06}s` }} />
+                  </div>
+                  <div className="h-6 w-24 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.1 + 0.08}s` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : bookSlug === "ledger" ? (
           ledgers.length === 0 ? (
             <EmptyState title="No ledgers yet" description="Create ledgers first so books and voucher selectors have something real to work with." />
           ) : (
@@ -116,6 +201,14 @@ export default function BookDetailPage() {
                         >
                           View ledger
                         </Link>
+                        <button
+                          type="button"
+                          onClick={() => exportLedgerExcel(ledger)}
+                          disabled={exportingLedgerId === ledger.id}
+                          className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {exportingLedgerId === ledger.id ? "Exporting..." : "Export Excel"}
+                        </button>
                         <Link
                           href={`/dashboard/create/ledger?ledger_id=${ledger.id}`}
                           className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:bg-slate-50"

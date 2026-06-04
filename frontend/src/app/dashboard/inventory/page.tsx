@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { DashboardOverview } from "@/interfaces/workspace";
 import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -51,29 +51,16 @@ const LINKS = [
 
 export default function InventoryHubPage() {
   const { activeFirmId, supabase } = useFirmScope();
-  const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const { showToast } = useToast();
 
-  useEffect(() => {
-    if (!activeFirmId) return;
-
-    let mounted = true;
-    const load = async () => {
-      try {
-        const data = await apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
-          query: { firm_id: activeFirmId },
-        });
-        if (mounted) setOverview(data);
-      } catch (err) {
-        if (mounted) showToast(err instanceof Error ? err.message : "Unable to load inventory overview", "error");
-      }
-    };
-
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, [activeFirmId, supabase]);
+  const { data: overview } = useQuery({
+    queryKey: ["overview", activeFirmId],
+    queryFn: () =>
+      apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
+        query: { firm_id: activeFirmId },
+      }),
+    enabled: !!activeFirmId,
+  });
 
   return (
     <div className="mx-auto max-w-[1800px] space-y-6 lg:space-y-8">

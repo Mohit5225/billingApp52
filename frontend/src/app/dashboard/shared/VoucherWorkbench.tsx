@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 
 import { ItemDetail } from "@/interfaces/inventory";
@@ -173,7 +174,8 @@ function isPartyLedger(ledger: LedgerDetail) {
 }
 
 function isCashBankLedger(ledger: LedgerDetail) {
-  return ledger.template_type === "bank" || ledger.group_name === "Cash-in-Hand";
+  const groupName = (ledger.group_name || "").toLowerCase();
+  return ledger.template_type === "bank" || groupName.includes("cash");
 }
 
 function isTaxLedger(ledger: LedgerDetail) {
@@ -181,10 +183,11 @@ function isTaxLedger(ledger: LedgerDetail) {
 }
 
 function isMainInvoiceLedger(ledger: LedgerDetail, category: VoucherCategory) {
-  if (category === "Sales" || category === "Debit Note") {
-    return ledger.group_name === "Sales Accounts" || ledger.group_nature === "Income";
+  const groupName = (ledger.group_name || "").toLowerCase();
+  if (category === "Sales" || category === "Credit Note") {
+    return groupName.includes("sales") || ledger.group_nature === "Income";
   }
-  return ledger.group_name === "Purchase Accounts" || ledger.group_nature === "Expense";
+  return groupName.includes("purchase") || ledger.group_nature === "Expense";
 }
 
 function recalcLine(line: InvoiceLineState, item: ItemDetail | undefined, taxMode: TaxMode) {
@@ -310,10 +313,6 @@ export function VoucherWorkbench({
     { ...EMPTY_JOURNAL_LINE },
     { ...EMPTY_JOURNAL_LINE },
   ]);
-  const [ledgers, setLedgers] = useState<LedgerDetail[]>([]);
-  const [items, setItems] = useState<ItemDetail[]>([]);
-  const [firmState, setFirmState] = useState<string>("");
-  const [firmDetails, setFirmDetails] = useState<{ name: string; address: string; phone?: string; email?: string; gstin?: string; pan?: string; state?: string; bankName?: string; accountNumber?: string; ifscCode?: string; branchName?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -342,6 +341,56 @@ export function VoucherWorkbench({
     prevInvoiceLinesLength.current = invoiceLines.length;
     prevJournalLinesLength.current = journalLines.length;
   }, [invoiceLines.length, journalLines.length]);
+
+  // ── Data fetching via React Query ──
+  const { data: ledgers = [] } = useQuery({
+    queryKey: ["ledgers", activeFirmId],
+    queryFn: () =>
+      apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", { query: { firm_id: activeFirmId } }),
+    enabled: !!activeFirmId,
+  });
+
+  const { data: items = [] } = useQuery({
+    queryKey: ["items", activeFirmId],
+    queryFn: () =>
+      apiRequest<ItemDetail[]>(supabase, "/api/items/", {
+        query: { firm_id: activeFirmId, active_only: false },
+      }),
+    enabled: !!activeFirmId,
+  });
+
+  const { data: firmQueryData } = useQuery({
+    queryKey: ["firm-details", activeFirmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("firms")
+        .select("name, mailing_name, address_lane1, city, state, pincode, mobile, email, gstin, pan, bank_name, account_number, ifsc_code, branch_name")
+        .eq("id", activeFirmId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeFirmId,
+  });
+
+  const firmState = firmQueryData?.state || "";
+  const firmDetails = firmQueryData
+    ? {
+        name: firmQueryData.mailing_name || firmQueryData.name || "",
+        address: [firmQueryData.address_lane1, firmQueryData.city, firmQueryData.state ? `${firmQueryData.state} - ${firmQueryData.pincode || ""}` : firmQueryData.pincode].filter(Boolean).join(",\n"),
+        phone: firmQueryData.mobile || undefined,
+        email: firmQueryData.email || undefined,
+        gstin: firmQueryData.gstin || undefined,
+        pan: firmQueryData.pan || undefined,
+        state: firmQueryData.state || undefined,
+        bankName: firmQueryData.bank_name || undefined,
+        accountNumber: firmQueryData.account_number || undefined,
+        ifscCode: firmQueryData.ifsc_code || undefined,
+        branchName: firmQueryData.branch_name || undefined,
+      }
+    : null;
+
+  const depsReady = ledgers.length > 0;
 
   const partyLedgers = useMemo(
     () => ledgers.filter(isPartyLedger).map((ledger) => ({ value: ledger.id, label: `${ledger.name} • ${ledger.group_name || "Party"}` })),
@@ -391,145 +440,152 @@ export function VoucherWorkbench({
     };
   }, [invoiceLines]);
 
+  // ── Voucher hydration (only when editing an existing voucher) ──
+  const [hasHydrated, setHasHydrated] = useState(false);
+
   useEffect(() => {
-    if (!activeFirmId) return;
+    if (!depsReady || !voucherId || hasHydrated) return;
 
     let mounted = true;
-    const load = async () => {
+    const hydrate = async () => {
       try {
         setIsLoading(true);
-
-        const [ledgerData, itemData] = await Promise.all([
-          apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", { query: { firm_id: activeFirmId } }),
-          apiRequest<ItemDetail[]>(supabase, "/api/items/", {
-            query: { firm_id: activeFirmId, active_only: false },
-          }),
-        ]);
-
-        const { data: firmData } = await supabase
-          .from("firms")
-          .select("name, mailing_name, address_lane1, city, state, pincode, mobile, email, gstin, pan, bank_name, account_number, ifsc_code, branch_name")
-          .eq("id", activeFirmId)
-          .single();
-
+        const voucher = await apiRequest<VoucherDetail>(supabase, `/api/vouchers/${voucherId}`);
         if (!mounted) return;
 
-        setLedgers(ledgerData);
-        setItems(itemData);
-        setFirmState(firmData?.state || "");
-        if (firmData) {
-          setFirmDetails({
-            name: firmData.mailing_name || firmData.name || "",
-            address: [firmData.address_lane1, firmData.city, firmData.state ? `${firmData.state} - ${firmData.pincode || ""}` : firmData.pincode].filter(Boolean).join(",\n"),
-            phone: firmData.mobile || undefined,
-            email: firmData.email || undefined,
-            gstin: firmData.gstin || undefined,
-            pan: firmData.pan || undefined,
-            state: firmData.state || undefined,
-            bankName: firmData.bank_name || undefined,
-            accountNumber: firmData.account_number || undefined,
-            ifscCode: firmData.ifsc_code || undefined,
-            branchName: firmData.branch_name || undefined,
-          });
-        }
+        setForm((prev) => ({
+          ...prev,
+          voucher_number: voucher.voucher_number,
+          voucher_date: voucher.voucher_date,
+          narration: voucher.narration || "",
+          party_ledger_id: voucher.party_ledger_id || "",
+        }));
 
-        if (voucherId) {
-          const voucher = await apiRequest<VoucherDetail>(supabase, `/api/vouchers/${voucherId}`);
-          if (!mounted) return;
+        if (meta.family === "invoice") {
+          const lines = voucher.inventory_lines.map((line) => ({
+            item_id: line.item_id,
+            quantity: line.quantity,
+            unit_price: line.unit_price,
+            discount_amount: line.discount_amount,
+            taxable_amount: line.taxable_amount,
+            igst_rate: line.igst_rate,
+            cgst_rate: line.cgst_rate,
+            sgst_rate: line.sgst_rate,
+            cess_percent: line.cess_percent,
+            cess_amount_per_unit: line.cess_amount_per_unit,
+            igst_amount: line.igst_amount,
+            cgst_amount: line.cgst_amount,
+            sgst_amount: line.sgst_amount,
+            cess_amount: line.cess_amount,
+          }));
+          setInvoiceLines(lines.length > 0 ? lines : [{ ...EMPTY_INVOICE_LINE }]);
 
+          const nonPartyLines = voucher.accounting_lines.filter((line) => line.ledger_id !== voucher.party_ledger_id);
+          const taxLedgerIds = new Set(ledgers.filter(isTaxLedger).map((ledger) => ledger.id));
+          const mainLine = nonPartyLines.find((line) => !taxLedgerIds.has(line.ledger_id));
+          const existingTaxMode: TaxMode = voucher.inventory_lines.some((line) => line.igst_amount > 0) ? "inter" : "intra";
           setForm((prev) => ({
             ...prev,
-            voucher_number: voucher.voucher_number,
-            voucher_date: voucher.voucher_date,
-            narration: voucher.narration || "",
-            party_ledger_id: voucher.party_ledger_id || "",
+            main_ledger_id: mainLine?.ledger_id || "",
+            manual_tax_mode: existingTaxMode,
           }));
-
-          if (meta.family === "invoice") {
-            const lines = voucher.inventory_lines.map((line) => ({
-              item_id: line.item_id,
-              quantity: line.quantity,
-              unit_price: line.unit_price,
-              discount_amount: line.discount_amount,
-              taxable_amount: line.taxable_amount,
-              igst_rate: line.igst_rate,
-              cgst_rate: line.cgst_rate,
-              sgst_rate: line.sgst_rate,
-              cess_percent: line.cess_percent,
-              cess_amount_per_unit: line.cess_amount_per_unit,
-              igst_amount: line.igst_amount,
-              cgst_amount: line.cgst_amount,
-              sgst_amount: line.sgst_amount,
-              cess_amount: line.cess_amount,
-            }));
-            setInvoiceLines(lines.length > 0 ? lines : [{ ...EMPTY_INVOICE_LINE }]);
-
-            const nonPartyLines = voucher.accounting_lines.filter((line) => line.ledger_id !== voucher.party_ledger_id);
-            const taxLedgerIds = new Set(ledgerData.filter(isTaxLedger).map((ledger) => ledger.id));
-            const mainLine = nonPartyLines.find((line) => !taxLedgerIds.has(line.ledger_id));
-            const existingTaxMode: TaxMode = voucher.inventory_lines.some((line) => line.igst_amount > 0) ? "inter" : "intra";
-            setForm((prev) => ({
-              ...prev,
-              main_ledger_id: mainLine?.ledger_id || "",
-              manual_tax_mode: existingTaxMode,
-            }));
-          }
-
-          if (meta.family === "payment") {
-            const bankLine = voucher.accounting_lines.find((line) => line.ledger_id !== voucher.party_ledger_id);
-            const amount = Math.max(...voucher.accounting_lines.map((line) => Math.max(line.debit_amount, line.credit_amount)));
-            setForm((prev) => ({
-              ...prev,
-              cash_bank_ledger_id: bankLine?.ledger_id || "",
-              amount,
-            }));
-          }
-
-          if (meta.family === "contra") {
-            const debitLine = voucher.accounting_lines.find((line) => line.debit_amount > 0);
-            const creditLine = voucher.accounting_lines.find((line) => line.credit_amount > 0);
-            setForm((prev) => ({
-              ...prev,
-              source_ledger_id: creditLine?.ledger_id || "",
-              destination_ledger_id: debitLine?.ledger_id || "",
-              amount: debitLine?.debit_amount || creditLine?.credit_amount || 0,
-            }));
-          }
-
-          if (meta.family === "journal") {
-            setJournalLines(
-              voucher.accounting_lines.map((line) => ({
-                ledger_id: line.ledger_id,
-                debit_amount: line.debit_amount,
-                credit_amount: line.credit_amount,
-              })),
-            );
-          }
-        } else {
-          if (meta.family === "journal") {
-            setJournalLines([{ ...EMPTY_JOURNAL_LINE }, { ...EMPTY_JOURNAL_LINE }]);
-          }
         }
+
+        if (meta.family === "payment") {
+          const bankLine = voucher.accounting_lines.find((line) => line.ledger_id !== voucher.party_ledger_id);
+          const amount = Math.max(...voucher.accounting_lines.map((line) => Math.max(line.debit_amount, line.credit_amount)));
+          setForm((prev) => ({
+            ...prev,
+            cash_bank_ledger_id: bankLine?.ledger_id || "",
+            amount,
+          }));
+        }
+
+        if (meta.family === "contra") {
+          const debitLine = voucher.accounting_lines.find((line) => line.debit_amount > 0);
+          const creditLine = voucher.accounting_lines.find((line) => line.credit_amount > 0);
+          setForm((prev) => ({
+            ...prev,
+            source_ledger_id: creditLine?.ledger_id || "",
+            destination_ledger_id: debitLine?.ledger_id || "",
+            amount: debitLine?.debit_amount || creditLine?.credit_amount || 0,
+          }));
+        }
+
+        if (meta.family === "journal") {
+          setJournalLines(
+            voucher.accounting_lines.map((line) => ({
+              ledger_id: line.ledger_id,
+              debit_amount: line.debit_amount,
+              credit_amount: line.credit_amount,
+            })),
+          );
+        }
+
+        setHasHydrated(true);
       } catch (err) {
         if (mounted) {
-          showToast(err instanceof Error ? err.message : "Unable to load voucher dependencies", "error");
+          showToast(err instanceof Error ? err.message : "Unable to load voucher", "error");
         }
       } finally {
         if (mounted) setIsLoading(false);
       }
     };
 
-    void load();
+    void hydrate();
     return () => {
       mounted = false;
     };
-  }, [activeFirmId, meta.family, meta.category, showToast, supabase, voucherId]);
+  }, [depsReady, voucherId, hasHydrated, ledgers, meta.family, showToast, supabase]);
+
+  // Fetch next voucher number using TanStack Query
+  const { data: nextNumberData } = useQuery({
+    queryKey: ["next-voucher-number", activeFirmId, meta.category],
+    queryFn: () =>
+      apiRequest<{ next_number: string }>(supabase, "/api/vouchers/next-number", {
+        query: { firm_id: activeFirmId, category: meta.category },
+      }),
+    enabled: !!activeFirmId && !isEditing,
+  });
+
+  // Automatically apply the next number to the form if it's currently empty
+  useEffect(() => {
+    if (nextNumberData?.next_number && form.voucher_number === "") {
+      setForm((prev) => ({ ...prev, voucher_number: nextNumberData.next_number }));
+    }
+  }, [nextNumberData, form.voucher_number]);
 
   useEffect(() => {
-    if (meta.family === "invoice" && !isEditing && mainLedgers.length > 0 && !form.main_ledger_id) {
-      setForm((prev) => ({ ...prev, main_ledger_id: mainLedgers[0].value }));
+    if (!isEditing) {
+      setForm((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        
+        if (meta.family === "invoice" && mainLedgers.length > 0 && !prev.main_ledger_id) {
+          next.main_ledger_id = mainLedgers[0].value;
+          changed = true;
+        }
+        
+        if (meta.family === "payment" && cashBankLedgers.length > 0 && !prev.cash_bank_ledger_id) {
+          next.cash_bank_ledger_id = cashBankLedgers[0].value;
+          changed = true;
+        }
+
+        if (meta.family === "contra" && cashBankLedgers.length > 0) {
+          if (!prev.source_ledger_id) {
+            next.source_ledger_id = cashBankLedgers[0].value;
+            changed = true;
+          }
+          if (!prev.destination_ledger_id) {
+            next.destination_ledger_id = cashBankLedgers.length > 1 ? cashBankLedgers[1].value : cashBankLedgers[0].value;
+            changed = true;
+          }
+        }
+        
+        return changed ? next : prev;
+      });
     }
-  }, [meta.family, isEditing, mainLedgers, form.main_ledger_id]);
+  }, [meta.family, isEditing, mainLedgers, cashBankLedgers]);
 
   function updateInvoiceLine(index: number, partial: Partial<InvoiceLineState>) {
     setInvoiceLines((prev) =>
@@ -1069,6 +1125,20 @@ export function VoucherWorkbench({
                           onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
                           options={partyLedgers}
                           placeholder="Select Party…"
+                          createHref="/dashboard/create/ledger"
+                          disabled={readOnly}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 mt-2">
+                        <label className="text-[15px] font-semibold text-slate-600">
+                          {meta.category === "Sales" || meta.category === "Credit Note" ? "Sales Ledger" : "Purchase Ledger"} <span className="text-rose-500">*</span>
+                        </label>
+                        <ComboboxField
+                          inline
+                          value={form.main_ledger_id}
+                          onChange={(value) => setForm((prev) => ({ ...prev, main_ledger_id: value }))}
+                          options={mainLedgers.length > 0 ? mainLedgers : allLedgerOptions}
+                          placeholder={`Select ${meta.category === "Sales" || meta.category === "Credit Note" ? "Sales" : "Purchase"} Ledger…`}
                           createHref="/dashboard/create/ledger"
                           disabled={readOnly}
                         />

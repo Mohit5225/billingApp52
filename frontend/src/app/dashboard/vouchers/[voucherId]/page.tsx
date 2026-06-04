@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 import { VoucherCategory, VoucherDetail } from "@/interfaces/voucher";
 import { apiRequest } from "@/lib/http";
@@ -24,38 +24,18 @@ export default function VoucherDetailPage() {
   const params = useParams<{ voucherId: string }>();
   const router = useRouter();
   const { activeFirmId, supabase } = useFirmScope();
-  const [voucher, setVoucher] = useState<VoucherDetail | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (!activeFirmId) return;
-
-    let mounted = true;
-    const load = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const voucherData = await apiRequest<VoucherDetail>(supabase, `/api/vouchers/${params.voucherId}`);
-        if (!mounted) return;
-        setVoucher(voucherData);
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : "Unable to load voucher detail");
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-
-    void load();
-    return () => {
-      mounted = false;
-    };
-  }, [activeFirmId, params.voucherId, supabase]);
+  const { data: voucher, isLoading, error } = useQuery({
+    queryKey: ["voucher", activeFirmId, params.voucherId],
+    queryFn: () =>
+      apiRequest<VoucherDetail>(supabase, `/api/vouchers/${params.voucherId}`),
+    enabled: !!activeFirmId,
+  });
 
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error}</div>
+        <div className="rounded-[24px] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700">{error.message}</div>
       </div>
     );
   }

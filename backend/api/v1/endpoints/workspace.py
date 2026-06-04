@@ -2,11 +2,12 @@ from collections import defaultdict
 from datetime import date
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
 from core.supabase import supabase
+from .ledgers import _build_xlsx, _safe_filename_component
 from models.voucher import VoucherCategory
 from models.workspace import DashboardOverview, RegisterRow, StockPositionRow
 
@@ -284,6 +285,35 @@ def _build_stock_rows(target_firm_id: str, search: Optional[str] = None) -> list
     return rows
 
 
+def _build_register_export_rows(book_slug: str, rows: list[dict[str, Any]]) -> list[list[Any]]:
+    title_map = {
+        "sales-register": "Sales Register Export",
+        "purchase-register": "Purchase Register Export",
+        "day-book": "Day Book Export",
+        "cash-book": "Cash Book Export",
+    }
+    heading = title_map.get(book_slug, "Register Export")
+
+    export_rows: list[list[Any]] = [
+        [heading],
+        [],
+        ["Date", "Voucher No", "Category", "Party", "Primary Ledger", "Narration", "Amount"],
+    ]
+
+    for row in rows:
+        export_rows.append([
+            row["voucher_date"],
+            row["voucher_number"],
+            row["category"],
+            row.get("party_name") or "",
+            row.get("primary_ledger_name") or "",
+            row.get("narration") or "",
+            row.get("amount") or 0,
+        ])
+
+    return export_rows
+
+
 @router.get("/overview", response_model=DashboardOverview)
 async def get_overview(
     firm_id: Optional[str] = None,
@@ -405,6 +435,41 @@ async def get_book(
         inventory_lines_by_voucher,
         ledger_name_by_id,
         primary_ledger_filter=primary_ledger_filter,
+    )
+
+
+@router.get("/books/{book_slug}/export")
+async def export_book(
+    book_slug: str,
+    firm_id: Optional[str] = None,
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    jwt: str = Depends(get_verified_jwt),
+) -> Response:
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+
+    rows = await get_book(book_slug, firm_id=target_firm_id, from_date=from_date, to_date=to_date, jwt=jwt)
+    if not isinstance(rows, list):
+        rows = []
+
+    sheet_name = _safe_filename_component(book_slug.replace("-", " ").title())
+    xlsx_bytes = _build_xlsx(sheet_name, _build_register_export_rows(book_slug, rows))
+    filename_bits = [_safe_filename_component(book_slug), "export"]
+    if from_date:
+        filename_bits.append(from_date.isoformat())
+    if to_date:
+        filename_bits.append(to_date.isoformat())
+
+    return Response(
+        content=xlsx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{"_".join(filename_bits)}.xlsx"',
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
     )
 
 
