@@ -117,11 +117,22 @@ def _fetch_ledgers(ledger_ids: list[str]) -> dict[str, dict[str, Any]]:
         return {}
     rows = (
         supabase.table("ledgers")
-        .select("id, name, party_details")
+        .select("id, name, party_details:ledger_party_details(gstin, gst_registration_type)")
         .in_("id", ledger_ids)
         .execute()
     ).data or []
-    return {str(row["id"]): row for row in rows}
+    
+    # Flatten the party_details list to a dict since it's a one-to-one relationship but PostgREST returns a list
+    result = {}
+    for row in rows:
+        p_details = row.get("party_details")
+        if isinstance(p_details, list) and len(p_details) > 0:
+            row["party_details"] = p_details[0]
+        elif isinstance(p_details, list):
+            row["party_details"] = {}
+        result[str(row["id"])] = row
+        
+    return result
 
 
 def _fetch_cash_bank_ledger_ids(target_firm_id: str) -> set[str]:
