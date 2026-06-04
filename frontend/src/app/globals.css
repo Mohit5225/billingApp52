@@ -232,3 +232,52 @@ textarea {
   outline-offset: 2px;
   background-color: rgba(15, 118, 110, 0.05) !important;
 }
+
+/* ── Toast Animations ── */
+@keyframes toast-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -24px, 0) scale(0.95);
+  }
+  70% {
+    opacity: 0.9;
+    transform: translate3d(0, 4px, 0) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes toast-exit {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -20px, 0) scale(0.95);
+  }
+}
+
+@keyframes toast-progress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.animate-toast-enter {
+  animation: toast-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-toast-exit {
+  animation: toast-exit 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-toast-progress {
+  animation: toast-progress 5s linear forwards;
+}
+

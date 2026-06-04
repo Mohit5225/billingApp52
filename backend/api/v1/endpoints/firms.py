@@ -4,7 +4,8 @@ from typing import Any
 from postgrest.exceptions import APIError
 from core.security import get_verified_jwt
 from core.supabase import supabase
-from models.firm import FirmCreate, Firm
+from models.firm import FirmCreate, Firm, FirmUpdate
+from core.helpers import get_profile_context, resolve_target_firm_id
 import uuid
 
 import httpx
@@ -180,3 +181,30 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.put("/{firm_id}", response_model=Firm)
+async def update_firm(firm_id: str, firm_in: FirmUpdate, jwt: str = Depends(get_verified_jwt)) -> Any:
+    """
+    Update firm details.
+    """
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+
+    # Convert the pydantic model to a dict, excluding None/unset values
+    firm_data = firm_in.model_dump(mode="json", exclude_unset=True)
+
+    try:
+        response = supabase.table("firms").update(firm_data).eq("id", target_firm_id).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=400, detail="Failed to update firm")
+            
+        return response.data[0]
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        error_msg = str(e)
+        if "uq_firm_gstin_trim_lower" in error_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A firm with this GSTIN already exists.")
+        if "uq_firm_pan_trim_lower" in error_msg:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A firm with this PAN number already exists.")
+        raise HTTPException(status_code=400, detail=str(e))

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFirmScope } from "../../shared/useFirmScope";
 import { useToast } from "@/context/ToastContext";
+import { apiRequest } from "@/lib/http";
 
 interface FormFields {
   name: string;
@@ -116,9 +117,9 @@ export default function FirmDetailsPage() {
 
     try {
       setIsSaving(true);
-      const { error } = await supabase
-        .from("firms")
-        .update({
+      await apiRequest(`/api/firms/${activeFirmId}`, {
+        method: "PUT",
+        body: {
           name: form.name.trim(),
           mailing_name: form.mailing_name.trim(),
           address_lane1: form.address_lane1.trim(),
@@ -138,15 +139,15 @@ export default function FirmDetailsPage() {
           purchase_prefix: form.purchase_prefix.trim() || null,
           payment_prefix: form.payment_prefix.trim() || null,
           receipt_prefix: form.receipt_prefix.trim() || null,
-        })
-        .eq("id", activeFirmId);
-
-      if (error) throw error;
+        }
+      });
 
       showToast("Firm details updated successfully!", "success");
-      // Invalidate the cache to trigger refetching elsewhere
+      // Invalidate firm data caches so prefix/details refresh everywhere
       void queryClient.invalidateQueries({ queryKey: ["firm-details", activeFirmId] });
       void queryClient.invalidateQueries({ queryKey: ["firm-settings", activeFirmId] });
+      // Invalidate next-voucher-number so new prefixes take effect immediately
+      void queryClient.invalidateQueries({ queryKey: ["next-voucher-number", activeFirmId] });
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to update firm details", "error");
     } finally {

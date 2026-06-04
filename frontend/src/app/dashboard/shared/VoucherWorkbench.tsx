@@ -989,18 +989,19 @@ export function VoucherWorkbench({
             )}
           </div>
           
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col gap-1 w-24">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+            <div className="flex flex-col gap-1 w-full sm:w-auto">
               <label className="text-[15px] font-bold uppercase tracking-wider text-slate-500">No.</label>
               <input
-                className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-[15px] font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                className="h-12 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-200 bg-white px-3 text-[15px] font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                 placeholder="e.g. 1"
+                size={Math.max(14, form.voucher_number.length + 2)}
                 value={form.voucher_number}
                 onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
                 disabled={readOnly}
               />
             </div>
-            <div className="flex flex-col gap-1 w-36">
+            <div className="flex flex-col gap-1 w-full sm:w-40">
               <label className="text-[15px] font-bold uppercase tracking-wider text-slate-500">Date</label>
               <input
                 type="date"

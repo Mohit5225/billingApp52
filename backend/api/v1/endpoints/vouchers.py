@@ -349,7 +349,7 @@ async def get_next_number(
     target_firm_id = resolve_target_firm_id(profile, firm_id)
 
     # 1. Fetch the prefix setting from the firm
-    firm_resp = supabase.table("firms").select("*").eq("id", target_firm_id).single().execute()
+    firm_resp = supabase.table("firms").select("*").eq("id", target_firm_id).maybe_single().execute()
     if not firm_resp.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Firm not found")
     firm = firm_resp.data
@@ -364,17 +364,19 @@ async def get_next_number(
     elif category == VoucherCategory.RECEIPT:
         prefix = firm.get("receipt_prefix") or ""
 
-    # 2. Query existing non-cancelled vouchers for this firm and category
+    # 2. Query existing vouchers for this firm and category
     vouchers_resp = (
         supabase.table("vouchers")
         .select("voucher_number")
         .eq("firm_id", target_firm_id)
-        .eq("category", category)
+        .eq("category", category.value)
         .execute()
     )
     existing_numbers = [v["voucher_number"] for v in vouchers_resp.data or []]
 
-    # 3. Handle cases where the user included the starting number in the prefix
+    # 3. Parse the prefix — the user may include a starting number at the end
+    #    e.g. "SALE/26-27/1" → base_prefix="SALE/26-27/", start_val=1, padding=1
+    #    e.g. "INV-"         → base_prefix="INV-",          start_val=1, padding=1
     match = re.search(r"(\d+)$", prefix)
     if match:
         base_prefix = prefix[:match.start()]
@@ -386,12 +388,22 @@ async def get_next_number(
         start_val = 1
         padding = 1
 
+    # 4. If NO prefix is configured at all, just increment from the highest
+    #    purely-numeric voucher number (ignore non-numeric ones).
+    if not prefix:
+        max_bare = 0
+        for num in existing_numbers:
+            if num.isdigit():
+                max_bare = max(max_bare, int(num))
+        return {"next_number": str(max_bare + 1)}
+
+    # 5. A prefix IS configured — only consider vouchers that already use it.
+    #    This prevents old bare-number vouchers from polluting the counter.
     matching_numbers = [num for num in existing_numbers if num.startswith(base_prefix)]
 
     if not matching_numbers:
-        # If no vouchers exist, use the exact prefix the user configured (if it had a number),
-        # or append '1' if it didn't.
-        return {"next_number": prefix if match else f"{prefix}1"}
+        # No vouchers with this prefix yet — return the configured starting point.
+        return {"next_number": prefix if match else f"{base_prefix}1"}
 
     max_val = start_val - 1
     best_padding = padding

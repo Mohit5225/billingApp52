@@ -34,14 +34,22 @@ export async function apiRequest<T>(
     throw new Error("No active session");
   }
 
-  const response = await fetch(buildUrl(path, options.query), {
-    method: options.method || "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path, options.query), {
+      method: options.method || "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (error) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Network error: Unable to reach the backend server. It may be offline or experiencing issues.");
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -50,10 +58,21 @@ export async function apiRequest<T>(
       const parsed = JSON.parse(text);
       if (parsed && typeof parsed === "object" && "detail" in parsed) {
         message = String(parsed.detail);
+      } else if (parsed && typeof parsed === "object" && "message" in parsed) {
+        message = String(parsed.message);
       }
     } catch {
-      // Keep raw text if not JSON
+      // Keep raw text if not JSON, but prevent dumping large HTML pages
+      if (message.trim().startsWith("<") && message.toLowerCase().includes("html")) {
+        message = `Server returned an unexpected error (Status ${response.status}).`;
+      }
     }
+    
+    // If the message is still very long, truncate it
+    if (message.length > 200) {
+      message = message.substring(0, 200) + "...";
+    }
+
     throw new Error(message || `Request failed with status ${response.status}`);
   }
 
@@ -84,11 +103,19 @@ export async function apiDownload(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(buildUrl(path, options.query), {
-    method: options.method || "GET",
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path, options.query), {
+      method: options.method || "GET",
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    });
+  } catch (error) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Network error: Unable to reach the backend server. It may be offline or experiencing issues.");
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     const text = await response.text();
@@ -97,10 +124,21 @@ export async function apiDownload(
       const parsed = JSON.parse(text);
       if (parsed && typeof parsed === "object" && "detail" in parsed) {
         message = String(parsed.detail);
+      } else if (parsed && typeof parsed === "object" && "message" in parsed) {
+        message = String(parsed.message);
       }
     } catch {
-      // Keep raw text if not JSON
+      // Keep raw text if not JSON, but prevent dumping large HTML pages
+      if (message.trim().startsWith("<") && message.toLowerCase().includes("html")) {
+        message = `Server returned an unexpected error (Status ${response.status}).`;
+      }
     }
+    
+    // If the message is still very long, truncate it
+    if (message.length > 200) {
+      message = message.substring(0, 200) + "...";
+    }
+
     throw new Error(message || `Request failed with status ${response.status}`);
   }
 
