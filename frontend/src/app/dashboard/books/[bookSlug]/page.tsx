@@ -115,18 +115,31 @@ export default function BookDetailPage() {
     }
   }
 
-  async function exportBookExcel() {
+  async function exportBookExcel(isTally: boolean = false) {
     if (!activeFirmId || bookSlug === "ledger") return;
+    
+    // Automatically use Tally format for Sales Register if requested
+    if (bookSlug === "sales-register") {
+      isTally = true;
+    }
+    
     setIsExportingBook(true);
     try {
       const url = new URL(`${getApiBaseUrl()}/api/workspace/books/${bookSlug}/export`);
       url.searchParams.set("firm_id", activeFirmId);
+      if (isTally) {
+        url.searchParams.set("format", "tally");
+      }
       if (fromDate) url.searchParams.set("from_date", fromDate);
       if (toDate) url.searchParams.set("to_date", toDate);
-      const downloadName = `${bookSlug.replace(/[^A-Za-z0-9._-]+/g, "_")}-export.xlsx`;
+      
+      console.log("EXPORTING URL:", url.toString());
+      
+      const downloadName = `${bookSlug.replace(/[^A-Za-z0-9._-]+/g, "_")}-export${isTally ? "-tally" : ""}.xlsx`;
       await downloadXlsx(url.toString(), downloadName);
-      showToast(`${copy.title} exported to Excel`, "success");
+      showToast(`${copy.title} exported to Excel${isTally ? " (Tally Format)" : ""}`, "success");
     } catch (error) {
+      console.error("Export error:", error);
       showToast(error instanceof Error ? error.message : "Unable to export register", "error");
     } finally {
       setIsExportingBook(false);
@@ -137,14 +150,14 @@ export default function BookDetailPage() {
     <div className="space-y-6">
       <PageHero eyebrow="Book Detail" title={copy.title} description={copy.description} />
       {bookSlug !== "ledger" ? (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <button
             type="button"
-            onClick={exportBookExcel}
+            onClick={() => exportBookExcel()}
             disabled={isExportingBook || rows.length === 0}
             className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isExportingBook ? "Exporting..." : "Export Excel"}
+            {isExportingBook ? "Exporting..." : (bookSlug === "sales-register" ? "Export Tally Excel" : "Export Excel")}
           </button>
         </div>
       ) : null}

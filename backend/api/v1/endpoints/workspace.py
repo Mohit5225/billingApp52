@@ -112,6 +112,18 @@ def _fetch_group_name_map() -> dict[str, str]:
     return {str(row["id"]): row["name"] for row in rows}
 
 
+def _fetch_ledgers(ledger_ids: list[str]) -> dict[str, dict[str, Any]]:
+    if not ledger_ids:
+        return {}
+    rows = (
+        supabase.table("ledgers")
+        .select("id, name, party_details")
+        .in_("id", ledger_ids)
+        .execute()
+    ).data or []
+    return {str(row["id"]): row for row in rows}
+
+
 def _fetch_cash_bank_ledger_ids(target_firm_id: str) -> set[str]:
     group_name_by_id = _fetch_group_name_map()
     ledgers = (
@@ -314,6 +326,156 @@ def _build_register_export_rows(book_slug: str, rows: list[dict[str, Any]]) -> l
     return export_rows
 
 
+def _build_tally_export_rows(
+    vouchers: list[dict[str, Any]],
+    accounting_lines_by_voucher: dict[str, list[dict[str, Any]]],
+    inventory_lines_by_voucher: dict[str, list[dict[str, Any]]],
+    ledgers_by_id: dict[str, dict[str, Any]],
+) -> list[list[Any]]:
+    
+    export_rows: list[list[Any]] = [
+        ["Bill No", "Bill Date", "Sales Ledger", "Unit", "Item Description", "HSN Code", 
+         "Accepted Qty", "Rate", "Amount", "Other Charges", "Tax Type", 
+         "Sub Tax Type(IGST/SGST or CGST)", "Tax %", "Tax Amount", "Tax Amount 2", 
+         "Round off", "Net Amount", "Party Name", "Registration Type", "GST No", "Narration"]
+    ]
+
+    for voucher in vouchers:
+        voucher_id = str(voucher["id"])
+        acc_lines = accounting_lines_by_voucher.get(voucher_id, [])
+        inv_lines = inventory_lines_by_voucher.get(voucher_id, [])
+        party_id = str(voucher["party_ledger_id"]) if voucher.get("party_ledger_id") else None
+        
+        party_name = ledgers_by_id.get(party_id, {}).get("name", "") if party_id else ""
+        
+        # Registration type and GST No
+        reg_type = ""
+        gst_no = ""
+        if party_id and ledgers_by_id.get(party_id):
+            party_details = ledgers_by_id[party_id].get("party_details") or {}
+            reg_type = party_details.get("gst_registration_type") or ""
+            gst_no = party_details.get("gstin") or ""
+
+        # Primary Ledger (Sales Ledger)
+        primary_ledger_name = ""
+        other_charges = 0.0
+        round_off = 0.0
+        
+        for line in acc_lines:
+            lid = str(line["ledger_id"])
+            lname = ledgers_by_id.get(lid, {}).get("name", "")
+            
+            if lid == party_id:
+                continue
+                
+            # If not assigned yet, use as primary
+            if not primary_ledger_name and "sales" in lname.lower():
+                primary_ledger_name = lname
+                continue
+                
+            if not primary_ledger_name and "purchase" in lname.lower():
+                primary_ledger_name = lname
+                continue
+
+            if not primary_ledger_name:
+                 primary_ledger_name = lname
+                 continue
+
+            amt = _as_float(line["debit_amount"]) or _as_float(line["credit_amount"])
+            if "round" in lname.lower():
+                if _as_float(line["debit_amount"]) > 0:
+                    round_off -= amt
+                else:
+                    round_off += amt
+            else:
+                other_charges += amt
+        
+        net_amount = _voucher_amount(voucher_id, accounting_lines_by_voucher, inventory_lines_by_voucher)
+        
+        # Format dates as DD-MM-YYYY
+        vdate = ""
+        if voucher.get("voucher_date"):
+             parts = str(voucher["voucher_date"]).split("-")
+             if len(parts) == 3:
+                 vdate = f"{parts[2]}-{parts[1]}-{parts[0]}"
+             else:
+                 vdate = voucher["voucher_date"]
+                 
+        if not inv_lines:
+            # Output single line for accounting only voucher
+            export_rows.append([
+                voucher["voucher_number"],
+                vdate,
+                primary_ledger_name,
+                "", # Unit
+                "", # Item Description
+                "", # HSN
+                "", # Qty
+                "", # Rate
+                "", # Amount
+                round(other_charges, 2) or "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                round(round_off, 2) or "",
+                net_amount,
+                party_name,
+                reg_type,
+                gst_no,
+                voucher.get("narration") or "",
+            ])
+            continue
+            
+        for i, inv in enumerate(inv_lines):
+            tax_type = inv.get("taxability") or ""
+            igst_amt = _as_float(inv.get("igst_amount"))
+            cgst_amt = _as_float(inv.get("cgst_amount"))
+            sgst_amt = _as_float(inv.get("sgst_amount"))
+            
+            sub_tax_type = ""
+            tax_pct = 0.0
+            tax_amt_1 = ""
+            tax_amt_2 = ""
+            
+            if igst_amt > 0:
+                sub_tax_type = "IGST"
+                tax_pct = _as_float(inv.get("igst_rate"))
+                tax_amt_1 = igst_amt
+            elif cgst_amt > 0 or sgst_amt > 0:
+                sub_tax_type = "CGST/SGST"
+                tax_pct = _as_float(inv.get("cgst_rate")) + _as_float(inv.get("sgst_rate"))
+                tax_amt_1 = cgst_amt
+                tax_amt_2 = sgst_amt
+                
+            export_rows.append([
+                voucher["voucher_number"],
+                vdate,
+                primary_ledger_name,
+                inv.get("uom") or "",
+                inv.get("item_name") or "",
+                inv.get("hsn_code") or "",
+                inv.get("quantity") or 0,
+                inv.get("unit_price") or 0,
+                inv.get("taxable_amount") or 0,
+                round(other_charges, 2) if i == 0 else "",
+                tax_type,
+                sub_tax_type,
+                tax_pct or "",
+                tax_amt_1,
+                tax_amt_2,
+                round(round_off, 2) if i == 0 else "",
+                net_amount if i == 0 else "",
+                party_name,
+                reg_type,
+                gst_no,
+                voucher.get("narration") or "",
+            ])
+
+    return export_rows
+
+
 @router.get("/overview", response_model=DashboardOverview)
 async def get_overview(
     firm_id: Optional[str] = None,
@@ -444,18 +606,67 @@ async def export_book(
     firm_id: Optional[str] = None,
     from_date: Optional[date] = Query(default=None),
     to_date: Optional[date] = Query(default=None),
+    format: Optional[str] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Response:
     profile = get_profile_context(jwt)
     target_firm_id = resolve_target_firm_id(profile, firm_id)
+    
+    print(f"EXPORT REQUEST RECEIVED: book_slug={book_slug}, format={format}")
 
-    rows = await get_book(book_slug, firm_id=target_firm_id, from_date=from_date, to_date=to_date, jwt=jwt)
-    if not isinstance(rows, list):
-        rows = []
+    if format == "tally":
+        category_filters = None
+        primary_ledger_filter = None
+        
+        if book_slug == "sales-register":
+            category_filters = [VoucherCategory.SALES.value]
+        elif book_slug == "purchase-register":
+            category_filters = [VoucherCategory.PURCHASE.value]
+        elif book_slug == "cash-book":
+            primary_ledger_filter = _fetch_cash_bank_ledger_ids(target_firm_id)
+            
+        vouchers = _fetch_vouchers(
+            target_firm_id,
+            categories=category_filters,
+            from_date=from_date,
+            to_date=to_date,
+        )
+        voucher_ids = [str(voucher["id"]) for voucher in vouchers]
+        accounting_lines_by_voucher = _fetch_accounting_lines(voucher_ids)
+        inventory_lines_by_voucher = _fetch_inventory_lines(voucher_ids)
+        
+        if book_slug == "cash-book" and primary_ledger_filter is not None:
+            vouchers = [
+                voucher
+                for voucher in vouchers
+                if any(
+                    str(line["ledger_id"]) in primary_ledger_filter
+                    for line in accounting_lines_by_voucher.get(str(voucher["id"]), [])
+                )
+            ]
+            
+        ledger_ids = {str(line["ledger_id"]) for lines in accounting_lines_by_voucher.values() for line in lines}
+        party_ids = {str(voucher["party_ledger_id"]) for voucher in vouchers if voucher.get("party_ledger_id")}
+        ledgers_by_id = _fetch_ledgers(list(ledger_ids | party_ids))
+        
+        export_rows = _build_tally_export_rows(
+            vouchers,
+            accounting_lines_by_voucher,
+            inventory_lines_by_voucher,
+            ledgers_by_id,
+        )
+    else:
+        rows = await get_book(book_slug, firm_id=target_firm_id, from_date=from_date, to_date=to_date, jwt=jwt)
+        if not isinstance(rows, list):
+            rows = []
+        export_rows = _build_register_export_rows(book_slug, rows)
 
     sheet_name = _safe_filename_component(book_slug.replace("-", " ").title())
-    xlsx_bytes = _build_xlsx(sheet_name, _build_register_export_rows(book_slug, rows))
+    xlsx_bytes = _build_xlsx(sheet_name, export_rows)
+    
     filename_bits = [_safe_filename_component(book_slug), "export"]
+    if format == "tally":
+        filename_bits.append("tally")
     if from_date:
         filename_bits.append(from_date.isoformat())
     if to_date:
