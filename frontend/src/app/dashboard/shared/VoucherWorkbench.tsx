@@ -975,7 +975,7 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden lg:overflow-visible">
+    <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden lg:overflow-visible">
       {/* ── Voucher Command Ribbon ── */}
       <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-4">
         {/* Left Side: Title and Inputs */}

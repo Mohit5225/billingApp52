@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any
+# pyrefly: ignore [missing-import]
 from postgrest.exceptions import APIError
 from core.security import get_verified_jwt
 from core.supabase import supabase
