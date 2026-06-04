@@ -16,7 +16,7 @@ export default function DashboardLoading() {
   };
 
   return (
-    <div className="flex min-h-[50vh] w-full items-center justify-center">
+    <div className="flex flex-1 min-h-[50vh] w-full items-center justify-center">
       <div className="flex flex-col items-center gap-6">
         {/* Orbital glowing loader */}
         <div className="relative flex items-center justify-center w-24 h-24">
