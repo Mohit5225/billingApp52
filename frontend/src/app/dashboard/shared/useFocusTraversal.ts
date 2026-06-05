@@ -61,10 +61,24 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
     const activeElement = originElement || (document.activeElement as HTMLElement);
     
     if (!activeElement || !focusable.includes(activeElement)) {
-      // If we are focused on something outside our managed list (e.g., a skipped button),
-      // we could try to find the next logical element based on DOM order, 
-      // but strictly following the list from the active element is safest.
       return;
+    }
+
+    if (activeElement.hasAttribute("data-mandatory")) {
+      let isEmpty = false;
+      if (activeElement.hasAttribute("data-empty")) {
+        isEmpty = activeElement.getAttribute("data-empty") === "true";
+      } else if (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA") {
+        isEmpty = (activeElement as HTMLInputElement).value.trim() === "";
+      }
+      if (isEmpty) {
+        // Visual feedback
+        activeElement.classList.remove("animate-shake");
+        void activeElement.offsetWidth;
+        activeElement.classList.add("animate-shake");
+        // Block moving forward
+        return;
+      }
     }
 
     const currentIndex = focusable.indexOf(activeElement);
@@ -231,7 +245,8 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
         // Tally Escaping: If Enter on empty Item field, break out of grid to Narration
         if (activeElement.hasAttribute("data-item-field")) {
           const inputEl = activeElement as HTMLInputElement;
-          if (inputEl.value.trim() === "") {
+          const isEmpty = activeElement.getAttribute("data-empty") === "true" || inputEl.value.trim() === "";
+          if (isEmpty) {
             const escapeTarget = container.querySelector("[data-escape-target=\"true\"]") as HTMLElement;
             if (escapeTarget) {
               e.preventDefault();

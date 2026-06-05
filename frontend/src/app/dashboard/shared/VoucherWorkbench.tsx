@@ -265,7 +265,7 @@ function InputField({
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-1">
       {label && (
-        <label className="mb-0.5 text-[15px] font-semibold uppercase tracking-wider text-slate-500 sm:mb-0 sm:w-1/3">
+        <label className="mb-0.5 text-base font-semibold uppercase tracking-wider text-slate-500 sm:mb-0 sm:w-1/3">
           {label}
         </label>
       )}
@@ -276,7 +276,7 @@ function InputField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-11 sm:h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-[15px] text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-12 sm:h-12 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );
@@ -975,15 +975,15 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden lg:overflow-visible">
+    <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-y-auto">
       {/* ── Voucher Command Ribbon ── */}
       <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-4">
         {/* Left Side: Title and Inputs */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 w-full sm:w-auto">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap">{meta.title}</h1>
+            <h1 className="text-[15px]l sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap">{meta.title}</h1>
             {isEditing && (
-              <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-[15px] font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/20">
+              <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-base font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/20">
                 Editing
               </span>
             )}
@@ -991,26 +991,28 @@ export function VoucherWorkbench({
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
             <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-[15px] font-bold uppercase tracking-wider text-slate-500">No.</label>
+              <label className="text-base font-bold uppercase tracking-wider text-slate-500">No.</label>
               <input
-                className="h-12 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-200 bg-white px-3 text-[15px] font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                className="h-12 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                 placeholder="e.g. 1"
                 size={Math.max(14, form.voucher_number.length + 2)}
                 value={form.voucher_number}
                 onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
                 disabled={readOnly}
+                data-mandatory="true"
               />
             </div>
             <div className="flex flex-col gap-1 w-full sm:w-40">
-              <label className="text-[15px] font-bold uppercase tracking-wider text-slate-500">Date</label>
+              <label className="text-base font-bold uppercase tracking-wider text-slate-500">Date</label>
               <input
                 type="date"
-                className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-[15px] font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                 value={form.voucher_date}
                 min={globalFromDate}
                 max={globalToDate}
                 onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
                 disabled={readOnly}
+                data-mandatory="true"
               />
             </div>
           </div>
@@ -1021,7 +1023,7 @@ export function VoucherWorkbench({
           <Link
             href="/dashboard"
             data-skip-enter="true"
-            className="hidden sm:flex h-12 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-[15px] font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+            className="hidden sm:flex h-12 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
@@ -1046,7 +1048,7 @@ export function VoucherWorkbench({
         <div className="flex-1 flex flex-col min-h-0 bg-white">
           {/* Account Bar (Tally style) */}
           <div className="shrink-0 border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 bg-sky-50/50">
-            <label className="w-16 sm:w-20 text-[15px] font-semibold text-slate-700">Account</label>
+            <label className="w-16 sm:w-20 text-base font-semibold text-slate-700">Account</label>
             <div className="w-full max-w-md">
               <ComboboxField
                 inline
@@ -1062,7 +1064,7 @@ export function VoucherWorkbench({
           
           {/* Particulars Table */}
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-200 px-6 py-2.5 text-[15px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+            <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-200 px-6 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
               <div>Particulars</div>
               <div className="text-right">Amount</div>
             </div>
@@ -1079,7 +1081,7 @@ export function VoucherWorkbench({
                     disabled={readOnly}
                   />
                   {selectedPartyLedger && (
-                    <div className="mt-1.5 text-[15px] text-slate-500 italic flex gap-2 ml-1">
+                    <div className="mt-1.5 text-base text-slate-500 italic flex gap-2 ml-1">
                       <span>Cur Bal:</span> 
                       <span>0.00 Cr</span>
                     </div>
@@ -1087,7 +1089,7 @@ export function VoucherWorkbench({
                 </div>
                 <div>
                   <input
-                    className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-[15px] font-semibold text-slate-900 text-right outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                    className="h-12 w-full rounded-md border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 text-right outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                     type="number"
                     step="0.01"
                     value={form.amount}
@@ -1106,7 +1108,7 @@ export function VoucherWorkbench({
             {/* Card 1: Bill To / Party / Primary Ledger */}
             {(meta.family === "invoice" || meta.family === "contra") && (
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="mb-4 text-[15px] font-bold uppercase tracking-wider text-slate-500">
+                <h3 className="mb-4 text-base font-bold uppercase tracking-wider text-slate-500">
                   {meta.family === "contra" ? "Transfer Details" : "Bill To"}
                 </h3>
                 
@@ -1119,7 +1121,7 @@ export function VoucherWorkbench({
                   ) : (
                     <>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[15px] font-semibold text-slate-600">Party Name <span className="text-rose-500">*</span></label>
+                        <label className="text-base font-semibold text-slate-600">Party Name <span className="text-rose-500">*</span></label>
                         <ComboboxField
                           inline
                           value={form.party_ledger_id}
@@ -1128,10 +1130,11 @@ export function VoucherWorkbench({
                           placeholder="Select Party…"
                           createHref="/dashboard/create/ledger"
                           disabled={readOnly}
+                          mandatory={true}
                         />
                       </div>
                       <div className="flex flex-col gap-1.5 mt-2">
-                        <label className="text-[15px] font-semibold text-slate-600">
+                        <label className="text-base font-semibold text-slate-600">
                           {meta.category === "Sales" || meta.category === "Credit Note" ? "Sales Ledger" : "Purchase Ledger"} <span className="text-rose-500">*</span>
                         </label>
                         <ComboboxField
@@ -1142,11 +1145,12 @@ export function VoucherWorkbench({
                           placeholder={`Select ${meta.category === "Sales" || meta.category === "Credit Note" ? "Sales" : "Purchase"} Ledger…`}
                           createHref="/dashboard/create/ledger"
                           disabled={readOnly}
+                          mandatory={true}
                         />
                       </div>
                       
                       {selectedPartyLedger?.party_details && (
-                        <div className="mt-2 flex flex-col gap-2.5 rounded-lg border border-slate-100 bg-slate-50/80 p-3.5 text-[15px] text-slate-600">
+                        <div className="mt-2 flex flex-col gap-2.5 rounded-lg border border-slate-100 bg-slate-50/80 p-3.5 text-base text-slate-600">
                           {selectedPartyLedger.party_details.address && (
                             <div className="flex items-start gap-2.5">
                               <svg className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1183,15 +1187,15 @@ export function VoucherWorkbench({
             {/* Card 2: Additional Details / Cash-Bank / Amount */}
             {(meta.family === "invoice" || meta.family === "contra") && (
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="mb-4 text-[15px] font-bold uppercase tracking-wider text-slate-500">
+                <h3 className="mb-4 text-base font-bold uppercase tracking-wider text-slate-500">
                   {meta.family === "invoice" ? "Voucher Details" : "Transaction Details"}
                 </h3>
                 <div className="space-y-4">
                   {meta.family === "contra" ? (
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[15px] font-semibold text-slate-600">Amount <span className="text-rose-500">*</span></label>
+                      <label className="text-base font-semibold text-slate-600">Amount <span className="text-rose-500">*</span></label>
                       <input
-                        className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-[15px] font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                        className="h-12 w-full rounded-md border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                         type="number"
                         step="0.01"
                         value={form.amount}
@@ -1206,16 +1210,16 @@ export function VoucherWorkbench({
                     <div className="grid grid-cols-2 gap-4">
                       {/* Place of Supply (just a visual representation of State for now) */}
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[15px] font-semibold text-slate-600">Place of Supply</label>
-                        <div className="flex h-11 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-[15px] text-slate-600">
+                        <label className="text-base font-semibold text-slate-600">Place of Supply</label>
+                        <div className="flex h-12 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-base text-slate-600">
                           {selectedPartyLedger?.party_details?.state || "—"}
                         </div>
                       </div>
                       
                       {/* Tax Mode (derived) */}
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-[15px] font-semibold text-slate-600">Tax Mode</label>
-                        <div className="flex h-11 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-[15px] text-slate-600 capitalize">
+                        <label className="text-base font-semibold text-slate-600">Tax Mode</label>
+                        <div className="flex h-12 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-base text-slate-600 capitalize">
                           {taxMode === "intra" ? "Intra-State" : "Inter-State"}
                         </div>
                       </div>
@@ -1230,34 +1234,35 @@ export function VoucherWorkbench({
 
       {/* ── Zone C: Items Table ── */}
       {meta.family === "invoice" ? (
-        <div className="border-b border-slate-100 bg-white flex-1 min-h-0 overflow-y-auto" ref={itemsScrollRef}>
-          {/* Sticky table header */}
-          <div
-            className="sticky top-0 z-10 hidden grid-cols-[40px_3fr_1fr_1fr_1fr_1fr_1.5fr_auto] gap-2 border-b border-slate-200 px-6 py-2.5 text-[15px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
-          >
-            <div className="text-center">#</div>
-            <div>Name of Item</div>
-            <div>HSN/SAC</div>
-            <div>Qty</div>
-            <div>Rate</div>
-            <div>Discount</div>
-            <div className="text-right">Amount</div>
-            <div className="w-10" />
-          </div>
-          <div className="divide-y divide-slate-100">
-            {invoiceLines.map((line, index) => (
-              <div
-                key={index}
-                className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[40px_3fr_1fr_1fr_1fr_1fr_1.5fr_auto] md:items-center md:gap-2 md:p-5 md:py-2.5"
-                style={{ ['--tw-bg-opacity' as string]: '1' }}
+        <div className="border-b border-slate-100 bg-white flex-1 min-h-[250px] overflow-y-auto overflow-x-auto custom-scrollbar" ref={itemsScrollRef}>
+          <div className="min-w-full md:min-w-[1000px]">
+            {/* Sticky table header */}
+            <div
+              className="sticky top-0 z-10 hidden grid-cols-[40px_3fr_1fr_1fr_1fr_1fr_1.5fr_40px] gap-2 border-b border-slate-200 px-4 md:px-5 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
+            >
+              <div className="text-center">#</div>
+              <div>Name of Item</div>
+              <div>HSN/SAC</div>
+              <div>Qty</div>
+              <div>Rate</div>
+              <div>Discount</div>
+              <div className="text-right">Amount</div>
+              <div className="w-10" />
+            </div>
+            <div className="divide-y divide-slate-100">
+              {invoiceLines.map((line, index) => (
+                <div
+                  key={index}
+                  className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[40px_3fr_1fr_1fr_1fr_1fr_1.5fr_40px] md:items-center md:gap-2 md:p-5 md:py-2.5"
+                  style={{ ['--tw-bg-opacity' as string]: '1' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
               >
-                <div className="hidden md:flex h-11 items-center justify-center text-[15px] font-medium text-slate-400">
+                <div className="hidden md:flex h-12 items-center justify-center text-base font-medium text-slate-400">
                   {index + 1}
                 </div>
                 <div className="col-span-2 md:col-span-1 flex flex-col md:block">
-                  <span className="mb-1 text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Item {index + 1}</span>
+                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Item {index + 1}</span>
                   <ComboboxField
                     inline
                     value={line.item_id}
@@ -1266,61 +1271,64 @@ export function VoucherWorkbench({
                     placeholder="Type to search item…"
                     disabled={readOnly}
                     dataItemField={true}
+                    mandatory={true}
                   />
                 </div>
                 <div className="flex flex-col md:block">
-                  <span className="mb-1 text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">HSN/SAC</span>
-                  <div className="mono-num flex h-11 md:h-11 w-full items-center px-2 text-[15px] text-slate-500 opacity-80">
+                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">HSN/SAC</span>
+                  <div className="mono-num flex h-12 md:h-12 w-full items-center px-2 text-base text-slate-500 opacity-80">
                     {items.find((i) => i.id === line.item_id)?.hsn_code || "—"}
                   </div>
                 </div>
                 <div className="flex flex-col md:block">
-                  <span className="mb-1 text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Qty</span>
+                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Qty</span>
                   <input
-                    disabled={readOnly || !line.item_id}
+                    disabled={readOnly}
                     type="number"
                     step="0.01"
                     value={line.quantity || ""}
                     onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })}
                     placeholder="0"
-                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-[15px] text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-11"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                    data-mandatory="true"
                   />
                 </div>
                 <div className="flex flex-col md:block">
-                  <span className="mb-1 text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Rate</span>
+                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Rate</span>
                   <input
-                    disabled={readOnly || !line.item_id}
+                    disabled={readOnly}
                     type="number"
                     step="0.01"
                     value={line.unit_price || ""}
                     onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })}
                     placeholder="0.00"
-                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-[15px] text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-11"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                    data-mandatory="true"
                   />
                 </div>
                 <div className="flex flex-col md:block">
-                  <span className="mb-1 text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Discount</span>
+                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Discount</span>
                   <input
-                    disabled={readOnly || !line.item_id}
+                    disabled={readOnly}
                     type="number"
                     step="0.01"
                     value={line.discount_amount || ""}
                     onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
                     placeholder="0.00"
-                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-[15px] text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-11"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                   />
                 </div>
                 <div className="flex items-center justify-between md:justify-end md:pr-1">
-                  <span className="text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Amount</span>
+                  <span className="text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Amount</span>
                   <span className="mono-num font-semibold text-slate-900">{formatCurrency(line.taxable_amount)}</span>
                 </div>
-                <div className="col-span-2 md:col-span-1 flex justify-end">
+                <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
                   {!readOnly && (
                     <button
                       data-skip-enter="true"
                       onClick={() => setInvoiceLines((prev) => prev.filter((_, i) => i !== index))}
                       title="Remove line"
-                      className="flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                      className="flex h-12 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
                     >
                       <svg className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1336,7 +1344,7 @@ export function VoucherWorkbench({
               <button
                 data-skip-enter="true"
                 onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[15px] font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-base font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -1345,29 +1353,31 @@ export function VoucherWorkbench({
               </button>
             )}
           </div>
+          </div>
         </div>
       ) : null}
 
       {meta.family === "journal" ? (
-        <div className="border-b border-slate-100 bg-white flex-1 min-h-0 overflow-y-auto" ref={itemsScrollRef}>
-          <div
-            className="sticky top-0 z-10 hidden grid-cols-[2fr_1fr_1fr_auto] gap-4 border-b border-slate-200 px-6 py-2.5 text-[15px] font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
-          >
-            <div>Ledger</div>
-            <div>Debit (Dr)</div>
-            <div>Credit (Cr)</div>
-            <div className="w-10" />
-          </div>
-          <div className="divide-y divide-slate-100">
-            {journalLines.map((line, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[2fr_1fr_1fr_auto] md:items-center md:gap-4 md:p-5 md:py-2.5"
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
+        <div className="border-b border-slate-100 bg-white flex-1 min-h-[250px] overflow-y-auto overflow-x-auto custom-scrollbar" ref={itemsScrollRef}>
+          <div className="min-w-full md:min-w-[800px]">
+            <div
+              className="sticky top-0 z-10 hidden grid-cols-[2fr_1fr_1fr_40px] gap-4 border-b border-slate-200 px-4 md:px-5 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
+            >
+              <div>Ledger</div>
+              <div>Debit (Dr)</div>
+              <div>Credit (Cr)</div>
+              <div className="w-10" />
+            </div>
+            <div className="divide-y divide-slate-100">
+              {journalLines.map((line, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[2fr_1fr_1fr_40px] md:items-center md:gap-4 md:p-5 md:py-2.5"
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
               >
                 <div className="col-span-2 md:col-span-1 flex flex-col md:block">
-                  <span className="mb-1 text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Ledger</span>
+                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Ledger</span>
                   <ComboboxField
                     inline
                     value={line.ledger_id}
@@ -1388,7 +1398,7 @@ export function VoucherWorkbench({
                   />
                 </div>
                 <div className="flex flex-col md:block">
-                  <span className="mb-1 text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Debit</span>
+                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Debit</span>
                   <input
                     disabled={readOnly || !line.ledger_id}
                     type="number"
@@ -1396,11 +1406,11 @@ export function VoucherWorkbench({
                     value={line.debit_amount || ""}
                     onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, debit_amount: Number(e.target.value), credit_amount: 0 } : entry))}
                     placeholder="0.00"
-                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-[15px] font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-11"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                   />
                 </div>
                 <div className="flex flex-col md:block">
-                  <span className="mb-1 text-[15px] font-semibold uppercase tracking-wider text-slate-500 md:hidden">Credit</span>
+                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Credit</span>
                   <input
                     disabled={readOnly || !line.ledger_id}
                     type="number"
@@ -1408,16 +1418,16 @@ export function VoucherWorkbench({
                     value={line.credit_amount || ""}
                     onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, credit_amount: Number(e.target.value), debit_amount: 0 } : entry))}
                     placeholder="0.00"
-                    className="mono-num h-11 w-full rounded-lg border border-transparent bg-transparent px-2 text-[15px] font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-11"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                   />
                 </div>
-                <div className="col-span-2 md:col-span-1 flex justify-end">
+                <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
                   {!readOnly && (
                     <button
                       data-skip-enter="true"
                       onClick={() => setJournalLines((prev) => prev.filter((_, entryIndex) => entryIndex !== index))}
                       title="Remove line"
-                      className="flex h-11 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                      className="flex h-12 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
                     >
                       <svg className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1433,7 +1443,7 @@ export function VoucherWorkbench({
               <button
                 data-skip-enter="true"
                 onClick={() => setJournalLines((prev) => [...prev, { ...EMPTY_JOURNAL_LINE }])}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[15px] font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-base font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -1442,18 +1452,19 @@ export function VoucherWorkbench({
               </button>
             )}
           </div>
+          </div>
         </div>
       ) : null}
 
       {/* ── Zone D: Narration + Totals ── */}
-      <div className="shrink-0 mt-auto flex flex-col-reverse border-b border-slate-100 bg-white md:grid md:grid-cols-2 md:items-start">
+      <div className="shrink-0 mt-auto flex flex-col-reverse border-b border-slate-100 bg-white sm:grid sm:grid-cols-2 sm:items-start">
         {/* Narration */}
-        <div className="border-t border-slate-100 p-5 md:border-r md:border-t-0 sm:p-6">
-          <label className="mb-2 block text-[15px] font-semibold uppercase tracking-wider text-slate-500">Narration</label>
+        <div className="border-t border-slate-100 p-5 sm:border-r sm:border-t-0 sm:p-6">
+          <label className="mb-2 block text-base font-semibold uppercase tracking-wider text-slate-500">Narration</label>
           <textarea
             data-escape-target="true"
             disabled={readOnly}
-            className="min-h-[120px] w-full rounded-lg border border-slate-200 bg-white/80 p-3 text-[15px] text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
+            className="min-h-[120px] w-full rounded-lg border border-slate-200 bg-white/80 p-3 text-base text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
             placeholder="Enter narration for this voucher…"
             value={form.narration}
             onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))}
@@ -1464,37 +1475,37 @@ export function VoucherWorkbench({
         <div className="p-5 sm:p-6">
           {meta.family === "invoice" ? (
             <div
-              className="ml-auto w-full overflow-hidden rounded-xl shadow-lg md:max-w-md"
+              className="ml-auto w-full overflow-hidden rounded-xl shadow-lg sm:max-w-md"
               style={{ background: "var(--voucher-zone-totals-bg)" }}
             >
               {/* Line items */}
               <div className="space-y-0 divide-y divide-white/8 px-5 pt-4 pb-3">
                 <div className="flex items-center justify-between py-2">
-                  <span className="text-[13px] text-white/65">Taxable Amount</span>
-                  <span className="mono-num text-[13px] font-medium text-white/80">{formatCurrency(invoiceTotals.taxable)}</span>
+                  <span className="text-[15px] text-white/65">Taxable Amount</span>
+                  <span className="mono-num text-[15px] font-medium text-white/80">{formatCurrency(invoiceTotals.taxable)}</span>
                 </div>
                 {taxMode === "inter" && invoiceTotals.igst > 0 && (
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-[13px] text-white/65">IGST</span>
-                    <span className="mono-num text-[13px] text-white/80">{formatCurrency(invoiceTotals.igst)}</span>
+                    <span className="text-[15px] text-white/65">IGST</span>
+                    <span className="mono-num text-[15px] text-white/80">{formatCurrency(invoiceTotals.igst)}</span>
                   </div>
                 )}
                 {taxMode === "intra" && (invoiceTotals.cgst > 0 || invoiceTotals.sgst > 0) && (
                   <>
                     <div className="flex items-center justify-between py-2">
-                      <span className="text-[13px] text-white/65">CGST</span>
-                      <span className="mono-num text-[13px] text-white/80">{formatCurrency(invoiceTotals.cgst)}</span>
+                      <span className="text-[15px] text-white/65">CGST</span>
+                      <span className="mono-num text-[15px] text-white/80">{formatCurrency(invoiceTotals.cgst)}</span>
                     </div>
                     <div className="flex items-center justify-between py-2">
-                      <span className="text-[13px] text-white/65">SGST</span>
-                      <span className="mono-num text-[13px] text-white/80">{formatCurrency(invoiceTotals.sgst)}</span>
+                      <span className="text-[15px] text-white/65">SGST</span>
+                      <span className="mono-num text-[15px] text-white/80">{formatCurrency(invoiceTotals.sgst)}</span>
                     </div>
                   </>
                 )}
                 {invoiceTotals.cess > 0 && (
                   <div className="flex items-center justify-between py-2">
-                    <span className="text-[13px] text-white/65">Cess</span>
-                    <span className="mono-num text-[13px] text-white/80">{formatCurrency(invoiceTotals.cess)}</span>
+                    <span className="text-[15px] text-white/65">Cess</span>
+                    <span className="mono-num text-[15px] text-white/80">{formatCurrency(invoiceTotals.cess)}</span>
                   </div>
                 )}
               </div>
@@ -1503,13 +1514,13 @@ export function VoucherWorkbench({
                 className="flex items-center justify-between px-5 py-4"
                 style={{ background: "var(--voucher-zone-totals-row)" }}
               >
-                <span className="text-[14px] font-bold uppercase tracking-wider text-white/90">Grand Total</span>
-                <span className="mono-num text-xl font-bold text-white">{formatCurrency(invoiceTotals.grandTotal)}</span>
+                <span className="text-base font-bold uppercase tracking-wider text-white/90">Grand Total</span>
+                <span className="mono-num text-[15px]l font-bold text-white">{formatCurrency(invoiceTotals.grandTotal)}</span>
               </div>
             </div>
           ) : (
             <div className="flex h-full items-end justify-end">
-              <p className="text-[15px] text-slate-400">Total impact will be computed from accounting lines.</p>
+              <p className="text-base text-slate-400">Total impact will be computed from accounting lines.</p>
             </div>
           )}
         </div>
@@ -1521,7 +1532,7 @@ export function VoucherWorkbench({
         style={{ background: "var(--voucher-zone-ledger)" }}
       >
         {/* Mobile cancel */}
-        <Link href="/dashboard/create" data-skip-enter="true" className="text-[15px] font-medium text-slate-600 hover:text-slate-900 sm:hidden">
+        <Link href="/dashboard/create" data-skip-enter="true" className="text-base font-medium text-slate-600 hover:text-slate-900 sm:hidden">
           Cancel
         </Link>
         <div className="hidden sm:block" />
@@ -1530,7 +1541,7 @@ export function VoucherWorkbench({
             <button
               data-skip-enter="true"
               onClick={() => setShowPreview(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white p-3 sm:px-4 sm:py-2.5 text-[15px] font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white p-3 sm:px-4 sm:py-2.5 text-base font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
               title="Preview Invoice"
             >
               <svg className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1543,7 +1554,7 @@ export function VoucherWorkbench({
           <button
             data-skip-enter="true"
             onClick={() => router.back()}
-            className="hidden rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-[15px] font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow sm:block"
+            className="hidden rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-base font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow sm:block"
           >
             Cancel
           </button>
@@ -1552,7 +1563,7 @@ export function VoucherWorkbench({
               data-entry-action="true"
               disabled={isSubmitting || isLoading}
               onClick={() => void submit()}
-              className="group relative flex items-center gap-3 overflow-hidden rounded-xl bg-tally-700 px-7 py-3 text-[15px] font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tally-600 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"
+              className="group relative flex items-center gap-3 overflow-hidden rounded-xl bg-tally-700 px-7 py-3 text-base font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tally-600 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2">
@@ -1565,7 +1576,7 @@ export function VoucherWorkbench({
               ) : (
                 <span className="flex items-center gap-3">
                   {isEditing ? "Update Voucher" : "Save Voucher"}
-                  <kbd className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-[15px] font-normal tracking-wider text-white/55 ring-1 ring-white/15">
+                  <kbd className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-base font-normal tracking-wider text-white/55 ring-1 ring-white/15">
                     ⌘S
                   </kbd>
                 </span>
@@ -1574,7 +1585,7 @@ export function VoucherWorkbench({
           ) : (
             <Link
               href={`/dashboard/vouchers/${voucherId}/edit`}
-              className="flex items-center gap-2 rounded-xl bg-tally-700 px-7 py-3 text-[15px] font-semibold text-white shadow-md transition-all hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg"
+              className="flex items-center gap-2 rounded-xl bg-tally-700 px-7 py-3 text-base font-semibold text-white shadow-md transition-all hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg"
             >
               Edit Voucher
             </Link>
@@ -1643,7 +1654,7 @@ function InvoicePreviewOverlay({
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
         <div className="rounded-2xl bg-white p-8 text-center shadow-xl">
           <p className="text-slate-600">Unable to generate preview. Make sure a firm is selected.</p>
-          <button onClick={onClose} className="mt-4 rounded-lg bg-slate-100 px-4 py-2 text-[15px] font-medium text-slate-700 hover:bg-slate-200">
+          <button onClick={onClose} className="mt-4 rounded-lg bg-slate-100 px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-200">
             Close
           </button>
         </div>
@@ -1721,7 +1732,7 @@ function InvoicePreviewOverlay({
         <div className="flex items-center gap-2 sm:gap-4">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-2 text-[15px] font-semibold text-white transition hover:bg-white/20 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-4 sm:py-2.5 sm:text-[15px]"
+            className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-2 text-base font-semibold text-white transition hover:bg-white/20 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-4 sm:py-2.5 sm:text-base"
           >
             <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -1729,14 +1740,14 @@ function InvoicePreviewOverlay({
             <span><span className="hidden sm:inline">Back to </span>Edit</span>
           </button>
           <div className="h-5 w-px bg-white/20 hidden sm:block" />
-          <h2 className="hidden text-[15px] font-semibold text-white sm:block">
+          <h2 className="hidden text-base font-semibold text-white sm:block">
             Invoice Preview
           </h2>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-2 text-[15px] font-semibold text-white transition hover:bg-white/20 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-4 sm:py-2.5 sm:text-[15px]"
+            className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-2 text-base font-semibold text-white transition hover:bg-white/20 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-4 sm:py-2.5 sm:text-base"
           >
             <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -1745,7 +1756,7 @@ function InvoicePreviewOverlay({
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg bg-tally-600 px-3 py-2 text-[15px] font-semibold text-white shadow-md transition hover:bg-tally-500 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-6 sm:py-2.5 sm:text-[15px]"
+            className="flex items-center gap-1.5 rounded-lg bg-tally-600 px-3 py-2 text-base font-semibold text-white shadow-md transition hover:bg-tally-500 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-6 sm:py-2.5 sm:text-base"
           >
             <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />

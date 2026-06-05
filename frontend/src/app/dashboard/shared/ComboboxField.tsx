@@ -21,9 +21,10 @@ type Props = {
   createHref?: string;
   disabled?: boolean;
   dataItemField?: boolean;
+  mandatory?: boolean;
 };
 
-export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, disabled, dataItemField }: Props) {
+export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, disabled, dataItemField, mandatory }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
@@ -144,7 +145,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
   }
 
   const inputClasses =
-    "h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-[15px] font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15]";
+    "h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-base font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15]";
 
   if (inline) {
     return (
@@ -163,6 +164,8 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             onKeyDown={handleKeyDown}
             disabled={disabled}
             data-item-field={dataItemField ? "true" : undefined}
+            data-mandatory={mandatory ? "true" : undefined}
+            data-empty={!value ? "true" : undefined}
           />
           {open && filtered.length > 0 && !disabled && (
             <Dropdown listRef={listRef} filtered={filtered} highlighted={highlighted} onSelect={handleSelect} onHighlight={setHighlighted} />
@@ -207,6 +210,8 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             onKeyDown={handleKeyDown}
             disabled={disabled}
             data-item-field={dataItemField ? "true" : undefined}
+            data-mandatory={mandatory ? "true" : undefined}
+            data-empty={!value ? "true" : undefined}
           />
           {open && filtered.length > 0 && !disabled && (
             <Dropdown listRef={listRef} filtered={filtered} highlighted={highlighted} onSelect={handleSelect} onHighlight={setHighlighted} />

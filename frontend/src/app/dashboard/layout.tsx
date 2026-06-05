@@ -111,7 +111,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         <div className="min-h-screen bg-canvas">
           <Sidebar />
 
-          <div className="min-h-screen lg:pl-[288px]">
+          <div className="min-h-screen lg:pl-[320px]">
             {!isVoucherScreen && (
               <Suspense
                 fallback={<div className="h-[88px] border-b border-white/60 bg-white/70 backdrop-blur-xl" />}

@@ -109,7 +109,7 @@ export default function Sidebar() {
   const isActive = (href?: string) => Boolean(href && (pathname === href || pathname.startsWith(`${href}/`)));
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[288px] border-r border-white/10 bg-[linear-gradient(180deg,#173728_0%,#10281d_100%)] text-white shadow-[18px_0_48px_rgba(7,18,13,0.18)] lg:flex">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[320px] border-r border-white/10 bg-[linear-gradient(180deg,#173728_0%,#10281d_100%)] text-white shadow-[18px_0_48px_rgba(7,18,13,0.18)] lg:flex">
       <div className="flex w-full flex-col px-5 py-6">
         <Link href="/dashboard" className="rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
           <div className="flex items-center gap-3">
@@ -118,7 +118,7 @@ export default function Sidebar() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/50">Workspace</p>
-              <span className="mt-1 block truncate text-lg font-semibold tracking-tight text-white">BillingApp</span>
+              <span className="mt-1 block truncate text-xl font-semibold tracking-tight text-white">BillingApp</span>
             </div>
           </div>
         </Link>
@@ -139,7 +139,7 @@ export default function Sidebar() {
                 <div key={item.label} className="rounded-[26px] border border-transparent bg-white/[0.03] p-1">
                   <button
                     onClick={() => toggleSection(item.label)}
-                    className={`flex w-full items-center justify-between rounded-[22px] px-4 py-3.5 text-sm font-medium transition-all ${isOpen || childIsActive
+                    className={`flex w-full items-center justify-between rounded-[22px] px-4 py-3.5 text-[15px] font-medium transition-all ${isOpen || childIsActive
                         ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                         : "text-white/72 hover:bg-white/6 hover:text-white"
                       }`}
@@ -158,7 +158,7 @@ export default function Sidebar() {
                         <Link
                           key={child.href}
                           href={child.href}
-                          className={`block rounded-2xl px-3.5 py-2.5 text-[13px] leading-5 transition-all ${pathname.startsWith(child.href)
+                          className={`block rounded-2xl px-3.5 py-2.5 text-[15px] leading-5 transition-all ${pathname.startsWith(child.href)
                               ? "bg-white/10 font-semibold text-tally-200"
                               : "text-white/55 hover:bg-white/6 hover:text-white/88"
                             }`}
@@ -176,7 +176,7 @@ export default function Sidebar() {
               <Link
                 key={item.label}
                 href={item.href!}
-                className={`flex items-center gap-3.5 rounded-[24px] px-4 py-3.5 text-sm font-medium transition-all ${active
+                className={`flex items-center gap-3.5 rounded-[24px] px-4 py-3.5 text-[15px] font-medium transition-all ${active
                     ? "bg-white/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     : "text-white/72 hover:bg-white/6 hover:text-white"
                   }`}
@@ -191,9 +191,9 @@ export default function Sidebar() {
         <div className="mt-auto space-y-3 border-t border-white/10 pt-5">
           <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/40">Firm access</p>
-            <p className="mt-2 text-sm leading-6 text-white/70">Switch firms without leaving the dashboard workspace.</p>
+            <p className="mt-2 text-[15px] leading-6 text-white/70">Switch firms without leaving the dashboard workspace.</p>
           </div>
-          <Link href="/firms" className="flex items-center gap-3 rounded-[24px] border border-white/10 bg-white/6 px-4 py-3.5 text-sm font-medium text-white/75 transition-all hover:bg-white/10 hover:text-white">
+          <Link href="/firms" className="flex items-center gap-3 rounded-[24px] border border-white/10 bg-white/6 px-4 py-3.5 text-[15px] font-medium text-white/75 transition-all hover:bg-white/10 hover:text-white">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
             </svg>
