@@ -117,7 +117,7 @@ export default function FirmDetailsPage() {
 
     try {
       setIsSaving(true);
-      await apiRequest(`/api/firms/${activeFirmId}`, {
+      await apiRequest(supabase, `/api/firms/${activeFirmId}`, {
         method: "PUT",
         body: {
           name: form.name.trim(),
