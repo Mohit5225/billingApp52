@@ -100,6 +100,13 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
         setOpen(true);
         return;
       }
+      // If Enter on closed combobox with no value selected: open dropdown to force user to pick
+      if (e.key === "Enter" && !value) {
+        e.preventDefault();
+        e.stopPropagation(); // Prevent useFocusTraversal from calling focusNext
+        setOpen(true);
+        return;
+      }
     }
     switch (e.key) {
       case "ArrowDown":
@@ -138,8 +145,24 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
         setQuery("");
         break;
       case "Tab":
-        if (open && filtered[highlighted]) handleSelect(filtered[highlighted]);
-        setOpen(false);
+        if (open) {
+          e.preventDefault();
+          if (highlighted !== -1 && filtered[highlighted]) {
+            handleSelect(filtered[highlighted]);
+          } else {
+            setOpen(false);
+            setTimeout(() => {
+              if (inputRef.current) {
+                inputRef.current.dispatchEvent(
+                  new CustomEvent("tally-focus-next", { 
+                    bubbles: true, 
+                    detail: { origin: inputRef.current } 
+                  })
+                );
+              }
+            }, 10);
+          }
+        }
         break;
     }
   }
@@ -164,7 +187,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             onKeyDown={handleKeyDown}
             disabled={disabled}
             data-item-field={dataItemField ? "true" : undefined}
-            data-mandatory={mandatory ? "true" : undefined}
+            data-mandatory={mandatory || query.trim() !== "" ? "true" : undefined}
             data-empty={!value ? "true" : undefined}
           />
           {open && filtered.length > 0 && !disabled && (
@@ -210,7 +233,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             onKeyDown={handleKeyDown}
             disabled={disabled}
             data-item-field={dataItemField ? "true" : undefined}
-            data-mandatory={mandatory ? "true" : undefined}
+            data-mandatory={mandatory || query.trim() !== "" ? "true" : undefined}
             data-empty={!value ? "true" : undefined}
           />
           {open && filtered.length > 0 && !disabled && (

@@ -81,6 +81,23 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
       }
     }
 
+    // Tally Escaping: If moving forward from an empty Item field, break out of grid to Narration
+    if (activeElement.hasAttribute("data-item-field")) {
+      let isEmpty = false;
+      if (activeElement.hasAttribute("data-empty")) {
+        isEmpty = activeElement.getAttribute("data-empty") === "true";
+      } else if (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA") {
+        isEmpty = (activeElement as HTMLInputElement).value.trim() === "";
+      }
+      if (isEmpty) {
+        const escapeTarget = containerRef.current?.querySelector("[data-escape-target=\"true\"]") as HTMLElement;
+        if (escapeTarget) {
+          focusElement(escapeTarget);
+          return;
+        }
+      }
+    }
+
     const currentIndex = focusable.indexOf(activeElement);
     const nextElement = focusable[currentIndex + 1];
     
@@ -228,6 +245,41 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
         focusPrevious();
       }
 
+      if (e.key === "Tab") {
+        const isComboboxOpen = Boolean(activeElement.closest("[data-dropdown-open=\"true\"]"));
+        if (isComboboxOpen) {
+          // Handled by ComboboxField React onKeyDown
+          return;
+        }
+
+        e.preventDefault();
+        if (e.shiftKey) {
+          focusPrevious();
+        } else {
+          // For item-field comboboxes: check mandatory + empty before moving forward
+          if (activeElement.hasAttribute("data-item-field")) {
+            const isEmpty = activeElement.getAttribute("data-empty") === "true" ||
+                            (activeElement as HTMLInputElement).value.trim() === "";
+            if (isEmpty) {
+              if (activeElement.hasAttribute("data-mandatory")) {
+                activeElement.classList.remove("animate-shake");
+                void activeElement.offsetWidth;
+                activeElement.classList.add("animate-shake");
+                return;
+              } else {
+                const escapeTarget = container.querySelector("[data-escape-target=\"true\"]") as HTMLElement;
+                if (escapeTarget) {
+                  focusElement(escapeTarget);
+                  return;
+                }
+              }
+            }
+          }
+          focusNext();
+        }
+        return;
+      }
+
       if (e.key === "Enter") {
         if (activeElement.tagName === "TEXTAREA") {
           if (e.shiftKey) {
@@ -242,17 +294,26 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
           return;
         }
 
-        // Tally Escaping: If Enter on empty Item field, break out of grid to Narration
+        // For item-field comboboxes (whether open or closed): check mandatory + empty
         if (activeElement.hasAttribute("data-item-field")) {
-          const inputEl = activeElement as HTMLInputElement;
-          const isEmpty = activeElement.getAttribute("data-empty") === "true" || inputEl.value.trim() === "";
+          // A combobox is empty when data-empty="true" OR when no value label is displayed
+          const isEmpty = activeElement.getAttribute("data-empty") === "true" ||
+                          (activeElement as HTMLInputElement).value.trim() === "";
           if (isEmpty) {
-            const escapeTarget = container.querySelector("[data-escape-target=\"true\"]") as HTMLElement;
-            if (escapeTarget) {
-              e.preventDefault();
-              focusElement(escapeTarget);
-              return;
+            e.preventDefault();
+            if (activeElement.hasAttribute("data-mandatory")) {
+              // Mandatory — block and shake
+              activeElement.classList.remove("animate-shake");
+              void activeElement.offsetWidth;
+              activeElement.classList.add("animate-shake");
+            } else {
+              // Non-mandatory empty item field — escape to narration
+              const escapeTarget = container.querySelector("[data-escape-target=\"true\"]") as HTMLElement;
+              if (escapeTarget) {
+                focusElement(escapeTarget);
+              }
             }
+            return;
           }
         }
 

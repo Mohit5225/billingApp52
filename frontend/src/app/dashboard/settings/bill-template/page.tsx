@@ -235,17 +235,31 @@ function PreviewModal({
       </div>
 
       {/* Live Preview Pane — ref measures available width */}
+      <style>{`
+        @media print {
+          .print-reset {
+            --preview-scale: 1 !important;
+            width: 100% !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            max-width: none !important;
+            min-height: auto !important;
+            height: auto !important;
+          }
+        }
+      `}</style>
       <div ref={containerRef} className="flex-1 bg-slate-400 overflow-auto p-4 sm:p-8">
         <div
-          className="mx-auto shadow-2xl bg-white"
+          className="mx-auto shadow-2xl bg-white print-reset"
           style={{
+            "--preview-scale": scale,
             width: "794px",
             minHeight: "1123px",
-            transform: `scale(${scale})`,
+            transform: "scale(var(--preview-scale))",
             transformOrigin: "top left",
-            marginRight: scale < 1 ? `${-(794 * (1 - scale))}px` : undefined,
-            marginBottom: scale < 1 ? `${-(1123 * (1 - scale))}px` : undefined,
-          }}
+            marginRight: scale < 1 ? "calc(-794px * (1 - var(--preview-scale)))" : undefined,
+            marginBottom: scale < 1 ? "calc(-1123px * (1 - var(--preview-scale)))" : undefined,
+          } as React.CSSProperties}
         >
           <TemplateComp data={MOCK_INVOICE_DATA} />
         </div>

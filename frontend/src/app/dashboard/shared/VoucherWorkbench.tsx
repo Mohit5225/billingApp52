@@ -144,7 +144,7 @@ const getEmptyForm = (fromDate: string, toDate: string): FormState => ({
 
 const EMPTY_INVOICE_LINE: InvoiceLineState = {
   item_id: "",
-  quantity: 1,
+  quantity: 0,
   unit_price: 0,
   discount_amount: 0,
   taxable_amount: 0,
@@ -623,7 +623,12 @@ export function VoucherWorkbench({
       "Credit Note": "CREDIT NOTE",
     };
 
-    const lineItems = invoiceLines.map((line, idx) => {
+    const lineItems = invoiceLines
+      .filter((line) => {
+        const isPristine = !line.item_id && (line.quantity === 1 || !line.quantity) && !line.unit_price && !line.discount_amount;
+        return !isPristine;
+      })
+      .map((line, idx) => {
       const item = items.find((i) => i.id === line.item_id);
       return {
         srNo: idx + 1,
@@ -750,6 +755,9 @@ export function VoucherWorkbench({
 
       for (const [index, line] of finalInvoiceLines.entries()) {
         requireSelection(line.item_id, `item on line ${index + 1}`);
+        if (!line.quantity || line.quantity <= 0) {
+          throw new Error(`Enter a valid quantity on line ${index + 1}`);
+        }
       }
 
       const accountingLines = [];
@@ -1271,7 +1279,7 @@ export function VoucherWorkbench({
                     placeholder="Type to search item…"
                     disabled={readOnly}
                     dataItemField={true}
-                    mandatory={true}
+                    mandatory={index === 0 || !!line.item_id}
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1290,7 +1298,7 @@ export function VoucherWorkbench({
                     onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })}
                     placeholder="0"
                     className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
-                    data-mandatory="true"
+                    data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1303,7 +1311,7 @@ export function VoucherWorkbench({
                     onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })}
                     placeholder="0.00"
                     className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
-                    data-mandatory="true"
+                    data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1395,6 +1403,7 @@ export function VoucherWorkbench({
                     createHref="/dashboard/create/ledger"
                     disabled={readOnly}
                     dataItemField={true}
+                    mandatory={index < 2 || !!line.ledger_id}
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1690,13 +1699,21 @@ function InvoicePreviewOverlay({
             display: none !important;
           }
           .print-reset {
+            --preview-scale: 1 !important;
             transform: none !important;
             margin: 0 !important;
             box-shadow: none !important;
-            width: 794px !important;
+            width: 100% !important;
             max-width: none !important;
             min-height: auto !important;
             height: auto !important;
+          }
+          .print-scroll-reset {
+            display: block !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            align-items: unset !important;
+            flex-direction: unset !important;
           }
           .page-gap {
             display: none !important;
@@ -1767,15 +1784,16 @@ function InvoicePreviewOverlay({
       </div>
 
       {/* Scrollable preview — template renders its own page-wrapper divs */}
-      <div ref={containerRef} className="flex-1 overflow-auto flex flex-col items-center p-4 sm:p-8 print:p-0 print:overflow-visible print:block">
+      <div ref={containerRef} className="print-scroll-reset flex-1 overflow-auto flex flex-col items-center p-4 sm:p-8">
         <div
           className="shrink-0 print-reset"
           style={{
+            "--preview-scale": scale,
             width: "794px",
-            transform: `scale(${scale})`,
+            transform: "scale(var(--preview-scale))",
             transformOrigin: "top left",
             marginRight: scale < 1 ? `${-(794 * (1 - scale))}px` : undefined,
-          }}
+          } as React.CSSProperties}
         >
           <TemplateComp data={previewData} />
         </div>
