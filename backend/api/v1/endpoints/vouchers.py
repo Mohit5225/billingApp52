@@ -56,6 +56,9 @@ def _validate_accounting_lines(
                 detail=f"Ledger {row['id']} does not belong to the target firm",
             )
 
+    total_debit = Decimal("0.00")
+    total_credit = Decimal("0.00")
+
     for line in lines:
         if not (
             (line.debit_amount > 0 and line.credit_amount == 0)
@@ -68,6 +71,17 @@ def _validate_accounting_lines(
                     "credit_amount must be > 0"
                 ),
             )
+        total_debit += Decimal(str(line.debit_amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        total_credit += Decimal(str(line.credit_amount)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    if total_debit != total_credit:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Double entry failed: Total debits ({total_debit}) must equal "
+                f"total credits ({total_credit})"
+            ),
+        )
 
 
 def _validate_party_ledger(
@@ -149,9 +163,12 @@ def _build_inventory_line_payloads(
                 detail=f"Item {item_id} does not belong to the target firm",
             )
 
-        expected_taxable = (
-            Decimal(str(line.quantity)) * Decimal(str(line.unit_price))
-            - Decimal(str(line.discount_amount))
+        expected_taxable = max(
+            Decimal("0.00"),
+            (
+                Decimal(str(line.quantity)) * Decimal(str(line.unit_price))
+                - Decimal(str(line.discount_amount))
+            )
         ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         actual_taxable = Decimal(str(line.taxable_amount)).quantize(
             Decimal("0.01"),
@@ -505,15 +522,11 @@ async def replace_voucher(
         _replace_voucher_lines(voucher_id, voucher_in, target_firm_id)
     except HTTPException:
         supabase.table("vouchers").update(previous_header).eq("id", voucher_id).execute()
-        supabase.table("voucher_accounting_lines").delete().eq("voucher_id", voucher_id).execute()
-        supabase.table("voucher_inventory_lines").delete().eq("voucher_id", voucher_id).execute()
-        if previous_accounting:
-            supabase.table("voucher_accounting_lines").insert(previous_accounting).execute()
-        if previous_inventory:
-            supabase.table("voucher_inventory_lines").insert(previous_inventory).execute()
+        # No need to restore lines since _replace_voucher_lines deletes them AFTER validation now
         raise
     except Exception as exc:
         supabase.table("vouchers").update(previous_header).eq("id", voucher_id).execute()
+        # If a DB error happened during insert, some lines might be deleted, so we should restore
         supabase.table("voucher_accounting_lines").delete().eq("voucher_id", voucher_id).execute()
         supabase.table("voucher_inventory_lines").delete().eq("voucher_id", voucher_id).execute()
         if previous_accounting:
@@ -526,6 +539,32 @@ async def replace_voucher(
         ) from exc
 
     return _fetch_voucher_detail(voucher_id)
+
+
+def _replace_voucher_lines(
+    voucher_id: str,
+    voucher_in: VoucherCreate,
+    target_firm_id: str,
+) -> None:
+    # Build payloads first to trigger any validation errors BEFORE deleting existing lines
+    acc_payloads = _build_accounting_line_payloads(voucher_in, target_firm_id, voucher_id)
+    
+    inv_payloads = []
+    if voucher_in.inventory_lines:
+        inv_payloads = _build_inventory_line_payloads(
+            voucher_in.inventory_lines,
+            target_firm_id,
+            voucher_id,
+        )
+
+    supabase.table("voucher_accounting_lines").delete().eq("voucher_id", voucher_id).execute()
+    supabase.table("voucher_inventory_lines").delete().eq("voucher_id", voucher_id).execute()
+
+    if acc_payloads:
+        supabase.table("voucher_accounting_lines").insert(acc_payloads).execute()
+
+    if inv_payloads:
+        supabase.table("voucher_inventory_lines").insert(inv_payloads).execute()
 
 
 @router.patch("/{voucher_id}", response_model=Voucher)

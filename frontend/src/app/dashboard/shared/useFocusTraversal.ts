@@ -15,6 +15,34 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
     if (!element) return;
     element.focus();
 
+    // Scroll the element into view within ALL scrollable ancestors.
+    // We walk the entire ancestor chain so that both the inner items scroll
+    // container AND the outer voucher-container are scrolled as needed.
+    requestAnimationFrame(() => {
+      let node: HTMLElement | null = element.parentElement;
+      while (node) {
+        const { overflowY } = window.getComputedStyle(node);
+        if (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") {
+          const parentRect = node.getBoundingClientRect();
+          const elRect = element.getBoundingClientRect();
+          const elTop = elRect.top - parentRect.top + node.scrollTop;
+          const elBottom = elTop + elRect.height;
+          const visTop = node.scrollTop;
+          const visBottom = visTop + node.clientHeight;
+
+          if (elTop < visTop) {
+            // Element is above the visible area — scroll up with a small buffer
+            node.scrollTop = elTop - 8;
+          } else if (elBottom > visBottom) {
+            // Element is below the visible area — scroll down
+            node.scrollTop = elBottom - node.clientHeight + 8;
+          }
+          // Do NOT break — continue walking up to scroll all ancestors
+        }
+        node = node.parentElement;
+      }
+    });
+
     if (element.tagName === "INPUT" || element.tagName === "TEXTAREA") {
       try {
         (element as HTMLInputElement | HTMLTextAreaElement).select();

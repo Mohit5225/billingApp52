@@ -287,8 +287,18 @@ def _build_stock_rows(target_firm_id: str, search: Optional[str] = None) -> list
         movement = movements[str(item["id"])]
         opening_quantity = _as_float(item["opening_quantity"])
         opening_value = _as_float(item["opening_value"])
-        closing_quantity = opening_quantity + movement["inward_quantity"] - movement["outward_quantity"]
-        closing_value = opening_value + movement["inward_value"] - movement["outward_value"]
+        total_inward_qty = opening_quantity + movement["inward_quantity"]
+        total_inward_value = opening_value + movement["inward_value"]
+        
+        if total_inward_qty > 0:
+            avg_cost = total_inward_value / total_inward_qty
+        else:
+            avg_cost = _as_float(item.get("default_price"))
+            if avg_cost == 0 and movement["outward_quantity"] > 0:
+                avg_cost = movement["outward_value"] / movement["outward_quantity"]
+
+        closing_quantity = total_inward_qty - movement["outward_quantity"]
+        closing_value = closing_quantity * avg_cost
         rows.append({
             "item_id": item["id"],
             "item_name": item["name"],
@@ -393,13 +403,19 @@ def _build_tally_export_rows(
                  continue
 
             amt = _as_float(line["debit_amount"]) or _as_float(line["credit_amount"])
-            if "round" in lname.lower():
+            lname_lower = lname.lower()
+            if "round" in lname_lower:
                 if _as_float(line["debit_amount"]) > 0:
                     round_off -= amt
                 else:
                     round_off += amt
+            elif any(tax in lname_lower for tax in ["igst", "cgst", "sgst", "utgst", "cess"]):
+                pass # Skip tax ledgers from being added to other charges
             else:
                 other_charges += amt
+        
+        if not inv_lines:
+            other_charges = 0.0 # Don't dump secondary journal legs into other charges
         
         net_amount = _voucher_amount(voucher_id, accounting_lines_by_voucher, inventory_lines_by_voucher)
         

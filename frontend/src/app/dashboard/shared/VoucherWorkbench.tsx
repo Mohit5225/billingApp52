@@ -740,12 +740,24 @@ export function VoucherWorkbench({
       requireLines(finalInvoiceLines, "invoice line");
 
       const partyLedger = ledgers.find((l) => l.id === partyLedgerId);
+      if (!partyLedger) throw new Error("Party ledger not found");
+
+      const partyState = partyLedger.party_details?.state?.trim().toLowerCase();
+      const normalizedFirmState = firmState?.trim().toLowerCase();
+
+      if (!normalizedFirmState) {
+        throw new Error("Your firm is missing a State. Please update your firm profile with a state to determine tax.");
+      }
+      if (!partyState && !partyLedger.name.toLowerCase().includes("cash")) {
+        throw new Error(`The party ledger '${partyLedger.name}' is missing a State. Please update the party ledger with a state to determine tax (IGST vs CGST/SGST).`);
+      }
 
       const getTaxLedgerId = (type: string) => {
         const aliases: Record<string, string[]> = {
           igst: ["igst", "inter", "integrated"],
           cgst: ["cgst", "central"],
           sgst: ["sgst", "state", "utgst"],
+          cess: ["cess"],
         };
         const searchTerms = aliases[type.toLowerCase()] || [type.toLowerCase()];
         const found = ledgers.find((l) => isTaxLedger(l) && searchTerms.some(term => l.name.toLowerCase().includes(term)));
@@ -794,11 +806,19 @@ export function VoucherWorkbench({
           if (invoiceTotals.sgst > 0) {
             accountingLines.push({
               ledger_id: getTaxLedgerId("sgst"),
-              line_number: lineNumber,
+              line_number: lineNumber++,
               debit_amount: 0,
               credit_amount: invoiceTotals.sgst,
             });
           }
+        }
+        if (invoiceTotals.cess > 0) {
+          accountingLines.push({
+            ledger_id: getTaxLedgerId("cess"),
+            line_number: lineNumber++,
+            debit_amount: 0,
+            credit_amount: invoiceTotals.cess,
+          });
         }
       } else {
         accountingLines.push({
@@ -833,9 +853,17 @@ export function VoucherWorkbench({
             });
           }
         }
+        if (invoiceTotals.cess > 0) {
+          accountingLines.push({
+            ledger_id: getTaxLedgerId("cess"),
+            line_number: lineNumber++,
+            debit_amount: invoiceTotals.cess,
+            credit_amount: 0,
+          });
+        }
         accountingLines.push({
           ledger_id: partyLedgerId,
-          line_number: lineNumber,
+          line_number: lineNumber++,
           debit_amount: 0,
           credit_amount: invoiceTotals.grandTotal,
         });
@@ -873,14 +901,14 @@ export function VoucherWorkbench({
           {
             ledger_id: isReceipt ? cashBankLedgerId : partyLedgerId,
             line_number: 1,
-            debit_amount: isReceipt ? form.amount : 0,
-            credit_amount: isReceipt ? 0 : form.amount,
+            debit_amount: form.amount,
+            credit_amount: 0,
           },
           {
             ledger_id: isReceipt ? partyLedgerId : cashBankLedgerId,
             line_number: 2,
-            debit_amount: isReceipt ? 0 : form.amount,
-            credit_amount: isReceipt ? form.amount : 0,
+            debit_amount: 0,
+            credit_amount: form.amount,
           },
         ],
         inventory_lines: [],
@@ -1111,16 +1139,16 @@ export function VoucherWorkbench({
           </div>
         </div>
       ) : meta.family !== "journal" ? (
-        <div className="shrink-0 border-b border-slate-200 bg-slate-50/50 p-4 sm:p-6">
-          <div className="grid gap-4 md:grid-cols-2 lg:gap-6 max-w-7xl">
+        <div className="shrink-0 border-b border-slate-200 bg-slate-50/50 p-3 sm:p-4">
+          <div className="grid gap-3 md:grid-cols-2 lg:gap-4 max-w-7xl">
             {/* Card 1: Bill To / Party / Primary Ledger */}
             {(meta.family === "invoice" || meta.family === "contra") && (
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="mb-4 text-base font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <h3 className="mb-2 text-base font-bold uppercase tracking-wider text-slate-500">
                   {meta.family === "contra" ? "Transfer Details" : "Bill To"}
                 </h3>
                 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {meta.family === "contra" ? (
                     <>
                       <ComboboxField inline label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Source Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
@@ -1141,7 +1169,7 @@ export function VoucherWorkbench({
                           mandatory={true}
                         />
                       </div>
-                      <div className="flex flex-col gap-1.5 mt-2">
+                      <div className="flex flex-col gap-1 mt-1.5">
                         <label className="text-base font-semibold text-slate-600">
                           {meta.category === "Sales" || meta.category === "Credit Note" ? "Sales Ledger" : "Purchase Ledger"} <span className="text-rose-500">*</span>
                         </label>
@@ -1194,11 +1222,11 @@ export function VoucherWorkbench({
 
             {/* Card 2: Additional Details / Cash-Bank / Amount */}
             {(meta.family === "invoice" || meta.family === "contra") && (
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="mb-4 text-base font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <h3 className="mb-2 text-base font-bold uppercase tracking-wider text-slate-500">
                   {meta.family === "invoice" ? "Voucher Details" : "Transaction Details"}
                 </h3>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {meta.family === "contra" ? (
                     <div className="flex flex-col gap-1.5">
                       <label className="text-base font-semibold text-slate-600">Amount <span className="text-rose-500">*</span></label>
@@ -1242,12 +1270,13 @@ export function VoucherWorkbench({
 
       {/* ── Zone C: Items Table ── */}
       {meta.family === "invoice" ? (
-        <div className="border-b border-slate-100 bg-white flex-1 min-h-[250px] overflow-y-auto overflow-x-auto custom-scrollbar" ref={itemsScrollRef}>
-          <div className="min-w-full md:min-w-[1000px]">
-            {/* Sticky table header */}
-            <div
-              className="sticky top-0 z-10 hidden grid-cols-[40px_3fr_1fr_1fr_1fr_1fr_1.5fr_40px] gap-2 border-b border-slate-200 px-4 md:px-5 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
-            >
+        <div className="flex-1 flex flex-col min-h-[250px] border-b border-slate-100 bg-white">
+          <div className="flex-1 flex flex-col overflow-x-auto custom-scrollbar">
+            <div className="min-w-full md:min-w-[1000px] flex flex-col flex-1">
+              {/* Table header (fixed vertically, scrolls horizontally) */}
+              <div
+                className="shrink-0 hidden grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_0.8fr_1.2fr_40px] gap-2 border-b border-slate-200 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
+              >
               <div className="text-center">#</div>
               <div>Name of Item</div>
               <div>HSN/SAC</div>
@@ -1256,12 +1285,13 @@ export function VoucherWorkbench({
               <div>Discount</div>
               <div className="text-right">Amount</div>
               <div className="w-10" />
-            </div>
-            <div className="divide-y divide-slate-100">
-              {invoiceLines.map((line, index) => (
+              </div>
+              <div className="flex-1 overflow-y-scroll custom-scrollbar" ref={itemsScrollRef}>
+                <div className="divide-y divide-slate-100">
+                  {invoiceLines.map((line, index) => (
                 <div
                   key={index}
-                  className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[40px_3fr_1fr_1fr_1fr_1fr_1.5fr_40px] md:items-center md:gap-2 md:p-5 md:py-2.5"
+                  className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_0.8fr_1.2fr_40px] md:items-center md:gap-2 md:p-5 md:py-2.5 scroll-mt-14"
                   style={{ ['--tw-bg-opacity' as string]: '1' }}
                 onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
@@ -1346,8 +1376,8 @@ export function VoucherWorkbench({
                 </div>
               </div>
             ))}
-          </div>
-          <div className="border-t border-slate-100 px-5 py-3">
+                </div>
+                <div className="shrink-0 border-t border-slate-100 px-5 py-3">
             {!readOnly && (
               <button
                 data-skip-enter="true"
@@ -1360,27 +1390,31 @@ export function VoucherWorkbench({
                 Add Line
               </button>
             )}
-          </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
 
       {meta.family === "journal" ? (
-        <div className="border-b border-slate-100 bg-white flex-1 min-h-[250px] overflow-y-auto overflow-x-auto custom-scrollbar" ref={itemsScrollRef}>
-          <div className="min-w-full md:min-w-[800px]">
-            <div
-              className="sticky top-0 z-10 hidden grid-cols-[2fr_1fr_1fr_40px] gap-4 border-b border-slate-200 px-4 md:px-5 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
-            >
+        <div className="flex-1 flex flex-col min-h-[250px] border-b border-slate-100 bg-white">
+          <div className="flex-1 flex flex-col overflow-x-auto custom-scrollbar">
+            <div className="min-w-full md:min-w-[800px] flex flex-col flex-1">
+              <div
+                className="shrink-0 hidden grid-cols-[2fr_1fr_1fr_40px] gap-4 border-b border-slate-200 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
+              >
               <div>Ledger</div>
               <div>Debit (Dr)</div>
               <div>Credit (Cr)</div>
               <div className="w-10" />
-            </div>
-            <div className="divide-y divide-slate-100">
-              {journalLines.map((line, index) => (
+              </div>
+              <div className="flex-1 overflow-y-scroll custom-scrollbar" ref={itemsScrollRef}>
+                <div className="divide-y divide-slate-100">
+                  {journalLines.map((line, index) => (
                 <div
                   key={index}
-                  className="grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[2fr_1fr_1fr_40px] md:items-center md:gap-4 md:p-5 md:py-2.5"
+                  className="grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[2fr_1fr_1fr_40px] md:items-center md:gap-4 md:p-5 md:py-2.5 scroll-mt-14"
                   onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
               >
@@ -1446,8 +1480,8 @@ export function VoucherWorkbench({
                 </div>
               </div>
             ))}
-          </div>
-          <div className="border-t border-slate-100 px-5 py-3">
+                </div>
+                <div className="shrink-0 border-t border-slate-100 px-5 py-3">
             {!readOnly && (
               <button
                 data-skip-enter="true"
@@ -1460,7 +1494,9 @@ export function VoucherWorkbench({
                 Add Accounting Line
               </button>
             )}
-          </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}
@@ -1473,7 +1509,7 @@ export function VoucherWorkbench({
           <textarea
             data-escape-target="true"
             disabled={readOnly}
-            className="min-h-[120px] w-full rounded-lg border border-slate-200 bg-white/80 p-3 text-base text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
+            className="min-h-[80px] w-full rounded-lg border border-slate-200 bg-white/80 p-3 text-base text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
             placeholder="Enter narration for this voucher…"
             value={form.narration}
             onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))}
