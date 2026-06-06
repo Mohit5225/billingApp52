@@ -22,9 +22,12 @@ type Props = {
   disabled?: boolean;
   dataItemField?: boolean;
   mandatory?: boolean;
+  compact?: boolean;
+  leftIcon?: React.ReactNode;
+  chevron?: boolean;
 };
 
-export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, disabled, dataItemField, mandatory }: Props) {
+export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, disabled, dataItemField, mandatory, compact = false, leftIcon, chevron }: Props) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
@@ -167,13 +170,22 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
     }
   }
 
-  const inputClasses =
-    "h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-base font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15]";
+  let inputClasses = compact
+    ? "h-8 w-full rounded-md border border-slate-500 bg-white px-2.5 text-sm font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15]"
+    : "h-10 w-full rounded-md border border-slate-500 bg-white px-3 text-base font-medium text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15]";
+
+  if (leftIcon) inputClasses += " pl-9";
+  if (chevron) inputClasses += " pr-9";
 
   if (inline) {
     return (
       <div ref={containerRef} data-dropdown-open={open} className="relative flex w-full items-center gap-1">
         <div className="relative flex-1">
+          {leftIcon && (
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+              {leftIcon}
+            </div>
+          )}
           <input
             ref={inputRef}
             type="text"
@@ -190,6 +202,13 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             data-mandatory={mandatory || query.trim() !== "" ? "true" : undefined}
             data-empty={!value ? "true" : undefined}
           />
+          {chevron && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </div>
+          )}
           {open && filtered.length > 0 && !disabled && (
             <Dropdown listRef={listRef} filtered={filtered} highlighted={highlighted} onSelect={handleSelect} onHighlight={setHighlighted} />
           )}
@@ -202,9 +221,9 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             rel="noopener noreferrer"
             title="Create new"
             data-skip-enter="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600"
+            className={`flex shrink-0 items-center justify-center rounded-md border border-slate-500 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600 ${compact ? "h-8 w-8" : "h-10 w-10"}`}
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </Link>
@@ -220,6 +239,11 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
       )}
       <div className="relative flex w-full items-center gap-1 sm:w-2/3">
         <div className="relative flex-1">
+          {leftIcon && (
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+              {leftIcon}
+            </div>
+          )}
           <input
             ref={inputRef}
             type="text"
@@ -236,6 +260,13 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             data-mandatory={mandatory || query.trim() !== "" ? "true" : undefined}
             data-empty={!value ? "true" : undefined}
           />
+          {chevron && (
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </div>
+          )}
           {open && filtered.length > 0 && !disabled && (
             <Dropdown listRef={listRef} filtered={filtered} highlighted={highlighted} onSelect={handleSelect} onHighlight={setHighlighted} />
           )}
@@ -248,9 +279,9 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             rel="noopener noreferrer"
             title="Create new"
             data-skip-enter="true"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600"
+            className={`flex shrink-0 items-center justify-center rounded-md border border-slate-500 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600 ${compact ? "h-8 w-8" : "h-10 w-10"}`}
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </Link>
@@ -276,7 +307,7 @@ function Dropdown({
   return (
     <ul
       ref={listRef}
-      className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-60 overflow-auto rounded-xl border border-slate-100 bg-white py-1.5 shadow-xl"
+      className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-[400px] lg:max-h-[500px] overflow-auto rounded-xl border border-slate-100 bg-white py-1.5 shadow-xl"
     >
       {filtered.map((option, i) => (
         <li

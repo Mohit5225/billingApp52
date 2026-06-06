@@ -30,12 +30,15 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
           const visTop = node.scrollTop;
           const visBottom = visTop + node.clientHeight;
 
-          if (elTop < visTop) {
+          const topBuffer = 40;
+          const bottomBuffer = Math.min(350, node.clientHeight * 0.5);
+          
+          if (elTop < visTop + topBuffer) {
             // Element is above the visible area — scroll up with a small buffer
-            node.scrollTop = elTop - 8;
-          } else if (elBottom > visBottom) {
-            // Element is below the visible area — scroll down
-            node.scrollTop = elBottom - node.clientHeight + 8;
+            node.scrollTop = elTop - topBuffer;
+          } else if (elBottom > visBottom - bottomBuffer) {
+            // Element is near the bottom of the visible area — scroll down to leave space for dropdowns
+            node.scrollTop = elBottom - node.clientHeight + bottomBuffer;
           }
           // Do NOT break — continue walking up to scroll all ancestors
         }

@@ -276,7 +276,7 @@ function InputField({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-12 sm:h-12 w-full rounded-md border border-slate-200 bg-white px-3 text-base text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:cursor-not-allowed disabled:opacity-60"
+        className="h-12 sm:h-12 w-full rounded-md border border-slate-500 bg-white px-3 text-base text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:cursor-not-allowed disabled:opacity-60"
       />
     </div>
   );
@@ -330,12 +330,19 @@ export function VoucherWorkbench({
   }, [isLoading, activeFirmId, initFocus]);
 
   useEffect(() => {
-    if (itemsScrollRef.current) {
-      if (
-        invoiceLines.length > prevInvoiceLinesLength.current ||
-        journalLines.length > prevJournalLinesLength.current
-      ) {
-        itemsScrollRef.current.scrollTop = itemsScrollRef.current.scrollHeight;
+    if (
+      invoiceLines.length > prevInvoiceLinesLength.current ||
+      journalLines.length > prevJournalLinesLength.current
+    ) {
+      if (containerRef.current) {
+        setTimeout(() => {
+          if (containerRef.current) {
+            containerRef.current.scrollTo({
+              top: containerRef.current.scrollHeight,
+              behavior: "smooth"
+            });
+          }
+        }, 10);
       }
     }
     prevInvoiceLinesLength.current = invoiceLines.length;
@@ -1011,25 +1018,35 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-y-auto">
+    <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-500 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]">
       {/* ── Voucher Command Ribbon ── */}
-      <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-4">
+      <div className="shrink-0 border-b border-slate-500 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-4">
         {/* Left Side: Title and Inputs */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 w-full sm:w-auto">
-          <div className="flex items-center gap-4">
-            <h1 className="text-[15px]l sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap">{meta.title}</h1>
-            {isEditing && (
-              <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-base font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/20">
-                Editing
-              </span>
-            )}
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-[15px]l sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap">{meta.title}</h1>
+              {!isEditing ? (
+                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                  </svg>
+                  Draft
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-base font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/20">
+                  Editing
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-slate-500">Create and manage your {meta.title.toLowerCase()}</p>
           </div>
           
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-            <div className="flex flex-col gap-1 w-full sm:w-auto">
-              <label className="text-base font-bold uppercase tracking-wider text-slate-500">No.</label>
+            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
+              <label className="text-xs font-semibold text-slate-600">Invoice No.</label>
               <input
-                className="h-12 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                className="h-10 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-500 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                 placeholder="e.g. 1"
                 size={Math.max(14, form.voucher_number.length + 2)}
                 value={form.voucher_number}
@@ -1038,11 +1055,11 @@ export function VoucherWorkbench({
                 data-mandatory="true"
               />
             </div>
-            <div className="flex flex-col gap-1 w-full sm:w-40">
-              <label className="text-base font-bold uppercase tracking-wider text-slate-500">Date</label>
+            <div className="flex flex-col gap-1.5 w-full sm:w-40">
+              <label className="text-xs font-semibold text-slate-600">Invoice Date</label>
               <input
                 type="date"
-                className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                className="h-10 w-full rounded-lg border border-slate-500 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                 value={form.voucher_date}
                 min={globalFromDate}
                 max={globalToDate}
@@ -1059,7 +1076,7 @@ export function VoucherWorkbench({
           <Link
             href="/dashboard"
             data-skip-enter="true"
-            className="hidden sm:flex h-12 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-base font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
+            className="hidden sm:flex h-12 items-center gap-2 rounded-lg border border-slate-500 bg-white px-4 text-base font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
@@ -1070,7 +1087,7 @@ export function VoucherWorkbench({
           <Link
             href="/dashboard"
             data-skip-enter="true"
-            className="flex sm:hidden h-12 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50"
+            className="flex sm:hidden h-12 w-10 items-center justify-center rounded-lg border border-slate-500 bg-white text-slate-500 transition hover:bg-slate-50"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1083,7 +1100,7 @@ export function VoucherWorkbench({
       {meta.family === "payment" ? (
         <div className="flex-1 flex flex-col min-h-0 bg-white">
           {/* Account Bar (Tally style) */}
-          <div className="shrink-0 border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 bg-sky-50/50">
+          <div className="shrink-0 border-b border-slate-500 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 bg-sky-50/50">
             <label className="w-16 sm:w-20 text-base font-semibold text-slate-700">Account</label>
             <div className="w-full max-w-md">
               <ComboboxField
@@ -1100,7 +1117,7 @@ export function VoucherWorkbench({
           
           {/* Particulars Table */}
           <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-200 px-6 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+            <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-500 px-6 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
               <div>Particulars</div>
               <div className="text-right">Amount</div>
             </div>
@@ -1125,7 +1142,7 @@ export function VoucherWorkbench({
                 </div>
                 <div>
                   <input
-                    className="h-12 w-full rounded-md border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 text-right outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                    className="h-12 w-full rounded-md border border-slate-500 bg-white px-3 text-base font-semibold text-slate-900 text-right outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                     type="number"
                     step="0.01"
                     value={form.amount}
@@ -1139,27 +1156,40 @@ export function VoucherWorkbench({
           </div>
         </div>
       ) : meta.family !== "journal" ? (
-        <div className="shrink-0 border-b border-slate-200 bg-slate-50/50 p-3 sm:p-4">
+        <div className="shrink-0 border-b border-slate-500 bg-slate-50/50 p-3 sm:p-4">
           <div className="grid gap-3 md:grid-cols-2 lg:gap-4 max-w-7xl">
             {/* Card 1: Bill To / Party / Primary Ledger */}
             {(meta.family === "invoice" || meta.family === "contra") && (
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h3 className="mb-2 text-base font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-xl border border-slate-500 bg-white p-4 shadow-sm">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    {meta.family === "contra" ? (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                      </svg>
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                      </svg>
+                    )}
+                  </div>
                   {meta.family === "contra" ? "Transfer Details" : "Bill To"}
                 </h3>
                 
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {meta.family === "contra" ? (
                     <>
-                      <ComboboxField inline label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Source Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
-                      <ComboboxField inline label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Destination Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
+                      <ComboboxField compact inline label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Source Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
+                      <ComboboxField compact inline label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Destination Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
                     </>
                   ) : (
                     <>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-base font-semibold text-slate-600">Party Name <span className="text-rose-500">*</span></label>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-semibold text-slate-600">Party Name <span className="text-rose-500">*</span></label>
                         <ComboboxField
                           inline
+                          compact={true}
+                          chevron={true}
                           value={form.party_ledger_id}
                           onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
                           options={partyLedgers}
@@ -1170,11 +1200,13 @@ export function VoucherWorkbench({
                         />
                       </div>
                       <div className="flex flex-col gap-1 mt-1.5">
-                        <label className="text-base font-semibold text-slate-600">
+                        <label className="text-sm font-semibold text-slate-600">
                           {meta.category === "Sales" || meta.category === "Credit Note" ? "Sales Ledger" : "Purchase Ledger"} <span className="text-rose-500">*</span>
                         </label>
                         <ComboboxField
                           inline
+                          compact={true}
+                          chevron={true}
                           value={form.main_ledger_id}
                           onChange={(value) => setForm((prev) => ({ ...prev, main_ledger_id: value }))}
                           options={mainLedgers.length > 0 ? mainLedgers : allLedgerOptions}
@@ -1186,10 +1218,10 @@ export function VoucherWorkbench({
                       </div>
                       
                       {selectedPartyLedger?.party_details && (
-                        <div className="mt-2 flex flex-col gap-2.5 rounded-lg border border-slate-100 bg-slate-50/80 p-3.5 text-base text-slate-600">
+                        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-100/50 bg-emerald-50/30 p-3.5 text-sm text-slate-600">
                           {selectedPartyLedger.party_details.address && (
                             <div className="flex items-start gap-2.5">
-                              <svg className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                               </svg>
@@ -1198,7 +1230,7 @@ export function VoucherWorkbench({
                           )}
                           {selectedPartyLedger.party_details.gstin && (
                             <div className="flex items-center gap-2.5">
-                              <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                               </svg>
                               <span className="font-mono text-slate-700">{selectedPartyLedger.party_details.gstin}</span>
@@ -1206,7 +1238,7 @@ export function VoucherWorkbench({
                           )}
                           {selectedPartyLedger.party_details.state && (
                             <div className="flex items-center gap-2.5">
-                              <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
                               </svg>
                               <span className="text-slate-700">{selectedPartyLedger.party_details.state}</span>
@@ -1222,16 +1254,27 @@ export function VoucherWorkbench({
 
             {/* Card 2: Additional Details / Cash-Bank / Amount */}
             {(meta.family === "invoice" || meta.family === "contra") && (
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h3 className="mb-2 text-base font-bold uppercase tracking-wider text-slate-500">
+              <div className="rounded-xl border border-slate-500 bg-white p-4 shadow-sm">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                    {meta.family === "invoice" ? (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                      </svg>
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
+                      </svg>
+                    )}
+                  </div>
                   {meta.family === "invoice" ? "Voucher Details" : "Transaction Details"}
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {meta.family === "contra" ? (
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-base font-semibold text-slate-600">Amount <span className="text-rose-500">*</span></label>
+                      <label className="text-sm font-semibold text-slate-600">Amount <span className="text-rose-500">*</span></label>
                       <input
-                        className="h-12 w-full rounded-md border border-slate-200 bg-white px-3 text-base font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                        className="h-8 w-full rounded-md border border-slate-500 bg-white px-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
                         type="number"
                         step="0.01"
                         value={form.amount}
@@ -1245,18 +1288,24 @@ export function VoucherWorkbench({
                   {meta.family === "invoice" ? (
                     <div className="grid grid-cols-2 gap-4">
                       {/* Place of Supply (just a visual representation of State for now) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-base font-semibold text-slate-600">Place of Supply</label>
-                        <div className="flex h-12 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-base text-slate-600">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-semibold text-slate-600">Place of Supply</label>
+                        <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-500 bg-slate-50 px-3 text-sm text-slate-600">
                           {selectedPartyLedger?.party_details?.state || "—"}
+                          <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
                         </div>
                       </div>
                       
                       {/* Tax Mode (derived) */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-base font-semibold text-slate-600">Tax Mode</label>
-                        <div className="flex h-12 w-full items-center rounded-md border border-slate-200 bg-slate-50 px-3 text-base text-slate-600 capitalize">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-sm font-semibold text-slate-600">Tax Mode</label>
+                        <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-500 bg-slate-50 px-3 text-sm text-slate-600 capitalize">
                           {taxMode === "intra" ? "Intra-State" : "Inter-State"}
+                          <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                          </svg>
                         </div>
                       </div>
                     </div>
@@ -1275,18 +1324,18 @@ export function VoucherWorkbench({
             <div className="min-w-full md:min-w-[1000px] flex flex-col flex-1">
               {/* Table header (fixed vertically, scrolls horizontally) */}
               <div
-                className="shrink-0 hidden grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_0.8fr_1.2fr_40px] gap-2 border-b border-slate-200 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
+                className="shrink-0 hidden grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_0.8fr_1.2fr_40px] gap-2 border-b border-slate-500 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
               >
               <div className="text-center">#</div>
               <div>Name of Item</div>
               <div>HSN/SAC</div>
               <div>Qty</div>
-              <div>Rate</div>
-              <div>Discount</div>
-              <div className="text-right">Amount</div>
+              <div>Rate (₹)</div>
+              <div>Discount (₹)</div>
+              <div className="text-right">Amount (₹)</div>
               <div className="w-10" />
               </div>
-              <div className="flex-1 overflow-y-scroll custom-scrollbar" ref={itemsScrollRef}>
+              <div className="flex-1 custom-scrollbar" ref={itemsScrollRef}>
                 <div className="divide-y divide-slate-100">
                   {invoiceLines.map((line, index) => (
                 <div
@@ -1306,7 +1355,12 @@ export function VoucherWorkbench({
                     value={line.item_id}
                     onChange={(id) => selectItem(index, id)}
                     options={items.map((item) => ({ value: item.id, label: item.name }))}
-                    placeholder="Type to search item…"
+                    placeholder="Search or select item…"
+                    leftIcon={
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                      </svg>
+                    }
                     disabled={readOnly}
                     dataItemField={true}
                     mandatory={index === 0 || !!line.item_id}
@@ -1327,7 +1381,7 @@ export function VoucherWorkbench({
                     value={line.quantity || ""}
                     onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })}
                     placeholder="0"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                     data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
                   />
                 </div>
@@ -1340,7 +1394,7 @@ export function VoucherWorkbench({
                     value={line.unit_price || ""}
                     onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })}
                     placeholder="0.00"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                     data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
                   />
                 </div>
@@ -1353,7 +1407,7 @@ export function VoucherWorkbench({
                     value={line.discount_amount || ""}
                     onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
                     placeholder="0.00"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                   />
                 </div>
                 <div className="flex items-center justify-between md:justify-end md:pr-1">
@@ -1366,10 +1420,10 @@ export function VoucherWorkbench({
                       data-skip-enter="true"
                       onClick={() => setInvoiceLines((prev) => prev.filter((_, i) => i !== index))}
                       title="Remove line"
-                      className="flex h-12 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
+                      className="flex h-12 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:text-slate-600"
                     >
                       <svg className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                       </svg>
                     </button>
                   )}
@@ -1382,12 +1436,12 @@ export function VoucherWorkbench({
               <button
                 data-skip-enter="true"
                 onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-base font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
+                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
               >
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
-                Add Line
+                Add Line Item
               </button>
             )}
                 </div>
@@ -1402,14 +1456,14 @@ export function VoucherWorkbench({
           <div className="flex-1 flex flex-col overflow-x-auto custom-scrollbar">
             <div className="min-w-full md:min-w-[800px] flex flex-col flex-1">
               <div
-                className="shrink-0 hidden grid-cols-[2fr_1fr_1fr_40px] gap-4 border-b border-slate-200 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
+                className="shrink-0 hidden grid-cols-[2fr_1fr_1fr_40px] gap-4 border-b border-slate-500 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
               >
               <div>Ledger</div>
               <div>Debit (Dr)</div>
               <div>Credit (Cr)</div>
               <div className="w-10" />
               </div>
-              <div className="flex-1 overflow-y-scroll custom-scrollbar" ref={itemsScrollRef}>
+              <div className="flex-1 custom-scrollbar" ref={itemsScrollRef}>
                 <div className="divide-y divide-slate-100">
                   {journalLines.map((line, index) => (
                 <div
@@ -1449,7 +1503,7 @@ export function VoucherWorkbench({
                     value={line.debit_amount || ""}
                     onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, debit_amount: Number(e.target.value), credit_amount: 0 } : entry))}
                     placeholder="0.00"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                   />
                 </div>
                 <div className="flex flex-col md:block">
@@ -1461,7 +1515,7 @@ export function VoucherWorkbench({
                     value={line.credit_amount || ""}
                     onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, credit_amount: Number(e.target.value), debit_amount: 0 } : entry))}
                     placeholder="0.00"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-200 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                   />
                 </div>
                 <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
@@ -1504,63 +1558,71 @@ export function VoucherWorkbench({
       {/* ── Zone D: Narration + Totals ── */}
       <div className="shrink-0 mt-auto flex flex-col-reverse border-b border-slate-100 bg-white sm:grid sm:grid-cols-2 sm:items-start">
         {/* Narration */}
-        <div className="border-t border-slate-100 p-5 sm:border-r sm:border-t-0 sm:p-6">
+        <div className="border-t border-slate-100 p-5 sm:border-r sm:border-t-0 sm:p-6 flex flex-col">
           <label className="mb-2 block text-base font-semibold uppercase tracking-wider text-slate-500">Narration</label>
-          <textarea
-            data-escape-target="true"
-            disabled={readOnly}
-            className="min-h-[80px] w-full rounded-lg border border-slate-200 bg-white/80 p-3 text-base text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
-            placeholder="Enter narration for this voucher…"
-            value={form.narration}
-            onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))}
-          />
+          <div className="relative">
+            <textarea
+              data-escape-target="true"
+              disabled={readOnly}
+              maxLength={250}
+              className="min-h-[80px] w-full rounded-lg border border-slate-500 bg-white p-3 pb-8 text-base text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
+              placeholder="Enter narration for this voucher…"
+              value={form.narration}
+              onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))}
+            />
+            <div className="absolute bottom-3 right-3 text-xs text-slate-400">
+              {form.narration.length} / 250
+            </div>
+          </div>
         </div>
 
         {/* Totals */}
         <div className="p-5 sm:p-6">
           {meta.family === "invoice" ? (
-            <div
-              className="ml-auto w-full overflow-hidden rounded-xl shadow-lg sm:max-w-md"
-              style={{ background: "var(--voucher-zone-totals-bg)" }}
-            >
-              {/* Line items */}
-              <div className="space-y-0 divide-y divide-white/8 px-5 pt-4 pb-3">
-                <div className="flex items-center justify-between py-2">
-                  <span className="text-[15px] text-white/65">Taxable Amount</span>
-                  <span className="mono-num text-[15px] font-medium text-white/80">{formatCurrency(invoiceTotals.taxable)}</span>
+            <div className="ml-auto w-full sm:max-w-md">
+              <div className="space-y-1 px-2">
+                <div className="flex items-center justify-between py-1">
+                  <span className="text-sm text-slate-500">Taxable Amount</span>
+                  <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.taxable)}</span>
                 </div>
+                
                 {taxMode === "inter" && invoiceTotals.igst > 0 && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-[15px] text-white/65">IGST</span>
-                    <span className="mono-num text-[15px] text-white/80">{formatCurrency(invoiceTotals.igst)}</span>
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-sm text-slate-500">IGST</span>
+                    <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.igst)}</span>
                   </div>
                 )}
                 {taxMode === "intra" && (invoiceTotals.cgst > 0 || invoiceTotals.sgst > 0) && (
                   <>
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-[15px] text-white/65">CGST</span>
-                      <span className="mono-num text-[15px] text-white/80">{formatCurrency(invoiceTotals.cgst)}</span>
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-sm text-slate-500">CGST</span>
+                      <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.cgst)}</span>
                     </div>
-                    <div className="flex items-center justify-between py-2">
-                      <span className="text-[15px] text-white/65">SGST</span>
-                      <span className="mono-num text-[15px] text-white/80">{formatCurrency(invoiceTotals.sgst)}</span>
+                    <div className="flex items-center justify-between py-1">
+                      <span className="text-sm text-slate-500">SGST</span>
+                      <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.sgst)}</span>
                     </div>
                   </>
                 )}
                 {invoiceTotals.cess > 0 && (
-                  <div className="flex items-center justify-between py-2">
-                    <span className="text-[15px] text-white/65">Cess</span>
-                    <span className="mono-num text-[15px] text-white/80">{formatCurrency(invoiceTotals.cess)}</span>
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-sm text-slate-500">Cess</span>
+                    <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.cess)}</span>
+                  </div>
+                )}
+                
+                {(invoiceTotals.igst === 0 && invoiceTotals.cgst === 0 && invoiceTotals.sgst === 0 && invoiceTotals.cess === 0) && (
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-sm text-slate-500">Total Tax (0%)</span>
+                    <span className="mono-num text-sm font-semibold text-slate-900">₹0.00</span>
                   </div>
                 )}
               </div>
-              {/* Grand Total row — darkened inset */}
-              <div
-                className="flex items-center justify-between px-5 py-4"
-                style={{ background: "var(--voucher-zone-totals-row)" }}
-              >
-                <span className="text-base font-bold uppercase tracking-wider text-white/90">Grand Total</span>
-                <span className="mono-num text-[15px]l font-bold text-white">{formatCurrency(invoiceTotals.grandTotal)}</span>
+              <div className="mt-3 border-t border-dashed border-slate-500 px-2 pt-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold uppercase tracking-wider text-emerald-700">Grand Total</span>
+                  <span className="mono-num text-xl font-bold text-emerald-700">{formatCurrency(invoiceTotals.grandTotal)}</span>
+                </div>
               </div>
             </div>
           ) : (
@@ -1572,12 +1634,9 @@ export function VoucherWorkbench({
       </div>
 
       {/* ── Zone E: Footer Actions ── */}
-      <div
-        className="shrink-0 flex items-center justify-between px-5 py-4 sm:px-7 sm:py-5"
-        style={{ background: "var(--voucher-zone-ledger)" }}
-      >
+      <div className="shrink-0 flex items-center justify-between border-t border-slate-500 bg-white px-5 py-4 sm:px-7 sm:py-5">
         {/* Mobile cancel */}
-        <Link href="/dashboard/create" data-skip-enter="true" className="text-base font-medium text-slate-600 hover:text-slate-900 sm:hidden">
+        <Link href="/dashboard/create" data-skip-enter="true" className="text-sm font-medium text-slate-600 hover:text-slate-900 sm:hidden">
           Cancel
         </Link>
         <div className="hidden sm:block" />
@@ -1586,10 +1645,10 @@ export function VoucherWorkbench({
             <button
               data-skip-enter="true"
               onClick={() => setShowPreview(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white p-3 sm:px-4 sm:py-2.5 text-base font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
+              className="flex items-center justify-center gap-2 rounded-lg border border-slate-500 bg-white p-3 sm:px-4 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
               title="Preview Invoice"
             >
-              <svg className="h-5 w-5 sm:h-4 sm:w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="h-5 w-5 sm:h-4 sm:w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
               </svg>
@@ -1599,8 +1658,11 @@ export function VoucherWorkbench({
           <button
             data-skip-enter="true"
             onClick={() => router.back()}
-            className="hidden rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-base font-medium text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow sm:block"
+            className="hidden sm:flex items-center gap-2 rounded-lg border border-slate-500 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
           >
+            <svg className="h-4 w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
             Cancel
           </button>
           {!readOnly ? (
@@ -1608,7 +1670,7 @@ export function VoucherWorkbench({
               data-entry-action="true"
               disabled={isSubmitting || isLoading}
               onClick={() => void submit()}
-              className="group relative flex items-center gap-3 overflow-hidden rounded-xl bg-tally-700 px-7 py-3 text-base font-semibold text-white shadow-md transition-all duration-150 hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tally-600 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"
+              className="group relative flex items-center gap-3 overflow-hidden rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-emerald-800 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"
             >
               {isSubmitting ? (
                 <span className="flex items-center gap-2">
@@ -1621,7 +1683,7 @@ export function VoucherWorkbench({
               ) : (
                 <span className="flex items-center gap-3">
                   {isEditing ? "Update Voucher" : "Save Voucher"}
-                  <kbd className="rounded-md bg-white/10 px-1.5 py-0.5 font-mono text-base font-normal tracking-wider text-white/55 ring-1 ring-white/15">
+                  <kbd className="flex items-center justify-center rounded bg-black/10 px-1.5 py-0.5 font-sans text-xs font-medium text-emerald-100 ring-1 ring-black/10">
                     ⌘S
                   </kbd>
                 </span>
@@ -1630,7 +1692,7 @@ export function VoucherWorkbench({
           ) : (
             <Link
               href={`/dashboard/vouchers/${voucherId}/edit`}
-              className="flex items-center gap-2 rounded-xl bg-tally-700 px-7 py-3 text-base font-semibold text-white shadow-md transition-all hover:-translate-y-px hover:bg-tally-600 hover:shadow-lg"
+              className="flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-emerald-800 hover:shadow"
             >
               Edit Voucher
             </Link>

@@ -77,9 +77,7 @@ body {
   overflow-x: hidden;
 }
 
-* {
-  border-color: var(--border-soft);
-}
+
 
 button,
 input,
