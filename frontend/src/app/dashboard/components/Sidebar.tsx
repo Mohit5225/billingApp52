@@ -111,23 +111,43 @@ export default function Sidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[320px] border-r border-white/10 bg-[linear-gradient(180deg,#173728_0%,#10281d_100%)] text-white shadow-[18px_0_48px_rgba(7,18,13,0.18)] lg:flex">
       <div className="flex w-full flex-col px-5 py-6">
-        <Link href="/dashboard" className="rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-tally-400 font-bold text-tally-900 shadow-lg shadow-black/10">
-              B
+        {/* Workspace Profile Dropdown Switcher */}
+        <Link href="/dashboard" className="group rounded-2xl border border-white/10 bg-white/6 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-all duration-200 hover:bg-white/10 hover:border-white/20 active:scale-[0.98]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tally-400 font-bold text-tally-900 shadow-lg shadow-black/10">
+                B
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/50">Workspace</p>
+                <span className="mt-0.5 block truncate text-base font-semibold tracking-tight text-white group-hover:text-emerald-50">BillingApp</span>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/50">Workspace</p>
-              <span className="mt-1 block truncate text-xl font-semibold tracking-tight text-white">BillingApp</span>
-            </div>
+            <svg className="h-4 w-4 text-white/30 transition-transform duration-200 group-hover:text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+            </svg>
           </div>
         </Link>
 
-        <div className="mt-7 px-2">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white/35">Navigation</p>
+        {/* Command Search Bar */}
+        <button
+          onClick={() => {}}
+          className="mt-5 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-[15px] text-white/50 transition-all hover:bg-white/10 hover:text-white hover:border-white/20"
+        >
+          <span className="flex items-center gap-2.5">
+            <svg className="h-4 w-4 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" />
+            </svg>
+            Search or Command...
+          </span>
+          <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold text-white/50 tracking-widest">⌘K</span>
+        </button>
+
+        <div className="mt-6 px-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.26em] text-white/35">Navigation</p>
         </div>
 
-        <nav className="mt-3 flex-1 space-y-1 overflow-y-auto px-1 pb-5">
+        <nav className="mt-3 flex-1 space-y-1 overflow-y-auto px-1 pb-5 custom-scrollbar">
           {NAV_ITEMS.map((item) => {
             const hasChildren = item.children && item.children.length > 0;
             const childIsActive = item.children?.some((child) => pathname.startsWith(child.href)) ?? false;
@@ -136,38 +156,49 @@ export default function Sidebar() {
 
             if (hasChildren) {
               return (
-                <div key={item.label} className="rounded-[26px] border border-transparent bg-white/[0.03] p-1">
+                <div key={item.label} className="space-y-0.5">
                   <button
                     onClick={() => toggleSection(item.label)}
-                    className={`flex w-full items-center justify-between rounded-[22px] px-4 py-3.5 text-[15px] font-medium transition-all ${isOpen || childIsActive
-                        ? "bg-white/10 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                    className={`group flex w-full items-center justify-between rounded-xl px-3.5 py-3 text-[16px] font-medium transition-all ${isOpen || childIsActive
+                        ? "text-white"
                         : "text-white/72 hover:bg-white/6 hover:text-white"
                       }`}
                   >
-                    <span className="flex items-center gap-3.5">
-                      <span className={childIsActive ? "text-tally-300" : "text-white/75"}>{item.icon}</span>
+                    <span className="flex items-center gap-3">
+                      <span className={`transition-colors duration-200 ${childIsActive ? "text-tally-300" : "text-white/75 group-hover:text-white"}`}>
+                        {item.icon}
+                      </span>
                       {item.label}
                     </span>
-                    <svg className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className={`h-4 w-4 text-white/30 transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isOpen ? "rotate-180 text-white/70" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                     </svg>
                   </button>
-                  {isOpen ? (
-                    <div className="ml-4 mt-2 space-y-1 border-l border-white/10 pb-2 pl-4">
-                      {item.children!.map((child) => (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          className={`block rounded-2xl px-3.5 py-2.5 text-[15px] leading-5 transition-all ${pathname.startsWith(child.href)
-                              ? "bg-white/10 font-semibold text-tally-200"
-                              : "text-white/55 hover:bg-white/6 hover:text-white/88"
-                            }`}
-                        >
-                          {child.label}
-                        </Link>
-                      ))}
+
+                  <div className={`grid transition-all duration-300 ease-in-out ${isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0 pointer-events-none"}`}>
+                    <div className="overflow-hidden">
+                      <div className="ml-[25px] border-l border-white/10 pl-4 space-y-0.5 pb-2 pt-1">
+                        {item.children!.map((child) => {
+                          const subActive = pathname.startsWith(child.href);
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              className={`group relative flex items-center rounded-lg px-3 py-2 text-[15px] leading-5 transition-all ${subActive
+                                  ? "bg-white/10 font-semibold text-tally-200"
+                                  : "text-white/55 hover:bg-white/6 hover:text-white/88"
+                                }`}
+                            >
+                              {subActive && (
+                                <div className="absolute left-[-17px] top-1/2 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-tally-300 shadow-[0_0_6px_rgba(194,240,213,0.6)]" />
+                              )}
+                              {child.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
                     </div>
-                  ) : null}
+                  </div>
                 </div>
               );
             }
@@ -176,28 +207,33 @@ export default function Sidebar() {
               <Link
                 key={item.label}
                 href={item.href!}
-                className={`flex items-center gap-3.5 rounded-[24px] px-4 py-3.5 text-[15px] font-medium transition-all ${active
+                className={`group relative flex items-center gap-3 rounded-xl px-3.5 py-3 text-[16px] font-medium transition-all ${active
                     ? "bg-white/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
                     : "text-white/72 hover:bg-white/6 hover:text-white"
                   }`}
               >
-                <span className={active ? "text-tally-300" : "text-white/75"}>{item.icon}</span>
+                {active && (
+                  <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-md bg-tally-300 shadow-[0_0_8px_rgba(194,240,213,0.6)]" />
+                )}
+                <span className={`transition-colors duration-200 ${active ? "text-tally-300" : "text-white/75 group-hover:text-white"}`}>
+                  {item.icon}
+                </span>
                 {item.label}
               </Link>
             );
           })}
         </nav>
 
+        {/* Streamlined Footer Firm Switcher */}
         <div className="mt-auto space-y-3 border-t border-white/10 pt-5">
-          <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/40">Firm access</p>
-            <p className="mt-2 text-[15px] leading-6 text-white/70">Switch firms without leaving the dashboard workspace.</p>
-          </div>
-          <Link href="/firms" className="flex items-center gap-3 rounded-[24px] border border-white/10 bg-white/6 px-4 py-3.5 text-[15px] font-medium text-white/75 transition-all hover:bg-white/10 hover:text-white">
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-            </svg>
-            Switch Firm
+          <Link href="/firms" className="group flex items-center justify-between rounded-xl border border-white/10 bg-white/6 px-4 py-3.5 text-[15px] font-medium text-white/75 transition-all hover:bg-white/10 hover:text-white">
+            <span className="flex items-center gap-3">
+              <svg className="h-4 w-4 text-white/60 group-hover:text-tally-300 transition-colors duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+              </svg>
+              Switch Firm
+            </span>
+            <span className="rounded-md bg-white/5 px-1.5 py-0.5 text-[8px] font-semibold text-white/40 tracking-wider">Ctrl+S</span>
           </Link>
         </div>
       </div>

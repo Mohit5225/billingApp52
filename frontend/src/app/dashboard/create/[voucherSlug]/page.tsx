@@ -19,5 +19,5 @@ export default async function VoucherCreatePage({ params }: { params: Promise<{ 
     notFound();
   }
 
-  return <VoucherWorkbench slug={voucherSlug as Parameters<typeof VoucherWorkbench>[0]["slug"]} />;
+  return <VoucherWorkbench key={voucherSlug} slug={voucherSlug as Parameters<typeof VoucherWorkbench>[0]["slug"]} />;
 }

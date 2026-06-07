@@ -37,5 +37,5 @@ export default function VoucherEditPage() {
     return null;
   }
 
-  return <VoucherWorkbench slug={slug} voucherId={params.voucherId} />;
+  return <VoucherWorkbench key={params.voucherId} slug={slug} voucherId={params.voucherId} />;
 }

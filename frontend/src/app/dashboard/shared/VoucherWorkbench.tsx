@@ -1,286 +1,41 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { createPortal } from "react-dom";
 
-import { ItemDetail } from "@/interfaces/inventory";
-import { LedgerDetail } from "@/interfaces/ledger";
-import { VoucherCategory, VoucherDetail, VoucherWritePayload } from "@/interfaces/voucher";
+import { VoucherDetail } from "@/interfaces/voucher";
 import { apiRequest } from "@/lib/http";
-import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
 import { useDashboardChrome } from "@/context/DashboardChromeContext";
-import { DashboardChromeScope } from "@/context/DashboardChromeContext";
-import { getTemplateById } from "@/components/templates/TemplateRegistry";
 import type { InvoiceData, InvoiceType } from "@/components/templates/types";
 
 import { useFirmScope } from "./useFirmScope";
-import { ComboboxField } from "./ComboboxField";
 import { useFocusTraversal } from "./useFocusTraversal";
 import { useDateFilter } from "@/context/DateFilterContext";
+import { round2, numberToWords } from "./voucher/utils";
+import { InvoicePreviewOverlay } from "./voucher/components/InvoicePreviewOverlay";
 
-type VoucherSlug =
-  | "sales-invoice"
-  | "purchase-invoice"
-  | "receipt"
-  | "payment"
-  | "debit-note"
-  | "credit-note"
-  | "journal-entry"
-  | "contra-entry";
+import {
+  VoucherSlug,
+  TaxMode,
+  InvoiceLineState,
+  JournalLineState,
+  FormState,
+  VOUCHER_META,
+  getEmptyForm,
+  EMPTY_INVOICE_LINE,
+  EMPTY_JOURNAL_LINE,
+} from "./voucher/types";
+import { useVoucherData } from "./voucher/hooks/useVoucherData";
+import { useVoucherHydration } from "./voucher/hooks/useVoucherHydration";
+import { buildVoucherPayload } from "./voucher/buildPayload";
+import { VoucherHeader } from "./voucher/components/VoucherHeader";
+import { VoucherPartySection } from "./voucher/components/VoucherPartySection";
+import { InvoiceItemsTable } from "./voucher/components/InvoiceItemsTable";
+import { JournalLinesTable } from "./voucher/components/JournalLinesTable";
+import { TotalsAndNarration } from "./voucher/components/TotalsAndNarration";
+import { VoucherActionBar } from "./voucher/components/VoucherActionBar";
 
-type VoucherFamily = "invoice" | "payment" | "journal" | "contra";
-type TaxMode = "intra" | "inter";
-
-type InvoiceLineState = {
-  item_id: string;
-  quantity: number;
-  unit_price: number;
-  discount_amount: number;
-  taxable_amount: number;
-  igst_rate: number;
-  cgst_rate: number;
-  sgst_rate: number;
-  cess_percent: number;
-  cess_amount_per_unit: number;
-  igst_amount: number;
-  cgst_amount: number;
-  sgst_amount: number;
-  cess_amount: number;
-};
-
-type JournalLineState = {
-  ledger_id: string;
-  debit_amount: number;
-  credit_amount: number;
-};
-
-type FormState = {
-  voucher_number: string;
-  voucher_date: string;
-  narration: string;
-  party_ledger_id: string;
-  main_ledger_id: string;
-  cash_bank_ledger_id: string;
-  source_ledger_id: string;
-  destination_ledger_id: string;
-  amount: number;
-  manual_tax_mode: TaxMode;
-};
-
-const VOUCHER_META: Record<VoucherSlug, { category: VoucherCategory; family: VoucherFamily; title: string; description: string }> = {
-  "sales-invoice": {
-    category: "Sales",
-    family: "invoice",
-    title: "Sales Invoice",
-    description: "Party, sales ledger, tax ledgers, and inventory lines stay in one focused invoice workflow.",
-  },
-  "purchase-invoice": {
-    category: "Purchase",
-    family: "invoice",
-    title: "Purchase Invoice",
-    description: "Capture inward goods or services without losing the accounting-side ledger structure.",
-  },
-  receipt: {
-    category: "Receipt",
-    family: "payment",
-    title: "Receipt Voucher",
-    description: "Keep party, cash or bank, amount, date, and narration tight and fast.",
-  },
-  payment: {
-    category: "Payment",
-    family: "payment",
-    title: "Payment Voucher",
-    description: "Move money out with a cleaner, two-ledger flow instead of a bloated invoice screen.",
-  },
-  "debit-note": {
-    category: "Debit Note",
-    family: "invoice",
-    title: "Debit Note",
-    description: "Inventory-backed debit note workflow with separate invoice logic and tax handling.",
-  },
-  "credit-note": {
-    category: "Credit Note",
-    family: "invoice",
-    title: "Credit Note",
-    description: "Bring returns or reversals into the same invoice-grade workflow without turning it into a monster form.",
-  },
-  "journal-entry": {
-    category: "Journal",
-    family: "journal",
-    title: "Journal Entry",
-    description: "Free-form accounting lines for cases that should not pretend to be invoices or payments.",
-  },
-  "contra-entry": {
-    category: "Contra",
-    family: "contra",
-    title: "Contra Entry",
-    description: "A focused two-ledger money movement flow for cash and bank transfers.",
-  },
-};
-
-const getDefaultDate = (fromDate: string, toDate: string) => {
-  const today = new Date().toISOString().slice(0, 10);
-  if (fromDate && today < fromDate) return fromDate;
-  if (toDate && today > toDate) return toDate;
-  return today;
-};
-
-const getEmptyForm = (fromDate: string, toDate: string): FormState => ({
-  voucher_number: "",
-  voucher_date: getDefaultDate(fromDate, toDate),
-  narration: "",
-  party_ledger_id: "",
-  main_ledger_id: "",
-  cash_bank_ledger_id: "",
-  source_ledger_id: "",
-  destination_ledger_id: "",
-  amount: 0,
-  manual_tax_mode: "intra",
-});
-
-const EMPTY_INVOICE_LINE: InvoiceLineState = {
-  item_id: "",
-  quantity: 0,
-  unit_price: 0,
-  discount_amount: 0,
-  taxable_amount: 0,
-  igst_rate: 0,
-  cgst_rate: 0,
-  sgst_rate: 0,
-  cess_percent: 0,
-  cess_amount_per_unit: 0,
-  igst_amount: 0,
-  cgst_amount: 0,
-  sgst_amount: 0,
-  cess_amount: 0,
-};
-
-const EMPTY_JOURNAL_LINE: JournalLineState = {
-  ledger_id: "",
-  debit_amount: 0,
-  credit_amount: 0,
-};
-
-function round2(value: number) {
-  return Math.round((value + Number.EPSILON) * 100) / 100;
-}
-
-function isPartyLedger(ledger: LedgerDetail) {
-  return ledger.template_type === "party";
-}
-
-function isCashBankLedger(ledger: LedgerDetail) {
-  const groupName = (ledger.group_name || "").toLowerCase();
-  return ledger.template_type === "bank" || groupName.includes("cash");
-}
-
-function isTaxLedger(ledger: LedgerDetail) {
-  return ledger.template_type === "tax";
-}
-
-function isMainInvoiceLedger(ledger: LedgerDetail, category: VoucherCategory) {
-  const groupName = (ledger.group_name || "").toLowerCase();
-  if (category === "Sales" || category === "Credit Note") {
-    return groupName.includes("sales") || ledger.group_nature === "Income";
-  }
-  return groupName.includes("purchase") || ledger.group_nature === "Expense";
-}
-
-function recalcLine(line: InvoiceLineState, item: ItemDetail | undefined, taxMode: TaxMode) {
-  const quantity = Number(line.quantity || 0);
-  const unitPrice = Number(line.unit_price || 0);
-  const discount = Number(line.discount_amount || 0);
-  const taxable = round2(Math.max(quantity * unitPrice - discount, 0));
-
-  let igstRate = 0;
-  let cgstRate = 0;
-  let sgstRate = 0;
-  const cessPercent = item?.cess_percent || 0;
-  const cessAmountPerUnit = item?.cess_amount_per_unit || 0;
-
-  if (item?.taxability === "Taxable") {
-    if (taxMode === "inter") {
-      igstRate = item.igst_rate;
-    } else {
-      cgstRate = item.cgst_rate;
-      sgstRate = item.sgst_rate;
-    }
-  }
-
-  const igstAmount = round2((taxable * igstRate) / 100);
-  const cgstAmount = round2((taxable * cgstRate) / 100);
-  const sgstAmount = round2((taxable * sgstRate) / 100);
-  const cessAmount = round2((taxable * cessPercent) / 100 + quantity * cessAmountPerUnit);
-
-  return {
-    ...line,
-    taxable_amount: taxable,
-    igst_rate: igstRate,
-    cgst_rate: cgstRate,
-    sgst_rate: sgstRate,
-    cess_percent: cessPercent,
-    cess_amount_per_unit: cessAmountPerUnit,
-    igst_amount: igstAmount,
-    cgst_amount: cgstAmount,
-    sgst_amount: sgstAmount,
-    cess_amount: cessAmount,
-  };
-}
-
-function requireSelection(value: string, label: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    throw new Error(`Select ${label} before saving the voucher`);
-  }
-  return trimmed;
-}
-
-function requireLines<T>(lines: T[], label: string) {
-  if (lines.length === 0) {
-    throw new Error(`Add at least one ${label}`);
-  }
-}
-
-function InputField({
-  label,
-  value,
-  onChange,
-  type = "text",
-  placeholder,
-  step,
-  disabled,
-}: {
-  label?: string;
-  value: string | number;
-  onChange: (value: string) => void;
-  type?: string;
-  placeholder?: string;
-  step?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-1">
-      {label && (
-        <label className="mb-0.5 text-base font-semibold uppercase tracking-wider text-slate-500 sm:mb-0 sm:w-1/3">
-          {label}
-        </label>
-      )}
-      <input
-        type={type}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        className="h-12 sm:h-12 w-full rounded-md border border-slate-500 bg-white px-3 text-base text-slate-800 outline-none transition placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:cursor-not-allowed disabled:opacity-60"
-      />
-    </div>
-  );
-}
 
 export function VoucherWorkbench({
   slug,
@@ -350,71 +105,18 @@ export function VoucherWorkbench({
   }, [invoiceLines.length, journalLines.length]);
 
   // ── Data fetching via React Query ──
-  const { data: ledgers = [] } = useQuery({
-    queryKey: ["ledgers", activeFirmId],
-    queryFn: () =>
-      apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", { query: { firm_id: activeFirmId } }),
-    enabled: !!activeFirmId,
-  });
-
-  const { data: items = [] } = useQuery({
-    queryKey: ["items", activeFirmId],
-    queryFn: () =>
-      apiRequest<ItemDetail[]>(supabase, "/api/items/", {
-        query: { firm_id: activeFirmId, active_only: false },
-      }),
-    enabled: !!activeFirmId,
-  });
-
-  const { data: firmQueryData } = useQuery({
-    queryKey: ["firm-details", activeFirmId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("firms")
-        .select("name, mailing_name, address_lane1, city, state, pincode, mobile, email, gstin, pan, bank_name, account_number, ifsc_code, branch_name")
-        .eq("id", activeFirmId)
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!activeFirmId,
-  });
-
-  const firmState = firmQueryData?.state || "";
-  const firmDetails = firmQueryData
-    ? {
-        name: firmQueryData.mailing_name || firmQueryData.name || "",
-        address: [firmQueryData.address_lane1, firmQueryData.city, firmQueryData.state ? `${firmQueryData.state} - ${firmQueryData.pincode || ""}` : firmQueryData.pincode].filter(Boolean).join(",\n"),
-        phone: firmQueryData.mobile || undefined,
-        email: firmQueryData.email || undefined,
-        gstin: firmQueryData.gstin || undefined,
-        pan: firmQueryData.pan || undefined,
-        state: firmQueryData.state || undefined,
-        bankName: firmQueryData.bank_name || undefined,
-        accountNumber: firmQueryData.account_number || undefined,
-        ifscCode: firmQueryData.ifsc_code || undefined,
-        branchName: firmQueryData.branch_name || undefined,
-      }
-    : null;
-
-  const depsReady = ledgers.length > 0;
-
-  const partyLedgers = useMemo(
-    () => ledgers.filter(isPartyLedger).map((ledger) => ({ value: ledger.id, label: `${ledger.name} • ${ledger.group_name || "Party"}` })),
-    [ledgers],
-  );
-  const cashBankLedgers = useMemo(
-    () => ledgers.filter(isCashBankLedger).map((ledger) => ({ value: ledger.id, label: ledger.name })),
-    [ledgers],
-  );
-  const mainLedgers = useMemo(
-    () => ledgers.filter((ledger) => isMainInvoiceLedger(ledger, meta.category)).map((ledger) => ({ value: ledger.id, label: `${ledger.name} • ${ledger.group_name || "Main ledger"}` })),
-    [ledgers, meta.category],
-  );
-  const allLedgerOptions = useMemo(
-    () => ledgers.map((ledger) => ({ value: ledger.id, label: `${ledger.name} • ${ledger.group_name || "Ledger"}` })),
-    [ledgers],
-  );
+  const {
+    ledgers,
+    items,
+    firmDetails,
+    firmState,
+    depsReady,
+    partyLedgers,
+    cashBankLedgers,
+    mainLedgers,
+    allLedgerOptions,
+    nextNumberData,
+  } = useVoucherData(activeFirmId, supabase, meta.category, isEditing);
 
   const selectedPartyLedger = useMemo(
     () => ledgers.find((ledger) => ledger.id === form.party_ledger_id) || null,
@@ -428,7 +130,7 @@ export function VoucherWorkbench({
       return partyState === normalizedFirmState ? "intra" : "inter";
     }
     // We no longer fallback to manual_tax_mode. Validation in buildPayload will catch missing states.
-    return "intra"; 
+    return "intra";
   }, [firmState, selectedPartyLedger]);
 
   const invoiceTotals = useMemo(() => {
@@ -448,131 +150,40 @@ export function VoucherWorkbench({
   }, [invoiceLines]);
 
   // ── Voucher hydration (only when editing an existing voucher) ──
-  const [hasHydrated, setHasHydrated] = useState(false);
-
-  useEffect(() => {
-    if (!depsReady || !voucherId || hasHydrated) return;
-
-    let mounted = true;
-    const hydrate = async () => {
-      try {
-        setIsLoading(true);
-        const voucher = await apiRequest<VoucherDetail>(supabase, `/api/vouchers/${voucherId}`);
-        if (!mounted) return;
-
-        setForm((prev) => ({
-          ...prev,
-          voucher_number: voucher.voucher_number,
-          voucher_date: voucher.voucher_date,
-          narration: voucher.narration || "",
-          party_ledger_id: voucher.party_ledger_id || "",
-        }));
-
-        if (meta.family === "invoice") {
-          const lines = voucher.inventory_lines.map((line) => ({
-            item_id: line.item_id,
-            quantity: line.quantity,
-            unit_price: line.unit_price,
-            discount_amount: line.discount_amount,
-            taxable_amount: line.taxable_amount,
-            igst_rate: line.igst_rate,
-            cgst_rate: line.cgst_rate,
-            sgst_rate: line.sgst_rate,
-            cess_percent: line.cess_percent,
-            cess_amount_per_unit: line.cess_amount_per_unit,
-            igst_amount: line.igst_amount,
-            cgst_amount: line.cgst_amount,
-            sgst_amount: line.sgst_amount,
-            cess_amount: line.cess_amount,
-          }));
-          setInvoiceLines(lines.length > 0 ? lines : [{ ...EMPTY_INVOICE_LINE }]);
-
-          const nonPartyLines = voucher.accounting_lines.filter((line) => line.ledger_id !== voucher.party_ledger_id);
-          const taxLedgerIds = new Set(ledgers.filter(isTaxLedger).map((ledger) => ledger.id));
-          const mainLine = nonPartyLines.find((line) => !taxLedgerIds.has(line.ledger_id));
-          const existingTaxMode: TaxMode = voucher.inventory_lines.some((line) => line.igst_amount > 0) ? "inter" : "intra";
-          setForm((prev) => ({
-            ...prev,
-            main_ledger_id: mainLine?.ledger_id || "",
-            manual_tax_mode: existingTaxMode,
-          }));
-        }
-
-        if (meta.family === "payment") {
-          const bankLine = voucher.accounting_lines.find((line) => line.ledger_id !== voucher.party_ledger_id);
-          const amount = Math.max(...voucher.accounting_lines.map((line) => Math.max(line.debit_amount, line.credit_amount)));
-          setForm((prev) => ({
-            ...prev,
-            cash_bank_ledger_id: bankLine?.ledger_id || "",
-            amount,
-          }));
-        }
-
-        if (meta.family === "contra") {
-          const debitLine = voucher.accounting_lines.find((line) => line.debit_amount > 0);
-          const creditLine = voucher.accounting_lines.find((line) => line.credit_amount > 0);
-          setForm((prev) => ({
-            ...prev,
-            source_ledger_id: creditLine?.ledger_id || "",
-            destination_ledger_id: debitLine?.ledger_id || "",
-            amount: debitLine?.debit_amount || creditLine?.credit_amount || 0,
-          }));
-        }
-
-        if (meta.family === "journal") {
-          setJournalLines(
-            voucher.accounting_lines.map((line) => ({
-              ledger_id: line.ledger_id,
-              debit_amount: line.debit_amount,
-              credit_amount: line.credit_amount,
-            })),
-          );
-        }
-
-        setHasHydrated(true);
-      } catch (err) {
-        if (mounted) {
-          showToast(err instanceof Error ? err.message : "Unable to load voucher", "error");
-        }
-      } finally {
-        if (mounted) setIsLoading(false);
-      }
-    };
-
-    void hydrate();
-    return () => {
-      mounted = false;
-    };
-  }, [depsReady, voucherId, hasHydrated, ledgers, meta.family, showToast, supabase]);
-
-  // Fetch next voucher number using TanStack Query
-  const { data: nextNumberData } = useQuery({
-    queryKey: ["next-voucher-number", activeFirmId, meta.category],
-    queryFn: () =>
-      apiRequest<{ next_number: string }>(supabase, "/api/vouchers/next-number", {
-        query: { firm_id: activeFirmId, category: meta.category },
-      }),
-    enabled: !!activeFirmId && !isEditing,
+  useVoucherHydration({
+    depsReady,
+    voucherId,
+    ledgers,
+    family: meta.family,
+    supabase,
+    setForm,
+    setInvoiceLines,
+    setJournalLines,
+    setIsLoading,
+    showToast,
   });
 
-  // Automatically apply the next number to the form if it's currently empty
+
+
   useEffect(() => {
     if (nextNumberData?.next_number && form.voucher_number === "") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm((prev) => ({ ...prev, voucher_number: nextNumberData.next_number }));
     }
   }, [nextNumberData, form.voucher_number]);
 
   useEffect(() => {
     if (!isEditing) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm((prev) => {
         let changed = false;
         const next = { ...prev };
-        
+
         if (meta.family === "invoice" && mainLedgers.length > 0 && !prev.main_ledger_id) {
           next.main_ledger_id = mainLedgers[0].value;
           changed = true;
         }
-        
+
         if (meta.family === "payment" && cashBankLedgers.length > 0 && !prev.cash_bank_ledger_id) {
           next.cash_bank_ledger_id = cashBankLedgers[0].value;
           changed = true;
@@ -588,36 +199,11 @@ export function VoucherWorkbench({
             changed = true;
           }
         }
-        
+
         return changed ? next : prev;
       });
     }
   }, [meta.family, isEditing, mainLedgers, cashBankLedgers]);
-
-  function updateInvoiceLine(index: number, partial: Partial<InvoiceLineState>) {
-    setInvoiceLines((prev) =>
-      prev.map((line, lineIndex) => {
-        if (lineIndex !== index) return line;
-        const merged = { ...line, ...partial };
-        const item = items.find((entry) => entry.id === merged.item_id);
-        return recalcLine(merged, item, taxMode);
-      }),
-    );
-  }
-
-  function selectItem(index: number, itemId: string) {
-    const item = items.find((entry) => entry.id === itemId);
-    updateInvoiceLine(index, {
-      item_id: itemId,
-      unit_price: item?.default_price || 0,
-    });
-    setInvoiceLines((prev) => {
-      if (index === prev.length - 1 && itemId) {
-        return [...prev, { ...EMPTY_INVOICE_LINE }];
-      }
-      return prev;
-    });
-  }
 
   /** Serialize live form state into InvoiceData for template preview */
   const buildPreviewData = useCallback((): InvoiceData | null => {
@@ -636,25 +222,25 @@ export function VoucherWorkbench({
         return !isPristine;
       })
       .map((line, idx) => {
-      const item = items.find((i) => i.id === line.item_id);
-      return {
-        srNo: idx + 1,
-        name: item?.name || "(unnamed item)",
-        hsnSac: item?.hsn_code || "",
-        quantity: line.quantity,
-        uom: item?.uom_name || "NOS",
-        rate: line.unit_price,
-        discount: line.discount_amount,
-        taxableAmount: line.taxable_amount,
-        igstRate: line.igst_rate || undefined,
-        cgstRate: line.cgst_rate || undefined,
-        sgstRate: line.sgst_rate || undefined,
-        igstAmount: line.igst_amount || undefined,
-        cgstAmount: line.cgst_amount || undefined,
-        sgstAmount: line.sgst_amount || undefined,
-        cessAmount: line.cess_amount || undefined,
-      };
-    });
+        const item = items.find((i) => i.id === line.item_id);
+        return {
+          srNo: idx + 1,
+          name: item?.name || "(unnamed item)",
+          hsnSac: item?.hsn_code || "",
+          quantity: line.quantity,
+          uom: item?.uom_name || "NOS",
+          rate: line.unit_price,
+          discount: line.discount_amount,
+          taxableAmount: line.taxable_amount,
+          igstRate: line.igst_rate || undefined,
+          cgstRate: line.cgst_rate || undefined,
+          sgstRate: line.sgst_rate || undefined,
+          igstAmount: line.igst_amount || undefined,
+          cgstAmount: line.cgst_amount || undefined,
+          sgstAmount: line.sgst_amount || undefined,
+          cessAmount: line.cess_amount || undefined,
+        };
+      });
 
     // Build HSN-level tax breakdown
     const hsnMap = new Map<string, { taxableValue: number; igstRate: number; igstAmount: number; cgstRate: number; cgstAmount: number; sgstRate: number; sgstAmount: number }>();
@@ -728,252 +314,19 @@ export function VoucherWorkbench({
     };
   }, [firmDetails, invoiceLines, items, invoiceTotals, form, ledgers, meta.category]);
 
-  function buildPayload(): VoucherWritePayload {
-    if (!activeFirmId) {
-      throw new Error("No active firm selected");
-    }
-
-    const voucherNumber = requireSelection(form.voucher_number, "voucher number");
-
-    if (meta.family === "invoice") {
-      const partyLedgerId = requireSelection(form.party_ledger_id, "party ledger");
-      const mainLedgerId = requireSelection(form.main_ledger_id, "sales/purchase ledger");
-      
-      const finalInvoiceLines = invoiceLines.filter((line) => {
-        const isPristine = !line.item_id && (line.quantity === 1 || !line.quantity) && !line.unit_price && !line.discount_amount;
-        return !isPristine;
-      });
-
-      requireLines(finalInvoiceLines, "invoice line");
-
-      const partyLedger = ledgers.find((l) => l.id === partyLedgerId);
-      if (!partyLedger) throw new Error("Party ledger not found");
-
-      const partyState = partyLedger.party_details?.state?.trim().toLowerCase();
-      const normalizedFirmState = firmState?.trim().toLowerCase();
-
-      if (!normalizedFirmState) {
-        throw new Error("Your firm is missing a State. Please update your firm profile with a state to determine tax.");
-      }
-      if (!partyState && !partyLedger.name.toLowerCase().includes("cash")) {
-        throw new Error(`The party ledger '${partyLedger.name}' is missing a State. Please update the party ledger with a state to determine tax (IGST vs CGST/SGST).`);
-      }
-
-      const getTaxLedgerId = (type: string) => {
-        const aliases: Record<string, string[]> = {
-          igst: ["igst", "inter", "integrated"],
-          cgst: ["cgst", "central"],
-          sgst: ["sgst", "state", "utgst"],
-          cess: ["cess"],
-        };
-        const searchTerms = aliases[type.toLowerCase()] || [type.toLowerCase()];
-        const found = ledgers.find((l) => isTaxLedger(l) && searchTerms.some(term => l.name.toLowerCase().includes(term)));
-        if (!found) throw new Error(`Could not automatically find tax ledger for ${type.toUpperCase()}. Please create a tax ledger containing '${searchTerms.join("' or '")}' in its name.`);
-        return found.id;
-      };
-
-      for (const [index, line] of finalInvoiceLines.entries()) {
-        requireSelection(line.item_id, `item on line ${index + 1}`);
-        if (!line.quantity || line.quantity <= 0) {
-          throw new Error(`Enter a valid quantity on line ${index + 1}`);
-        }
-      }
-
-      const accountingLines = [];
-      if (meta.category === "Sales" || meta.category === "Debit Note") {
-        accountingLines.push({
-          ledger_id: partyLedgerId,
-          line_number: 1,
-          debit_amount: invoiceTotals.grandTotal,
-          credit_amount: 0,
-        });
-        accountingLines.push({
-          ledger_id: mainLedgerId,
-          line_number: 2,
-          debit_amount: 0,
-          credit_amount: invoiceTotals.taxable,
-        });
-        let lineNumber = 3;
-        if (invoiceTotals.igst > 0) {
-          accountingLines.push({
-            ledger_id: getTaxLedgerId("igst"),
-            line_number: lineNumber++,
-            debit_amount: 0,
-            credit_amount: invoiceTotals.igst,
-          });
-        } else {
-          if (invoiceTotals.cgst > 0) {
-            accountingLines.push({
-              ledger_id: getTaxLedgerId("cgst"),
-              line_number: lineNumber++,
-              debit_amount: 0,
-              credit_amount: invoiceTotals.cgst,
-            });
-          }
-          if (invoiceTotals.sgst > 0) {
-            accountingLines.push({
-              ledger_id: getTaxLedgerId("sgst"),
-              line_number: lineNumber++,
-              debit_amount: 0,
-              credit_amount: invoiceTotals.sgst,
-            });
-          }
-        }
-        if (invoiceTotals.cess > 0) {
-          accountingLines.push({
-            ledger_id: getTaxLedgerId("cess"),
-            line_number: lineNumber++,
-            debit_amount: 0,
-            credit_amount: invoiceTotals.cess,
-          });
-        }
-      } else {
-        accountingLines.push({
-          ledger_id: mainLedgerId,
-          line_number: 1,
-          debit_amount: invoiceTotals.taxable,
-          credit_amount: 0,
-        });
-        let lineNumber = 2;
-        if (invoiceTotals.igst > 0) {
-          accountingLines.push({
-            ledger_id: getTaxLedgerId("igst"),
-            line_number: lineNumber++,
-            debit_amount: invoiceTotals.igst,
-            credit_amount: 0,
-          });
-        } else {
-          if (invoiceTotals.cgst > 0) {
-            accountingLines.push({
-              ledger_id: getTaxLedgerId("cgst"),
-              line_number: lineNumber++,
-              debit_amount: invoiceTotals.cgst,
-              credit_amount: 0,
-            });
-          }
-          if (invoiceTotals.sgst > 0) {
-            accountingLines.push({
-              ledger_id: getTaxLedgerId("sgst"),
-              line_number: lineNumber++,
-              debit_amount: invoiceTotals.sgst,
-              credit_amount: 0,
-            });
-          }
-        }
-        if (invoiceTotals.cess > 0) {
-          accountingLines.push({
-            ledger_id: getTaxLedgerId("cess"),
-            line_number: lineNumber++,
-            debit_amount: invoiceTotals.cess,
-            credit_amount: 0,
-          });
-        }
-        accountingLines.push({
-          ledger_id: partyLedgerId,
-          line_number: lineNumber++,
-          debit_amount: 0,
-          credit_amount: invoiceTotals.grandTotal,
-        });
-      }
-
-      return {
-        firm_id: activeFirmId,
-        category: meta.category,
-        voucher_number: voucherNumber,
-        voucher_date: form.voucher_date,
-        narration: form.narration || null,
-        party_ledger_id: partyLedgerId,
-        accounting_lines: accountingLines,
-        inventory_lines: finalInvoiceLines.map((line, index) => ({
-          ...line,
-          item_id: line.item_id,
-          line_number: index + 1,
-        })),
-      };
-    }
-
-    if (meta.family === "payment") {
-      const partyLedgerId = requireSelection(form.party_ledger_id, "party ledger");
-      const cashBankLedgerId = requireSelection(form.cash_bank_ledger_id, "cash or bank ledger");
-
-      const isReceipt = meta.category === "Receipt";
-      return {
-        firm_id: activeFirmId,
-        category: meta.category,
-        voucher_number: voucherNumber,
-        voucher_date: form.voucher_date,
-        narration: form.narration || null,
-        party_ledger_id: partyLedgerId,
-        accounting_lines: [
-          {
-            ledger_id: isReceipt ? cashBankLedgerId : partyLedgerId,
-            line_number: 1,
-            debit_amount: form.amount,
-            credit_amount: 0,
-          },
-          {
-            ledger_id: isReceipt ? partyLedgerId : cashBankLedgerId,
-            line_number: 2,
-            debit_amount: 0,
-            credit_amount: form.amount,
-          },
-        ],
-        inventory_lines: [],
-      };
-    }
-
-    if (meta.family === "contra") {
-      const sourceLedgerId = requireSelection(form.source_ledger_id, "transfer-from ledger");
-      const destinationLedgerId = requireSelection(form.destination_ledger_id, "transfer-to ledger");
-
-      return {
-        firm_id: activeFirmId,
-        category: meta.category,
-        voucher_number: voucherNumber,
-        voucher_date: form.voucher_date,
-        narration: form.narration || null,
-        party_ledger_id: null,
-        accounting_lines: [
-          {
-            ledger_id: destinationLedgerId,
-            line_number: 1,
-            debit_amount: form.amount,
-            credit_amount: 0,
-          },
-          {
-            ledger_id: sourceLedgerId,
-            line_number: 2,
-            debit_amount: 0,
-            credit_amount: form.amount,
-          },
-        ],
-        inventory_lines: [],
-      };
-    }
-
-    const finalJournalLines = journalLines.filter((line) => {
-      const isPristine = !line.ledger_id && !line.debit_amount && !line.credit_amount;
-      return !isPristine;
-    });
-
-    requireLines(finalJournalLines, "journal line");
-    for (const [index, line] of finalJournalLines.entries()) {
-      requireSelection(line.ledger_id, `ledger on line ${index + 1}`);
-    }
-
-    return {
-      firm_id: activeFirmId,
+  function buildPayload() {
+    if (!activeFirmId) throw new Error("No active firm selected");
+    return buildVoucherPayload({
+      activeFirmId,
+      form,
+      family: meta.family,
       category: meta.category,
-      voucher_number: voucherNumber,
-      voucher_date: form.voucher_date,
-      narration: form.narration || null,
-      party_ledger_id: null,
-      accounting_lines: finalJournalLines.map((line, index) => ({
-        ...line,
-        line_number: index + 1,
-      })),
-      inventory_lines: [],
-    };
+      invoiceLines,
+      invoiceTotals,
+      journalLines,
+      ledgers,
+      firmState,
+    });
   }
 
   async function submit() {
@@ -992,7 +345,7 @@ export function VoucherWorkbench({
         });
 
       showToast(`Voucher ${isEditing ? "updated" : "saved"} successfully!`, "success");
-      
+
       if (isEditing) {
         router.push(`/dashboard/vouchers/${result.id}`);
       } else {
@@ -1005,7 +358,7 @@ export function VoucherWorkbench({
           { ...EMPTY_JOURNAL_LINE },
           { ...EMPTY_JOURNAL_LINE },
         ]);
-        
+
         setTimeout(() => {
           initFocus();
         }, 50);
@@ -1020,685 +373,74 @@ export function VoucherWorkbench({
   return (
     <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-500 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]">
       {/* ── Voucher Command Ribbon ── */}
-      <div className="shrink-0 border-b border-slate-500 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-col sm:flex-row sm:items-start sm:items-center justify-between gap-4">
-        {/* Left Side: Title and Inputs */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 w-full sm:w-auto">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-[15px]l sm:text-2xl font-bold tracking-tight text-slate-900 whitespace-nowrap">{meta.title}</h1>
-              {!isEditing ? (
-                <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                  </svg>
-                  Draft
-                </span>
-              ) : (
-                <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-base font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/20">
-                  Editing
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-slate-500">Create and manage your {meta.title.toLowerCase()}</p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2 sm:mt-0">
-            <div className="flex flex-col gap-1.5 w-full sm:w-auto">
-              <label className="text-xs font-semibold text-slate-600">Invoice No.</label>
-              <input
-                className="h-10 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-500 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
-                placeholder="e.g. 1"
-                size={Math.max(14, form.voucher_number.length + 2)}
-                value={form.voucher_number}
-                onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
-                disabled={readOnly}
-                data-mandatory="true"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5 w-full sm:w-40">
-              <label className="text-xs font-semibold text-slate-600">Invoice Date</label>
-              <input
-                type="date"
-                className="h-10 w-full rounded-lg border border-slate-500 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
-                value={form.voucher_date}
-                min={globalFromDate}
-                max={globalToDate}
-                onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
-                disabled={readOnly}
-                data-mandatory="true"
-              />
-            </div>
-          </div>
-        </div>
-        
-        {/* Right Side: Actions */}
-        <div className="flex items-center gap-3 self-end sm:self-auto">
-          <Link
-            href="/dashboard"
-            data-skip-enter="true"
-            className="hidden sm:flex h-12 items-center gap-2 rounded-lg border border-slate-500 bg-white px-4 text-base font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-            </svg>
-            Dashboard
-          </Link>
-          
-          <Link
-            href="/dashboard"
-            data-skip-enter="true"
-            className="flex sm:hidden h-12 w-10 items-center justify-center rounded-lg border border-slate-500 bg-white text-slate-500 transition hover:bg-slate-50"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </Link>
-        </div>
-      </div>
+      <VoucherHeader
+        meta={meta}
+        isEditing={isEditing}
+        readOnly={readOnly}
+        form={form}
+        setForm={setForm}
+        globalFromDate={globalFromDate}
+        globalToDate={globalToDate}
+      />
 
-      {/* ── Zone B & C: Party / Ledger / Payment Table ── */}
-      {meta.family === "payment" ? (
-        <div className="flex-1 flex flex-col min-h-0 bg-white">
-          {/* Account Bar (Tally style) */}
-          <div className="shrink-0 border-b border-slate-500 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 bg-sky-50/50">
-            <label className="w-16 sm:w-20 text-base font-semibold text-slate-700">Account</label>
-            <div className="w-full max-w-md">
-              <ComboboxField
-                inline
-                value={form.cash_bank_ledger_id}
-                onChange={(value) => setForm((prev) => ({ ...prev, cash_bank_ledger_id: value }))}
-                options={cashBankLedgers}
-                placeholder="Select Cash/Bank Account…"
-                createHref="/dashboard/create/ledger"
-                disabled={readOnly}
-              />
-            </div>
-          </div>
-          
-          {/* Particulars Table */}
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-500 px-6 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
-              <div>Particulars</div>
-              <div className="text-right">Amount</div>
-            </div>
-            <div className="divide-y divide-slate-100">
-              <div className="grid grid-cols-[1fr_200px] gap-4 p-4 md:px-6 md:py-3 items-start hover:bg-amber-50/30 transition-colors">
-                <div>
-                  <ComboboxField
-                    inline
-                    value={form.party_ledger_id}
-                    onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
-                    options={partyLedgers}
-                    placeholder="Select Party…"
-                    createHref="/dashboard/create/ledger"
-                    disabled={readOnly}
-                  />
-                  {selectedPartyLedger && (
-                    <div className="mt-1.5 text-base text-slate-500 italic flex gap-2 ml-1">
-                      <span>Cur Bal:</span> 
-                      <span>0.00 Cr</span>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <input
-                    className="h-12 w-full rounded-md border border-slate-500 bg-white px-3 text-base font-semibold text-slate-900 text-right outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
-                    type="number"
-                    step="0.01"
-                    value={form.amount}
-                    onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
-                    placeholder="0.00"
-                    disabled={readOnly}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : meta.family !== "journal" ? (
-        <div className="shrink-0 border-b border-slate-500 bg-slate-50/50 p-3 sm:p-4">
-          <div className="grid gap-3 md:grid-cols-2 lg:gap-4 max-w-7xl">
-            {/* Card 1: Bill To / Party / Primary Ledger */}
-            {(meta.family === "invoice" || meta.family === "contra") && (
-              <div className="rounded-xl border border-slate-500 bg-white p-4 shadow-sm">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                    {meta.family === "contra" ? (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                      </svg>
-                    ) : (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                      </svg>
-                    )}
-                  </div>
-                  {meta.family === "contra" ? "Transfer Details" : "Bill To"}
-                </h3>
-                
-                <div className="space-y-2.5">
-                  {meta.family === "contra" ? (
-                    <>
-                      <ComboboxField compact inline label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Source Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
-                      <ComboboxField compact inline label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Destination Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-sm font-semibold text-slate-600">Party Name <span className="text-rose-500">*</span></label>
-                        <ComboboxField
-                          inline
-                          compact={true}
-                          chevron={true}
-                          value={form.party_ledger_id}
-                          onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
-                          options={partyLedgers}
-                          placeholder="Select Party…"
-                          createHref="/dashboard/create/ledger"
-                          disabled={readOnly}
-                          mandatory={true}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1 mt-1.5">
-                        <label className="text-sm font-semibold text-slate-600">
-                          {meta.category === "Sales" || meta.category === "Credit Note" ? "Sales Ledger" : "Purchase Ledger"} <span className="text-rose-500">*</span>
-                        </label>
-                        <ComboboxField
-                          inline
-                          compact={true}
-                          chevron={true}
-                          value={form.main_ledger_id}
-                          onChange={(value) => setForm((prev) => ({ ...prev, main_ledger_id: value }))}
-                          options={mainLedgers.length > 0 ? mainLedgers : allLedgerOptions}
-                          placeholder={`Select ${meta.category === "Sales" || meta.category === "Credit Note" ? "Sales" : "Purchase"} Ledger…`}
-                          createHref="/dashboard/create/ledger"
-                          disabled={readOnly}
-                          mandatory={true}
-                        />
-                      </div>
-                      
-                      {selectedPartyLedger?.party_details && (
-                        <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-100/50 bg-emerald-50/30 p-3.5 text-sm text-slate-600">
-                          {selectedPartyLedger.party_details.address && (
-                            <div className="flex items-start gap-2.5">
-                              <svg className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                              </svg>
-                              <span className="leading-relaxed whitespace-pre-wrap">{selectedPartyLedger.party_details.address}</span>
-                            </div>
-                          )}
-                          {selectedPartyLedger.party_details.gstin && (
-                            <div className="flex items-center gap-2.5">
-                              <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                              </svg>
-                              <span className="font-mono text-slate-700">{selectedPartyLedger.party_details.gstin}</span>
-                            </div>
-                          )}
-                          {selectedPartyLedger.party_details.state && (
-                            <div className="flex items-center gap-2.5">
-                              <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
-                              </svg>
-                              <span className="text-slate-700">{selectedPartyLedger.party_details.state}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Card 2: Additional Details / Cash-Bank / Amount */}
-            {(meta.family === "invoice" || meta.family === "contra") && (
-              <div className="rounded-xl border border-slate-500 bg-white p-4 shadow-sm">
-                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                    {meta.family === "invoice" ? (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                      </svg>
-                    ) : (
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z" />
-                      </svg>
-                    )}
-                  </div>
-                  {meta.family === "invoice" ? "Voucher Details" : "Transaction Details"}
-                </h3>
-                <div className="space-y-2.5">
-                  {meta.family === "contra" ? (
-                    <div className="flex flex-col gap-1.5">
-                      <label className="text-sm font-semibold text-slate-600">Amount <span className="text-rose-500">*</span></label>
-                      <input
-                        className="h-8 w-full rounded-md border border-slate-500 bg-white px-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
-                        type="number"
-                        step="0.01"
-                        value={form.amount}
-                        onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
-                        placeholder="0.00"
-                        disabled={readOnly}
-                      />
-                    </div>
-                  ) : null}
-
-                  {meta.family === "invoice" ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Place of Supply (just a visual representation of State for now) */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-sm font-semibold text-slate-600">Place of Supply</label>
-                        <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-500 bg-slate-50 px-3 text-sm text-slate-600">
-                          {selectedPartyLedger?.party_details?.state || "—"}
-                          <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                          </svg>
-                        </div>
-                      </div>
-                      
-                      {/* Tax Mode (derived) */}
-                      <div className="flex flex-col gap-1">
-                        <label className="text-sm font-semibold text-slate-600">Tax Mode</label>
-                        <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-500 bg-slate-50 px-3 text-sm text-slate-600 capitalize">
-                          {taxMode === "intra" ? "Intra-State" : "Inter-State"}
-                          <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+      {/* ── Zone B: Party / Ledger / Payment Table ── */}
+      <VoucherPartySection
+        meta={meta}
+        form={form}
+        setForm={setForm}
+        cashBankLedgers={cashBankLedgers}
+        partyLedgers={partyLedgers}
+        mainLedgers={mainLedgers}
+        allLedgerOptions={allLedgerOptions}
+        selectedPartyLedger={selectedPartyLedger}
+        taxMode={taxMode}
+        readOnly={readOnly}
+      />
 
       {/* ── Zone C: Items Table ── */}
       {meta.family === "invoice" ? (
-        <div className="flex-1 flex flex-col min-h-[250px] border-b border-slate-100 bg-white">
-          <div className="flex-1 flex flex-col overflow-x-auto custom-scrollbar">
-            <div className="min-w-full md:min-w-[1000px] flex flex-col flex-1">
-              {/* Table header (fixed vertically, scrolls horizontally) */}
-              <div
-                className="shrink-0 hidden grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_0.8fr_1.2fr_40px] gap-2 border-b border-slate-500 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
-              >
-              <div className="text-center">#</div>
-              <div>Name of Item</div>
-              <div>HSN/SAC</div>
-              <div>Qty</div>
-              <div>Rate (₹)</div>
-              <div>Discount (₹)</div>
-              <div className="text-right">Amount (₹)</div>
-              <div className="w-10" />
-              </div>
-              <div className="flex-1 custom-scrollbar" ref={itemsScrollRef}>
-                <div className="divide-y divide-slate-100">
-                  {invoiceLines.map((line, index) => (
-                <div
-                  key={index}
-                  className="group grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_0.8fr_1.2fr_40px] md:items-center md:gap-2 md:p-5 md:py-2.5 scroll-mt-14"
-                  style={{ ['--tw-bg-opacity' as string]: '1' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
-              >
-                <div className="hidden md:flex h-12 items-center justify-center text-base font-medium text-slate-400">
-                  {index + 1}
-                </div>
-                <div className="col-span-2 md:col-span-1 flex flex-col md:block">
-                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Item {index + 1}</span>
-                  <ComboboxField
-                    inline
-                    value={line.item_id}
-                    onChange={(id) => selectItem(index, id)}
-                    options={items.map((item) => ({ value: item.id, label: item.name }))}
-                    placeholder="Search or select item…"
-                    leftIcon={
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                      </svg>
-                    }
-                    disabled={readOnly}
-                    dataItemField={true}
-                    mandatory={index === 0 || !!line.item_id}
-                  />
-                </div>
-                <div className="flex flex-col md:block">
-                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">HSN/SAC</span>
-                  <div className="mono-num flex h-12 md:h-12 w-full items-center px-2 text-base text-slate-500 opacity-80">
-                    {items.find((i) => i.id === line.item_id)?.hsn_code || "—"}
-                  </div>
-                </div>
-                <div className="flex flex-col md:block">
-                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Qty</span>
-                  <input
-                    disabled={readOnly}
-                    type="number"
-                    step="0.01"
-                    value={line.quantity || ""}
-                    onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })}
-                    placeholder="0"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
-                    data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
-                  />
-                </div>
-                <div className="flex flex-col md:block">
-                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Rate</span>
-                  <input
-                    disabled={readOnly}
-                    type="number"
-                    step="0.01"
-                    value={line.unit_price || ""}
-                    onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })}
-                    placeholder="0.00"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
-                    data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
-                  />
-                </div>
-                <div className="flex flex-col md:block">
-                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Discount</span>
-                  <input
-                    disabled={readOnly}
-                    type="number"
-                    step="0.01"
-                    value={line.discount_amount || ""}
-                    onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
-                    placeholder="0.00"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
-                  />
-                </div>
-                <div className="flex items-center justify-between md:justify-end md:pr-1">
-                  <span className="text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Amount</span>
-                  <span className="mono-num font-semibold text-slate-900">{formatCurrency(line.taxable_amount)}</span>
-                </div>
-                <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
-                  {!readOnly && (
-                    <button
-                      data-skip-enter="true"
-                      onClick={() => setInvoiceLines((prev) => prev.filter((_, i) => i !== index))}
-                      title="Remove line"
-                      className="flex h-12 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:text-slate-600"
-                    >
-                      <svg className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-                </div>
-                <div className="shrink-0 border-t border-slate-100 px-5 py-3">
-            {!readOnly && (
-              <button
-                data-skip-enter="true"
-                onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])}
-                className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Add Line Item
-              </button>
-            )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <InvoiceItemsTable
+          invoiceLines={invoiceLines}
+          setInvoiceLines={setInvoiceLines}
+          items={items}
+          taxMode={taxMode}
+          readOnly={readOnly}
+          itemsScrollRef={itemsScrollRef}
+        />
       ) : null}
 
       {meta.family === "journal" ? (
-        <div className="flex-1 flex flex-col min-h-[250px] border-b border-slate-100 bg-white">
-          <div className="flex-1 flex flex-col overflow-x-auto custom-scrollbar">
-            <div className="min-w-full md:min-w-[800px] flex flex-col flex-1">
-              <div
-                className="shrink-0 hidden grid-cols-[2fr_1fr_1fr_40px] gap-4 border-b border-slate-500 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid"
-              >
-              <div>Ledger</div>
-              <div>Debit (Dr)</div>
-              <div>Credit (Cr)</div>
-              <div className="w-10" />
-              </div>
-              <div className="flex-1 custom-scrollbar" ref={itemsScrollRef}>
-                <div className="divide-y divide-slate-100">
-                  {journalLines.map((line, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-2 gap-4 p-4 transition-colors duration-100 md:grid-cols-[2fr_1fr_1fr_40px] md:items-center md:gap-4 md:p-5 md:py-2.5 scroll-mt-14"
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--voucher-row-hover)'; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = ''; }}
-              >
-                <div className="col-span-2 md:col-span-1 flex flex-col md:block">
-                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Ledger</span>
-                  <ComboboxField
-                    inline
-                    value={line.ledger_id}
-                    onChange={(id) => {
-                      setJournalLines((prev) => {
-                        const newLines = prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, ledger_id: id } : entry);
-                        if (index === prev.length - 1 && id) {
-                          newLines.push({ ...EMPTY_JOURNAL_LINE });
-                        }
-                        return newLines;
-                      });
-                    }}
-                    options={allLedgerOptions}
-                    placeholder="Type to search ledger…"
-                    createHref="/dashboard/create/ledger"
-                    disabled={readOnly}
-                    dataItemField={true}
-                    mandatory={index < 2 || !!line.ledger_id}
-                  />
-                </div>
-                <div className="flex flex-col md:block">
-                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Debit</span>
-                  <input
-                    disabled={readOnly || !line.ledger_id}
-                    type="number"
-                    step="0.01"
-                    value={line.debit_amount || ""}
-                    onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, debit_amount: Number(e.target.value), credit_amount: 0 } : entry))}
-                    placeholder="0.00"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
-                  />
-                </div>
-                <div className="flex flex-col md:block">
-                  <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">Credit</span>
-                  <input
-                    disabled={readOnly || !line.ledger_id}
-                    type="number"
-                    step="0.01"
-                    value={line.credit_amount || ""}
-                    onChange={(e) => setJournalLines((prev) => prev.map((entry, entryIndex) => entryIndex === index ? { ...entry, credit_amount: Number(e.target.value), debit_amount: 0 } : entry))}
-                    placeholder="0.00"
-                    className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
-                  />
-                </div>
-                <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
-                  {!readOnly && (
-                    <button
-                      data-skip-enter="true"
-                      onClick={() => setJournalLines((prev) => prev.filter((_, entryIndex) => entryIndex !== index))}
-                      title="Remove line"
-                      className="flex h-12 w-11 md:h-7 md:w-7 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-rose-50 hover:text-rose-500"
-                    >
-                      <svg className="h-5 w-5 md:h-4 md:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-                </div>
-                <div className="shrink-0 border-t border-slate-100 px-5 py-3">
-            {!readOnly && (
-              <button
-                data-skip-enter="true"
-                onClick={() => setJournalLines((prev) => [...prev, { ...EMPTY_JOURNAL_LINE }])}
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-base font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
-              >
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-                Add Accounting Line
-              </button>
-            )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <JournalLinesTable
+          journalLines={journalLines}
+          setJournalLines={setJournalLines}
+          allLedgerOptions={allLedgerOptions}
+          readOnly={readOnly}
+          itemsScrollRef={itemsScrollRef}
+        />
       ) : null}
 
       {/* ── Zone D: Narration + Totals ── */}
-      <div className="shrink-0 mt-auto flex flex-col-reverse border-b border-slate-100 bg-white sm:grid sm:grid-cols-2 sm:items-start">
-        {/* Narration */}
-        <div className="border-t border-slate-100 p-5 sm:border-r sm:border-t-0 sm:p-6 flex flex-col">
-          <label className="mb-2 block text-base font-semibold uppercase tracking-wider text-slate-500">Narration</label>
-          <div className="relative">
-            <textarea
-              data-escape-target="true"
-              disabled={readOnly}
-              maxLength={250}
-              className="min-h-[80px] w-full rounded-lg border border-slate-500 bg-white p-3 pb-8 text-base text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
-              placeholder="Enter narration for this voucher…"
-              value={form.narration}
-              onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))}
-            />
-            <div className="absolute bottom-3 right-3 text-xs text-slate-400">
-              {form.narration.length} / 250
-            </div>
-          </div>
-        </div>
-
-        {/* Totals */}
-        <div className="p-5 sm:p-6">
-          {meta.family === "invoice" ? (
-            <div className="ml-auto w-full sm:max-w-md">
-              <div className="space-y-1 px-2">
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-sm text-slate-500">Taxable Amount</span>
-                  <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.taxable)}</span>
-                </div>
-                
-                {taxMode === "inter" && invoiceTotals.igst > 0 && (
-                  <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-slate-500">IGST</span>
-                    <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.igst)}</span>
-                  </div>
-                )}
-                {taxMode === "intra" && (invoiceTotals.cgst > 0 || invoiceTotals.sgst > 0) && (
-                  <>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-sm text-slate-500">CGST</span>
-                      <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.cgst)}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-1">
-                      <span className="text-sm text-slate-500">SGST</span>
-                      <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.sgst)}</span>
-                    </div>
-                  </>
-                )}
-                {invoiceTotals.cess > 0 && (
-                  <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-slate-500">Cess</span>
-                    <span className="mono-num text-sm font-semibold text-slate-900">{formatCurrency(invoiceTotals.cess)}</span>
-                  </div>
-                )}
-                
-                {(invoiceTotals.igst === 0 && invoiceTotals.cgst === 0 && invoiceTotals.sgst === 0 && invoiceTotals.cess === 0) && (
-                  <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-slate-500">Total Tax (0%)</span>
-                    <span className="mono-num text-sm font-semibold text-slate-900">₹0.00</span>
-                  </div>
-                )}
-              </div>
-              <div className="mt-3 border-t border-dashed border-slate-500 px-2 pt-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold uppercase tracking-wider text-emerald-700">Grand Total</span>
-                  <span className="mono-num text-xl font-bold text-emerald-700">{formatCurrency(invoiceTotals.grandTotal)}</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-full items-end justify-end">
-              <p className="text-base text-slate-400">Total impact will be computed from accounting lines.</p>
-            </div>
-          )}
-        </div>
-      </div>
+      <TotalsAndNarration
+        meta={meta}
+        form={form}
+        setForm={setForm}
+        readOnly={readOnly}
+        taxMode={taxMode}
+        invoiceTotals={invoiceTotals}
+      />
 
       {/* ── Zone E: Footer Actions ── */}
-      <div className="shrink-0 flex items-center justify-between border-t border-slate-500 bg-white px-5 py-4 sm:px-7 sm:py-5">
-        {/* Mobile cancel */}
-        <Link href="/dashboard/create" data-skip-enter="true" className="text-sm font-medium text-slate-600 hover:text-slate-900 sm:hidden">
-          Cancel
-        </Link>
-        <div className="hidden sm:block" />
-        <div className="flex items-center gap-3">
-          {meta.family === "invoice" && meta.category !== "Purchase" && (
-            <button
-              data-skip-enter="true"
-              onClick={() => setShowPreview(true)}
-              className="flex items-center justify-center gap-2 rounded-lg border border-slate-500 bg-white p-3 sm:px-4 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
-              title="Preview Invoice"
-            >
-              <svg className="h-5 w-5 sm:h-4 sm:w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              </svg>
-              <span className="hidden sm:inline">Preview</span>
-            </button>
-          )}
-          <button
-            data-skip-enter="true"
-            onClick={() => router.back()}
-            className="hidden sm:flex items-center gap-2 rounded-lg border border-slate-500 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
-          >
-            <svg className="h-4 w-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Cancel
-          </button>
-          {!readOnly ? (
-            <button
-              data-entry-action="true"
-              disabled={isSubmitting || isLoading}
-              onClick={() => void submit()}
-              className="group relative flex items-center gap-3 overflow-hidden rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-emerald-800 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"
-            >
-              {isSubmitting ? (
-                <span className="flex items-center gap-2">
-                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Saving…
-                </span>
-              ) : (
-                <span className="flex items-center gap-3">
-                  {isEditing ? "Update Voucher" : "Save Voucher"}
-                  <kbd className="flex items-center justify-center rounded bg-black/10 px-1.5 py-0.5 font-sans text-xs font-medium text-emerald-100 ring-1 ring-black/10">
-                    ⌘S
-                  </kbd>
-                </span>
-              )}
-            </button>
-          ) : (
-            <Link
-              href={`/dashboard/vouchers/${voucherId}/edit`}
-              className="flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-emerald-800 hover:shadow"
-            >
-              Edit Voucher
-            </Link>
-          )}
-        </div>
-      </div>
+      <VoucherActionBar
+        meta={meta}
+        isEditing={isEditing}
+        readOnly={readOnly}
+        isSubmitting={isSubmitting}
+        isLoading={isLoading}
+        voucherId={voucherId}
+        onCancel={() => router.back()}
+        onSubmit={() => void submit()}
+        onPreview={() => setShowPreview(true)}
+      />
 
       {/* ── Invoice Preview Overlay ── */}
       {showPreview && meta.family === "invoice" && (
@@ -1711,248 +453,5 @@ export function VoucherWorkbench({
   );
 }
 
-/* ─────────────────────────────────────────────────
-   Invoice Preview Overlay — renders live form data
-   through the firm's default template
-───────────────────────────────────────────────── */
-function InvoicePreviewOverlay({
-  buildPreviewData,
-  onClose,
-}: {
-  buildPreviewData: () => InvoiceData | null;
-  onClose: () => void;
-}) {
-  const previewData = buildPreviewData();
-  const templateId = typeof window !== "undefined" ? localStorage.getItem("billingApp_defaultTemplate") || "classic" : "classic";
-  const template = getTemplateById(templateId);
-  const TemplateComp = template.component;
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKey);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handleKey);
-      document.body.style.overflow = "";
-    };
-  }, [onClose]);
 
-  useEffect(() => {
-    function calcScale() {
-      const container = containerRef.current;
-      if (!container) return;
-      // Subtract padding: p-4 (32px) on mobile, p-8 (64px) on sm+
-      const padding = window.innerWidth >= 640 ? 64 : 32;
-      const availableWidth = container.clientWidth - padding;
-      // 794px is A4 width in pixels at 96dpi
-      setScale(Math.min(1, availableWidth / 794));
-    }
-    calcScale();
-    window.addEventListener("resize", calcScale);
-    return () => window.removeEventListener("resize", calcScale);
-  }, []);
-
-  if (!previewData) {
-    return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
-        <div className="rounded-2xl bg-white p-8 text-center shadow-xl">
-          <p className="text-slate-600">Unable to generate preview. Make sure a firm is selected.</p>
-          <button onClick={onClose} className="mt-4 rounded-lg bg-slate-100 px-4 py-2 text-base font-medium text-slate-700 hover:bg-slate-200">
-            Close
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const overlayContent = (
-    <div id="invoice-preview-root" className="fixed inset-0 z-[9999] flex flex-col bg-slate-900/90 backdrop-blur-sm print:static print:bg-white print:backdrop-blur-none">
-      <style>{`
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 0;
-          }
-          body > *:not(#invoice-preview-root) {
-            display: none !important;
-          }
-          html, body {
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
-            background-color: white !important;
-          }
-          #invoice-preview-root {
-            display: block !important;
-            height: auto !important;
-            min-height: auto !important;
-            overflow: visible !important;
-            position: static !important;
-          }
-          .no-print, .print\\:hidden {
-            display: none !important;
-          }
-          .print-reset {
-            --preview-scale: 1 !important;
-            transform: none !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            width: 100% !important;
-            max-width: none !important;
-            min-height: auto !important;
-            height: auto !important;
-          }
-          .print-scroll-reset {
-            display: block !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            align-items: unset !important;
-            flex-direction: unset !important;
-          }
-          .page-gap {
-            display: none !important;
-          }
-          .page-wrapper {
-            margin: 0 !important;
-            box-shadow: none !important;
-            min-height: auto !important;
-            page-break-after: always;
-          }
-          .page-wrapper:last-child {
-            page-break-after: avoid;
-          }
-          * {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-        }
-
-        @media screen {
-          .page-wrapper {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-          }
-          .page-gap {
-            height: 32px;
-            background: transparent;
-          }
-        }
-      `}</style>
-      
-      {/* Top bar */}
-      <div className="no-print print:hidden flex shrink-0 items-center justify-between border-b border-white/10 bg-slate-900 px-3 py-3 sm:px-8 sm:py-4">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-2 text-base font-semibold text-white transition hover:bg-white/20 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-4 sm:py-2.5 sm:text-base"
-          >
-            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-            </svg>
-            <span><span className="hidden sm:inline">Back to </span>Edit</span>
-          </button>
-          <div className="h-5 w-px bg-white/20 hidden sm:block" />
-          <h2 className="hidden text-base font-semibold text-white sm:block">
-            Invoice Preview
-          </h2>
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-2 text-base font-semibold text-white transition hover:bg-white/20 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-4 sm:py-2.5 sm:text-base"
-          >
-            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-            </svg>
-            <span><span className="hidden sm:inline">Download </span>PDF</span>
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-lg bg-tally-600 px-3 py-2 text-base font-semibold text-white shadow-md transition hover:bg-tally-500 active:scale-[0.97] whitespace-nowrap sm:gap-2 sm:px-6 sm:py-2.5 sm:text-base"
-          >
-            <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-3 0h.008v.008H15V10.5Z" />
-            </svg>
-            Print
-          </button>
-        </div>
-      </div>
-
-      {/* Scrollable preview — template renders its own page-wrapper divs */}
-      <div ref={containerRef} className="print-scroll-reset flex-1 overflow-auto flex flex-col items-center p-4 sm:p-8">
-        <div
-          className="shrink-0 print-reset"
-          style={{
-            "--preview-scale": scale,
-            width: "794px",
-            transform: "scale(var(--preview-scale))",
-            transformOrigin: "top left",
-            marginRight: scale < 1 ? `${-(794 * (1 - scale))}px` : undefined,
-          } as React.CSSProperties}
-        >
-          <TemplateComp data={previewData} />
-        </div>
-      </div>
-    </div>
-  );
-
-  if (typeof document === "undefined") return null;
-  return createPortal(overlayContent, document.body);
-}
-
-/* ─────────────────────────────────────────────────
-   Number to words — basic Indian-style converter
-───────────────────────────────────────────────── */
-function numberToWords(num: number): string {
-  if (num === 0) return "ZERO ONLY";
-
-  const ones = ["", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE",
-    "TEN", "ELEVEN", "TWELVE", "THIRTEEN", "FOURTEEN", "FIFTEEN", "SIXTEEN", "SEVENTEEN", "EIGHTEEN", "NINETEEN"];
-  const tens = ["", "", "TWENTY", "THIRTY", "FORTY", "FIFTY", "SIXTY", "SEVENTY", "EIGHTY", "NINETY"];
-
-  function twoDigits(n: number): string {
-    if (n >= 100) return "";
-    if (n < 20) return ones[n];
-    return tens[Math.floor(n / 10)] + (n % 10 ? " " + ones[n % 10] : "");
-  }
-
-  function threeDigits(n: number): string {
-    if (n === 0) return "";
-    if (n < 100) return twoDigits(n);
-    return ones[Math.floor(n / 100)] + " HUNDRED" + (n % 100 ? " AND " + twoDigits(n % 100) : "");
-  }
-
-  const numFixed = Math.round(num * 100) / 100;
-  const rupees = Math.floor(numFixed);
-  const paise = Math.round((numFixed - rupees) * 100);
-
-  let result = "";
-  if (rupees >= 10000000) {
-    const crorePart = Math.floor(rupees / 10000000);
-    result += (crorePart >= 100 ? threeDigits(crorePart) : twoDigits(crorePart)) + " CRORE ";
-  }
-  const afterCrore = rupees % 10000000;
-  if (afterCrore >= 100000) {
-    result += twoDigits(Math.floor(afterCrore / 100000)) + " LAKH ";
-  }
-  const afterLakh = afterCrore % 100000;
-  if (afterLakh >= 1000) {
-    result += twoDigits(Math.floor(afterLakh / 1000)) + " THOUSAND ";
-  }
-  const afterThousand = afterLakh % 1000;
-  if (afterThousand > 0) {
-    result += threeDigits(afterThousand);
-  }
-
-  result = result.trim();
-  if (paise > 0) {
-    result += " RUPEES AND " + twoDigits(paise) + " PAISE ONLY";
-  } else {
-    result += " RUPEES ONLY";
-  }
-
-  return result;
-}

@@ -60,5 +60,5 @@ export default function VoucherDetailPage() {
     );
   }
 
-  return <VoucherWorkbench slug={slug} voucherId={params.voucherId} readOnly={true} />;
+  return <VoucherWorkbench key={params.voucherId} slug={slug} voucherId={params.voucherId} readOnly={true} />;
 }

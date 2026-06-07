@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Hsn, ItemDetail, StockPositionRow, Uom } from "@/interfaces/inventory";
@@ -315,6 +315,11 @@ export default function InventorySectionPage() {
     setOpeningStockOpen(false);
     setIsFormOpen(false);
   }
+
+  useEffect(() => {
+    resetForms();
+    setSearch("");
+  }, [section]);
 
   function handleIgstChange(value: number) {
     const half = parseFloat((value / 2).toFixed(2));

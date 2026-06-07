@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme {
+  --text-2\.5xl: 1.75rem;
+  --text-2\.5xl--line-height: 2.25rem;
   --color-tally-900: #0f2a1d;
   --color-tally-800: #1b4332;
   --color-tally-700: #2d6a4f;
