@@ -1,5 +1,6 @@
-import { Dispatch, SetStateAction } from "react";
-import { FormState, TaxMode, VoucherMeta } from "../types";
+import { Dispatch, SetStateAction, useEffect } from "react";
+import { AdditionalLedgerState, FormState, TaxMode, VoucherMeta } from "../types";
+import { LedgerDetail } from "@/interfaces/ledger";
 import { formatCurrency } from "@/lib/format";
 
 type TotalsAndNarrationProps = {
@@ -16,7 +17,33 @@ type TotalsAndNarrationProps = {
     cess: number;
     grandTotal: number;
   };
+  ledgers: LedgerDetail[];
 };
+
+function calculateRounding(total: number, method: string | null | undefined, limit: number | undefined): number {
+  const safeLimit = Number(limit) || 1;
+  if (safeLimit <= 0) return 0;
+  
+  const multiple = Math.round(total / safeLimit);
+  const floorMultiple = Math.floor(total / safeLimit);
+  const ceilMultiple = Math.ceil(total / safeLimit);
+  
+  let targetTotal = total;
+  switch (method) {
+    case "Upward Rounding":
+      targetTotal = ceilMultiple * safeLimit;
+      break;
+    case "Downward Rounding":
+      targetTotal = floorMultiple * safeLimit;
+      break;
+    case "Normal Rounding":
+    default:
+      targetTotal = multiple * safeLimit;
+      break;
+  }
+  
+  return Number((targetTotal - total).toFixed(2));
+}
 
 export function TotalsAndNarration({
   meta,
@@ -25,7 +52,85 @@ export function TotalsAndNarration({
   readOnly,
   taxMode,
   invoiceTotals,
+  ledgers,
 }: TotalsAndNarrationProps) {
+  const additionalLedgerOptions = ledgers.filter(
+    (l) => l.type_of_ledger === "Invoice Rounding"
+  );
+
+  const addAdditionalLedger = () => {
+    setForm((prev) => ({
+      ...prev,
+      additional_ledgers: [
+        ...prev.additional_ledgers,
+        { ledger_id: "", amount: 0, is_manual: false },
+      ],
+    }));
+  };
+
+  const updateAdditionalLedger = (index: number, field: keyof AdditionalLedgerState, value: any) => {
+    setForm((prev) => {
+      const newLedgers = [...prev.additional_ledgers];
+      newLedgers[index] = { ...newLedgers[index], [field]: value };
+      if (field === "amount") {
+        newLedgers[index].is_manual = true;
+      } else if (field === "ledger_id") {
+        // Reset manual flag if they change the ledger
+        newLedgers[index].is_manual = false;
+      }
+      return { ...prev, additional_ledgers: newLedgers };
+    });
+  };
+
+  const removeAdditionalLedger = (index: number) => {
+    setForm((prev) => {
+      const newLedgers = [...prev.additional_ledgers];
+      newLedgers.splice(index, 1);
+      return { ...prev, additional_ledgers: newLedgers };
+    });
+  };
+
+  const totalAdditionalAmount = form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0;
+  const finalGrandTotal = invoiceTotals.grandTotal + totalAdditionalAmount;
+
+  // Auto-calculate rounding
+  useEffect(() => {
+    if (!form.additional_ledgers || form.additional_ledgers.length === 0) return;
+
+    setForm((prev) => {
+      let changed = false;
+      const newLedgers = [...prev.additional_ledgers];
+      
+      // We calculate the running total so multiple ledgers can be applied sequentially
+      let currentRunningTotal = invoiceTotals.grandTotal;
+
+      for (let i = 0; i < newLedgers.length; i++) {
+        const al = newLedgers[i];
+        const lDetail = ledgers.find(l => l.id === al.ledger_id);
+        
+        if (lDetail && lDetail.type_of_ledger === "Invoice Rounding" && !al.is_manual) {
+          const expectedAmount = calculateRounding(
+            currentRunningTotal, 
+            lDetail.rounding_method, 
+            lDetail.rounding_limit
+          );
+          if (expectedAmount !== al.amount) {
+            newLedgers[i] = { ...al, amount: expectedAmount };
+            changed = true;
+          }
+        }
+        
+        // Add this ledger's amount to running total for the next ledger to evaluate against
+        currentRunningTotal += (Number(newLedgers[i].amount) || 0);
+      }
+
+      if (changed) {
+        return { ...prev, additional_ledgers: newLedgers };
+      }
+      return prev;
+    });
+  }, [invoiceTotals.grandTotal, ledgers, form.additional_ledgers, setForm]);
+
   return (
     <div className="shrink-0 mt-auto flex flex-col-reverse border-b border-slate-100 bg-white sm:grid sm:grid-cols-2 sm:items-start">
       {/* Narration */}
@@ -103,6 +208,57 @@ export function TotalsAndNarration({
                     <span className="mono-num text-sm font-semibold text-slate-900">₹0.00</span>
                   </div>
                 )}
+
+              {/* Additional Ledgers */}
+              {form.additional_ledgers?.map((al, idx) => (
+                <div key={idx} className="flex items-center justify-between py-1 gap-2">
+                  <select
+                    disabled={readOnly}
+                    value={al.ledger_id}
+                    onChange={(e) => updateAdditionalLedger(idx, "ledger_id", e.target.value)}
+                    className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm outline-none hover:border-tally-400 focus:border-tally-500"
+                  >
+                    <option value="">Select Ledger</option>
+                    {additionalLedgerOptions.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    step="0.01"
+                    disabled={readOnly}
+                    value={al.amount || ""}
+                    onChange={(e) => updateAdditionalLedger(idx, "amount", parseFloat(e.target.value))}
+                    placeholder="0.00"
+                    className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm outline-none hover:border-tally-400 focus:border-tally-500 mono-num"
+                  />
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => removeAdditionalLedger(idx)}
+                      className="text-slate-400 hover:text-red-500"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!readOnly && (
+                <button
+                  type="button"
+                  onClick={addAdditionalLedger}
+                  className="mt-1 text-sm font-semibold text-tally-600 hover:text-tally-700 flex items-center gap-1"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Ledger
+                </button>
+              )}
             </div>
             <div className="mt-3 border-t border-dashed border-slate-500 px-2 pt-3">
               <div className="flex items-center justify-between">
@@ -113,7 +269,7 @@ export function TotalsAndNarration({
                   Grand Total
                 </span>
                 <span className="mono-num text-xl font-bold text-emerald-700">
-                  {formatCurrency(invoiceTotals.grandTotal)}
+                  {formatCurrency(finalGrandTotal)}
                 </span>
               </div>
             </div>

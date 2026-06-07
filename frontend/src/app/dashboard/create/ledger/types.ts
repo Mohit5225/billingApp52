@@ -4,6 +4,9 @@ export type LedgerFormState = {
   name: string;
   alias: string;
   group_id: string;
+  type_of_ledger: "Not Applicable" | "Invoice Rounding";
+  rounding_method: "Downward Rounding" | "Normal Rounding" | "Upward Rounding" | null;
+  rounding_limit: number;
   opening_balance: number;
   opening_balance_type: DrCrType;
   inventory_values_affected: boolean;

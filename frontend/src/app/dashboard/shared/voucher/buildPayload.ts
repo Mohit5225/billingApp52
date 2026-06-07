@@ -115,11 +115,14 @@ export function buildVoucherPayload({
       credit_amount: number;
     }[] = [];
 
+    const totalAdditionalAmount = form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0;
+    const finalGrandTotal = invoiceTotals.grandTotal + totalAdditionalAmount;
+
     if (category === "Sales" || category === "Debit Note") {
       accountingLines.push({
         ledger_id: partyLedgerId,
         line_number: 1,
-        debit_amount: invoiceTotals.grandTotal,
+        debit_amount: finalGrandTotal,
         credit_amount: 0,
       });
       accountingLines.push({
@@ -161,6 +164,18 @@ export function buildVoucherPayload({
           debit_amount: 0,
           credit_amount: invoiceTotals.cess,
         });
+      }
+
+      if (form.additional_ledgers) {
+        for (const al of form.additional_ledgers) {
+          if (!al.ledger_id || !al.amount) continue;
+          accountingLines.push({
+            ledger_id: al.ledger_id,
+            line_number: lineNumber++,
+            debit_amount: al.amount < 0 ? Math.abs(al.amount) : 0,
+            credit_amount: al.amount > 0 ? al.amount : 0,
+          });
+        }
       }
     } else {
       // Purchase / Credit Note — debit the purchase/expense ledger
@@ -204,11 +219,24 @@ export function buildVoucherPayload({
           credit_amount: 0,
         });
       }
+
+      if (form.additional_ledgers) {
+        for (const al of form.additional_ledgers) {
+          if (!al.ledger_id || !al.amount) continue;
+          accountingLines.push({
+            ledger_id: al.ledger_id,
+            line_number: lineNumber++,
+            debit_amount: al.amount > 0 ? al.amount : 0,
+            credit_amount: al.amount < 0 ? Math.abs(al.amount) : 0,
+          });
+        }
+      }
+
       accountingLines.push({
         ledger_id: partyLedgerId,
         line_number: lineNumber++,
         debit_amount: 0,
-        credit_amount: invoiceTotals.grandTotal,
+        credit_amount: finalGrandTotal,
       });
     }
 

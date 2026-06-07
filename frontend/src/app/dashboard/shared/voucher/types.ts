@@ -43,6 +43,12 @@ export type JournalLineState = {
   credit_amount: number;
 };
 
+export type AdditionalLedgerState = {
+  ledger_id: string;
+  amount: number; // positive means it adds to invoice (like rounding up), negative means discount (reduces invoice)
+  is_manual?: boolean;
+};
+
 export type FormState = {
   voucher_number: string;
   voucher_date: string;
@@ -54,6 +60,7 @@ export type FormState = {
   destination_ledger_id: string;
   amount: number;
   manual_tax_mode: TaxMode;
+  additional_ledgers: AdditionalLedgerState[];
 };
 
 export const VOUCHER_META: Record<VoucherSlug, VoucherMeta> = {
@@ -125,6 +132,7 @@ export const getEmptyForm = (fromDate: string, toDate: string): FormState => ({
   destination_ledger_id: "",
   amount: 0,
   manual_tax_mode: "intra",
+  additional_ledgers: [],
 });
 
 export const EMPTY_INVOICE_LINE: InvoiceLineState = {
@@ -148,4 +156,10 @@ export const EMPTY_JOURNAL_LINE: JournalLineState = {
   ledger_id: "",
   debit_amount: 0,
   credit_amount: 0,
+};
+
+export const EMPTY_ADDITIONAL_LEDGER: AdditionalLedgerState = {
+  ledger_id: "",
+  amount: 0,
+  is_manual: false,
 };

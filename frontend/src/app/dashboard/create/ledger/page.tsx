@@ -76,21 +76,21 @@ export default function LedgerCreatePage() {
       )}
 
       {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between border-t border-slate-200 bg-white/80 p-4 px-6 shadow-[0_-4px_24px_rgba(15,23,42,0.04)] backdrop-blur-md lg:left-[280px]">
-        <div>
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 border-t border-slate-200 bg-white/80 p-4 sm:px-6 shadow-[0_-4px_24px_rgba(15,23,42,0.04)] backdrop-blur-md lg:left-[320px]">
+        <div className="hidden sm:block">
           <p className="text-sm font-semibold text-slate-900">Ready to save this ledger?</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex w-full sm:w-auto gap-3">
           <Link
             href="/dashboard"
-            className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+            className="flex flex-1 sm:flex-none items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             Cancel
           </Link>
           <button
             disabled={isSubmitting || isLoading}
             onClick={() => void submit()}
-            className="rounded-xl bg-[#0B1021] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60"
+            className="flex flex-1 sm:flex-none items-center justify-center rounded-xl bg-[#0B1021] px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60"
           >
             {isSubmitting ? "Saving..." : ledgerId ? "Update ledger" : "Create ledger"}
           </button>

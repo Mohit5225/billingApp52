@@ -93,6 +93,9 @@ export function useLedgerForm() {
       opening_balance_type: existingLedger.opening_balance_type,
       inventory_values_affected: existingLedger.inventory_values_affected,
       cost_centre_applicable: existingLedger.cost_centre_applicable,
+      type_of_ledger: existingLedger.type_of_ledger || "Not Applicable",
+      rounding_method: existingLedger.rounding_method || null,
+      rounding_limit: existingLedger.rounding_limit || 1,
       bank_details: {
         account_number: existingLedger.bank_details?.account_number || "",
         ifsc_code: existingLedger.bank_details?.ifsc_code || "",
@@ -189,6 +192,9 @@ export function useLedgerForm() {
         opening_balance_type: form.opening_balance_type,
         inventory_values_affected: form.inventory_values_affected,
         cost_centre_applicable: form.cost_centre_applicable,
+        type_of_ledger: form.type_of_ledger,
+        rounding_method: form.type_of_ledger === "Invoice Rounding" ? form.rounding_method : null,
+        rounding_limit: form.type_of_ledger === "Invoice Rounding" ? Number(form.rounding_limit || 1) : 1,
         bank_details:
           templateType === "bank"
             ? {

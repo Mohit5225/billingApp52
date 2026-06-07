@@ -301,8 +301,8 @@ export function VoucherWorkbench({
       cgstTotal: invoiceTotals.cgst || undefined,
       sgstTotal: invoiceTotals.sgst || undefined,
       cessTotal: invoiceTotals.cess || undefined,
-      grandTotal: invoiceTotals.grandTotal,
-      totalInWords: numberToWords(invoiceTotals.grandTotal),
+      grandTotal: invoiceTotals.grandTotal + (form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0),
+      totalInWords: numberToWords(invoiceTotals.grandTotal + (form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0)),
       bankDetails: firmDetails.bankName
         ? {
           bankName: firmDetails.bankName,
@@ -427,6 +427,7 @@ export function VoucherWorkbench({
         readOnly={readOnly}
         taxMode={taxMode}
         invoiceTotals={invoiceTotals}
+        ledgers={ledgers}
       />
 
       {/* ── Zone E: Footer Actions ── */}

@@ -19,6 +19,17 @@ class AccountNature(str, Enum):
     EXPENSE = "Expense"
 
 
+class LedgerType(str, Enum):
+    NOT_APPLICABLE = "Not Applicable"
+    INVOICE_ROUNDING = "Invoice Rounding"
+
+
+class RoundingMethod(str, Enum):
+    DOWNWARD = "Downward Rounding"
+    NORMAL = "Normal Rounding"
+    UPWARD = "Upward Rounding"
+
+
 class GstRegistrationType(str, Enum):
     REGULAR = "Regular"
     COMPOSITION = "Composition"
@@ -104,10 +115,13 @@ class LedgerBase(BaseSchema):
     group_id: UUID4
     name: str
     alias: Optional[str] = None
+    type_of_ledger: LedgerType = LedgerType.NOT_APPLICABLE
     opening_balance: float = 0
     opening_balance_type: DrCrType
     inventory_values_affected: bool = False
     cost_centre_applicable: bool = False
+    rounding_method: Optional[RoundingMethod] = None
+    rounding_limit: Optional[float] = 1.0
 
 
 class LedgerCreate(LedgerBase):
@@ -120,6 +134,7 @@ class LedgerUpdate(BaseSchema):
     group_id: Optional[UUID4] = None
     name: Optional[str] = None
     alias: Optional[str] = None
+    type_of_ledger: Optional[LedgerType] = None
     opening_balance: Optional[float] = None
     opening_balance_type: Optional[DrCrType] = None
     inventory_values_affected: Optional[bool] = None
@@ -127,6 +142,8 @@ class LedgerUpdate(BaseSchema):
     bank_details: Optional[BankDetailsCreate] = None
     party_details: Optional[PartyDetailsCreate] = None
     tax_details: Optional[TaxDetailsCreate] = None
+    rounding_method: Optional[RoundingMethod] = None
+    rounding_limit: Optional[float] = None
 
 
 class Ledger(TimestampSchema, LedgerBase):

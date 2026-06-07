@@ -52,6 +52,9 @@ export interface Ledger extends BaseEntity {
   group_id: string;
   name: string;
   alias?: string | null;
+  type_of_ledger: "Not Applicable" | "Invoice Rounding";
+  rounding_method: "Downward Rounding" | "Normal Rounding" | "Upward Rounding" | null;
+  rounding_limit: number;
   opening_balance: number;
   opening_balance_type: DrCrType;
   inventory_values_affected: boolean;
@@ -98,6 +101,9 @@ export interface LedgerWritePayload {
   group_id: string;
   name: string;
   alias?: string | null;
+  type_of_ledger: "Not Applicable" | "Invoice Rounding";
+  rounding_method: "Downward Rounding" | "Normal Rounding" | "Upward Rounding" | null;
+  rounding_limit: number;
   opening_balance: number;
   opening_balance_type: DrCrType;
   inventory_values_affected: boolean;

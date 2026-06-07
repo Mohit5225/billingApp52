@@ -95,6 +95,63 @@ export function LedgerCoreSection({ form, setForm, groups, isLoading }: Props) {
             )}
           </div>
         </Field>
+
+        {selectedGroup &&
+          (selectedGroup.name === "Purchase Accounts" ||
+            selectedGroup.name === "Sales Accounts") && (
+            <>
+              <Field label="Type of Ledger">
+                <Select
+                  value={form.type_of_ledger || "Not Applicable"}
+                  onChange={(e: SelectFieldChangeEvent) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      type_of_ledger: e.target.value as LedgerFormState["type_of_ledger"],
+                      rounding_method: e.target.value === "Invoice Rounding" ? "Normal Rounding" : null,
+                      rounding_limit: e.target.value === "Invoice Rounding" ? 1 : 0,
+                    }))
+                  }
+                >
+                  <option value="Not Applicable">Not Applicable</option>
+                  <option value="Invoice Rounding">Invoice Rounding</option>
+                </Select>
+              </Field>
+
+              {form.type_of_ledger === "Invoice Rounding" && (
+                <div className="grid gap-6 md:grid-cols-2 mt-4">
+                  <Field label="Rounding method">
+                    <Select
+                      value={form.rounding_method || "Normal Rounding"}
+                      onChange={(e: SelectFieldChangeEvent) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          rounding_method: e.target.value as LedgerFormState["rounding_method"],
+                        }))
+                      }
+                    >
+                      <option value="Downward Rounding">Downward Rounding</option>
+                      <option value="Normal Rounding">Normal Rounding</option>
+                      <option value="Upward Rounding">Upward Rounding</option>
+                    </Select>
+                  </Field>
+                  <Field label="Rounding limit">
+                    <Input
+                      type="number"
+                      step="any"
+                      min="0"
+                      value={form.rounding_limit}
+                      onChange={(e: TextFieldChangeEvent) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          rounding_limit: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </Field>
+                </div>
+              )}
+            </>
+          )}
       </div>
     </SurfaceCard>
   );
