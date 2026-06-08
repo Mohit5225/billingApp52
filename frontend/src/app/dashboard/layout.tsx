@@ -127,7 +127,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
               <main className={`mx-auto flex flex-col min-h-screen w-full max-w-[1800px] ${
                 isVoucherScreen 
                   ? "p-2 sm:p-4 lg:p-6" 
-                  : "px-4 pb-28 pt-5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8 min-h-[calc(100vh-88px)]"
+                  : "px-4 pb-28 pt-1.5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8 min-h-[calc(100vh-88px)]"
               }`}>
                 {children}
               </main>

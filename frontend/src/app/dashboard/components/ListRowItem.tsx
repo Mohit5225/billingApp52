@@ -35,36 +35,36 @@ export default function ListRowItem({
     return (
       <Link
         href={href}
-        className="group flex flex-row lg:flex-col items-center lg:items-start lg:justify-between gap-3 lg:gap-0 rounded-2xl lg:rounded-[24px] bg-transparent lg:bg-white/40 p-4 sm:p-5 lg:p-6 transition-all duration-300 hover:bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] lg:hover:-translate-y-1 border border-transparent lg:border-slate-200/60 hover:border-slate-100 lg:hover:border-slate-300/60"
+        className="group flex flex-row lg:flex-col items-center lg:items-start gap-3 lg:gap-0 rounded-[20px] bg-white border border-slate-100 p-4 lg:p-5 transition-all duration-300 hover:bg-white hover:shadow-[0_12px_30px_rgba(82,183,136,0.08)] hover:border-tally-500/30 lg:hover:-translate-y-1 shadow-[0_2px_8px_rgba(15,23,42,0.01)]"
       >
         <div className="flex w-full items-center lg:items-start justify-between">
           <div className="flex items-center gap-3 lg:gap-0">
             {icon && (
-              <div className="flex h-11 w-11 sm:h-12 sm:w-12 lg:h-14 lg:w-14 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl lg:rounded-[18px] bg-tally-50 text-tally-700 transition-all duration-300 group-hover:scale-110 group-hover:bg-tally-100">
+              <div className="flex h-10 w-10 lg:h-11 lg:w-11 shrink-0 items-center justify-center rounded-xl lg:rounded-[14px] bg-tally-50 text-tally-700 transition-all duration-300 group-hover:scale-105 group-hover:bg-tally-100/80">
                 {icon}
               </div>
             )}
             <div className="min-w-0 flex-1 lg:hidden">
-              <p className="truncate text-base sm:text-lg font-bold tracking-tight text-slate-900">{title}</p>
-              {description && <p className="mt-1 truncate text-sm sm:text-[15px] font-medium text-slate-500">{description}</p>}
+              <p className="text-base sm:text-lg font-bold tracking-tight text-slate-900 leading-snug">{title}</p>
+              {description && <p className="mt-0.5 text-xs sm:text-sm font-medium text-slate-500 leading-normal">{description}</p>}
             </div>
           </div>
           
           <div className="flex shrink-0 items-center gap-2 lg:gap-3">
             {badge && (
-              <span className={`rounded-full px-3 py-1.5 lg:px-4 lg:py-2 text-xs lg:text-sm font-bold uppercase tracking-[0.14em] ${badgeColors[badge.color || "slate"]}`}>
+              <span className={`rounded-full px-2.5 py-1 text-[10px] lg:text-xs font-bold uppercase tracking-[0.14em] ${badgeColors[badge.color || "slate"]}`}>
                 {badge.label}
               </span>
             )}
-            <svg className="h-5 w-5 lg:h-6 lg:w-6 shrink-0 text-slate-300 transition-transform duration-300 group-hover:text-tally-600 lg:group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="h-5 w-5 lg:h-[22px] lg:w-[22px] shrink-0 text-slate-300 transition-all duration-300 group-hover:text-tally-600 lg:group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
             </svg>
           </div>
         </div>
         
-        <div className="hidden lg:block mt-6 xl:mt-8 w-full">
-          <p className="truncate text-xl lg:text-[20px] xl:text-[22px] font-bold tracking-tight text-slate-900 group-hover:text-tally-800 transition-colors">{title}</p>
-          {description && <p className="mt-1.5 truncate text-base lg:text-[15px] xl:text-[16px] font-medium text-slate-500">{description}</p>}
+        <div className="hidden lg:block mt-3.5 w-full">
+          <p className="text-base lg:text-[17px] xl:text-[18px] font-bold tracking-tight text-slate-900 group-hover:text-tally-700 transition-colors leading-tight">{title}</p>
+          {description && <p className="mt-1 text-xs lg:text-[13px] font-medium text-slate-400 leading-normal">{description}</p>}
         </div>
       </Link>
     );
