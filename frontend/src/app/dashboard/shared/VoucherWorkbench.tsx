@@ -12,7 +12,7 @@ import type { InvoiceData, InvoiceType } from "@/components/templates/types";
 import { useFirmScope } from "./useFirmScope";
 import { useFocusTraversal } from "./useFocusTraversal";
 import { useDateFilter } from "@/context/DateFilterContext";
-import { round2, numberToWords } from "./voucher/utils";
+import { round2, numberToWords, recalcLine } from "./voucher/utils";
 import { InvoicePreviewOverlay } from "./voucher/components/InvoicePreviewOverlay";
 
 import {
@@ -132,6 +132,34 @@ export function VoucherWorkbench({
     // We no longer fallback to manual_tax_mode. Validation in buildPayload will catch missing states.
     return "intra";
   }, [firmState, selectedPartyLedger]);
+
+  useEffect(() => {
+    if (meta.family !== "invoice") return;
+
+    setInvoiceLines((prevLines) => {
+      let hasChanges = false;
+      const newLines = prevLines.map((line) => {
+        if (!line.item_id) return line;
+        const item = items.find((i) => i.id === line.item_id);
+        const newLine = recalcLine(line, item, taxMode);
+        
+        if (
+          newLine.igst_amount !== line.igst_amount ||
+          newLine.cgst_amount !== line.cgst_amount ||
+          newLine.sgst_amount !== line.sgst_amount ||
+          newLine.igst_rate !== line.igst_rate ||
+          newLine.cgst_rate !== line.cgst_rate ||
+          newLine.sgst_rate !== line.sgst_rate
+        ) {
+          hasChanges = true;
+        }
+        
+        return newLine;
+      });
+
+      return hasChanges ? newLines : prevLines;
+    });
+  }, [taxMode, items, meta.family]);
 
   const invoiceTotals = useMemo(() => {
     const taxable = round2(invoiceLines.reduce((sum, line) => sum + line.taxable_amount, 0));
