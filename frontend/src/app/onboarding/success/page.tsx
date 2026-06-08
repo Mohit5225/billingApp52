@@ -15,7 +15,7 @@ export default function SuccessPage() {
     try {
       await refreshProfile();
     } finally {
-      router.push("/dashboard");
+      router.push("/firms");
     }
   };
 
@@ -53,7 +53,7 @@ export default function SuccessPage() {
           disabled={isRedirecting}
           className="w-full bg-black text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors shadow-md hover:shadow-lg"
         >
-          {isRedirecting ? "Loading Dashboard..." : "Go to Dashboard"}
+          {isRedirecting ? "Loading Workspace..." : "Go to Workspaces"}
         </button>
       </div>
     </div>

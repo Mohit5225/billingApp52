@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -93,9 +93,9 @@ const EMPTY_ITEM: ItemForm = {
   is_gst_applicable: true,
   is_rcm: false,
   taxability: "Taxable",
-  igst_rate: 18,
-  cgst_rate: 9,
-  sgst_rate: 9,
+  igst_rate: 0,
+  cgst_rate: 0,
+  sgst_rate: 0,
   cess_type: "none",
   cess_percent: 0,
   cess_amount_per_unit: 0,
@@ -193,12 +193,15 @@ function TogglePill({
 
 export default function InventorySectionPage() {
   const params = useParams<{ section: string }>();
+  const searchParams = useSearchParams();
   const section = (params.section || "items") as SectionKey;
   const { activeFirmId, supabase } = useFirmScope();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
+
+  // (Moved searchParams logic into the section useEffect below)
 
   const { data: itemData, isLoading: itemsLoading } = useQuery({
     queryKey: ["items", activeFirmId, search],
@@ -319,7 +322,14 @@ export default function InventorySectionPage() {
   useEffect(() => {
     resetForms();
     setSearch("");
-  }, [section]);
+
+    // Check if we came from a "+ Create" link with a search prefill
+    const qs = searchParams?.get("search");
+    if (qs && section === "items") {
+      setItemForm((prev) => ({ ...EMPTY_ITEM, name: qs }));
+      setIsFormOpen(true);
+    }
+  }, [section, searchParams]);
 
   function handleIgstChange(value: number) {
     const half = parseFloat((value / 2).toFixed(2));

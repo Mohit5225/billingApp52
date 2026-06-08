@@ -28,14 +28,14 @@ export function isMainInvoiceLedger(ledger: LedgerDetail, category: VoucherCateg
 }
 
 export function useVoucherData(activeFirmId: string | null, supabase: SupabaseClient, category: VoucherCategory, isEditing: boolean) {
-  const { data: ledgers = [] } = useQuery({
+  const { data: ledgers = [], isLoading: ledgersLoading } = useQuery({
     queryKey: ["ledgers", activeFirmId],
     queryFn: () =>
       apiRequest<LedgerDetail[]>(supabase, "/api/ledgers/", { query: { firm_id: activeFirmId } }),
     enabled: !!activeFirmId,
   });
 
-  const { data: items = [] } = useQuery({
+  const { data: items = [], isLoading: itemsLoading } = useQuery({
     queryKey: ["items", activeFirmId],
     queryFn: () =>
       apiRequest<ItemDetail[]>(supabase, "/api/items/", {
@@ -44,7 +44,7 @@ export function useVoucherData(activeFirmId: string | null, supabase: SupabaseCl
     enabled: !!activeFirmId,
   });
 
-  const { data: firmQueryData } = useQuery({
+  const { data: firmQueryData, isLoading: firmLoading } = useQuery({
     queryKey: ["firm-details", activeFirmId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -75,8 +75,6 @@ export function useVoucherData(activeFirmId: string | null, supabase: SupabaseCl
     }
     : null;
 
-  const depsReady = ledgers.length > 0;
-
   const partyLedgers = useMemo(
     () => ledgers.filter(isPartyLedger).map((ledger) => ({ value: ledger.id, label: `${ledger.name} • ${ledger.group_name || "Party"}` })),
     [ledgers],
@@ -94,7 +92,7 @@ export function useVoucherData(activeFirmId: string | null, supabase: SupabaseCl
     [ledgers],
   );
 
-  const { data: nextNumberData } = useQuery({
+  const { data: nextNumberData, isLoading: nextNumLoading } = useQuery({
     queryKey: ["next-voucher-number", activeFirmId, category],
     queryFn: () =>
       apiRequest<{ next_number: string }>(supabase, "/api/vouchers/next-number", {
@@ -102,6 +100,9 @@ export function useVoucherData(activeFirmId: string | null, supabase: SupabaseCl
       }),
     enabled: !!activeFirmId && !isEditing,
   });
+
+  const queriesLoading = ledgersLoading || itemsLoading || firmLoading || (!isEditing && nextNumLoading);
+  const depsReady = !!activeFirmId && !queriesLoading;
 
   return {
     ledgers,

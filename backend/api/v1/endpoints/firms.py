@@ -13,6 +13,42 @@ from core.config import settings
 
 router = APIRouter()
 
+@router.get("/my-firms")
+async def list_my_firms(jwt: str = Depends(get_verified_jwt)) -> Any:
+    """
+    Returns only the firms the current user has access to.
+    """
+    profile = get_profile_context(jwt)
+
+    if profile["role"] in ("ca_admin", "ca_employee"):
+        # CA God Mode: sees all firms without restriction
+        firms = (
+            supabase.table("firms")
+            .select("*")
+            .order("name")
+            .execute()
+        )
+        return firms.data or []
+
+    # Merchant: only firms they have explicit access to
+    access_rows = (
+        supabase.table("user_firm_access")
+        .select("firm_id")
+        .eq("user_id", str(profile["id"]))
+        .execute()
+    )
+    firm_ids = [row["firm_id"] for row in (access_rows.data or [])]
+    if not firm_ids:
+        return []
+
+    return (
+        supabase.table("firms")
+        .select("*")
+        .in_("id", firm_ids)
+        .order("name")
+        .execute()
+    ).data or []
+
 @router.get("/gst/fetch")
 async def fetch_gst_details(gstin: str, jwt: str = Depends(get_verified_jwt)) -> Any:
     """
@@ -157,22 +193,38 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
             
         new_firm = response.data[0]
         
-        # 3. Create the profile linking the user to this firm
-        # We use upsert in case the user row already exists but needs updating
-        profile_data = {
-            "id": user.id,
-            "firm_id": new_firm["id"],
-            "role": "merchant", # Default role for new signups
-            "full_name": user.user_metadata.get("full_name", "") if user.user_metadata else "User",
-            "email": user.email
-        }
+        # 3. Handle Profile and Access Link
+        existing_profile = supabase.table("profiles").select("id").eq("id", user.id).maybe_single().execute()
         
-        prof_response = supabase.table("profiles").upsert(profile_data).execute()
-        if not prof_response.data:
-            # Bug Fix 5: Profile creation failed. Delete the orphaned firm to prevent
-            # an infinite redirect loop (no profile → onboarding → duplicate firm error).
-            supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
-            raise HTTPException(status_code=500, detail="Failed to create user profile. Firm creation rolled back.")
+        if existing_profile and existing_profile.data:
+            # User already exists, they are just adding a second firm
+            # DO NOT overwrite profile.firm_id. Just add to junction table.
+            access_resp = supabase.table("user_firm_access").insert({
+                "user_id": user.id,
+                "firm_id": new_firm["id"],
+            }).execute()
+            
+            if not access_resp.data:
+                supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
+                raise HTTPException(status_code=500, detail="Failed to link user to firm. Firm creation rolled back.")
+        else:
+            # First time user signup. Create profile AND access link.
+            profile_data = {
+                "id": user.id,
+                "firm_id": new_firm["id"],
+                "role": "merchant",
+                "full_name": user.user_metadata.get("full_name", "") if user.user_metadata else "User",
+                "email": user.email
+            }
+            prof_response = supabase.table("profiles").upsert(profile_data).execute()
+            if not prof_response.data:
+                supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
+                raise HTTPException(status_code=500, detail="Failed to create user profile. Firm creation rolled back.")
+            
+            supabase.table("user_firm_access").insert({
+                "user_id": user.id,
+                "firm_id": new_firm["id"],
+            }).execute()
             
         return new_firm
         

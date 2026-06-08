@@ -3,23 +3,15 @@
 import { useProfile } from "@/context/ProfileContext";
 import SignOutButton from "../components/SignOutButton";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Firm } from "@/interfaces/firm";
+import { apiRequest } from "@/lib/http";
 
 export default function FirmsPage() {
-  const { profile, isCAAdmin, isCAEmployee, isLoading: isProfileLoading, supabase } = useProfile();
+  const { profile, isLoading: isProfileLoading, supabase } = useProfile();
   const [firms, setFirms] = useState<Firm[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isFirmsLoading, setIsFirmsLoading] = useState(true);
-  const router = useRouter();
-  const isCA = isCAAdmin || isCAEmployee;
-
-  useEffect(() => {
-    if (!isProfileLoading && profile && !isCA) {
-      router.replace("/dashboard");
-    }
-  }, [isProfileLoading, profile, isCA, router]);
 
   useEffect(() => {
     async function getFirms() {
@@ -27,9 +19,7 @@ export default function FirmsPage() {
 
       try {
         setIsFirmsLoading(true);
-        const { data, error } = await supabase.from("firms").select("*").order("name");
-
-        if (error) throw error;
+        const data = await apiRequest<Firm[]>(supabase, "/api/firms/my-firms");
         setFirms(data || []);
       } catch (err) {
         console.error("Error fetching firms:", err);
@@ -38,10 +28,10 @@ export default function FirmsPage() {
       }
     }
 
-    if (isCA && profile) {
+    if (profile) {
       void getFirms();
     }
-  }, [isCA, profile, supabase]);
+  }, [profile, supabase]);
 
   const filteredFirms = firms.filter(
     (firm) =>
@@ -60,8 +50,7 @@ export default function FirmsPage() {
     );
   }
 
-  if (!isCA) return null;
-
+  // Removed CA-only render block
   return (
     <main className="min-h-screen bg-canvas px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -77,7 +66,13 @@ export default function FirmsPage() {
                 Search across firms and jump into the right accounting environment without losing the cleaner dashboard styling.
               </p>
             </div>
-            <div className="self-start">
+            <div className="self-start flex flex-col sm:flex-row items-center gap-3">
+              <Link
+                href="/onboarding/start"
+                className="inline-flex items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-white/30 border border-white/20 shadow-sm"
+              >
+                Add Firm
+              </Link>
               <SignOutButton />
             </div>
           </div>

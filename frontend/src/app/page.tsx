@@ -24,12 +24,6 @@ export default async function Home() {
   }
 
   // Step 3: Intelligent Routing based on Role
-  if (profile.role === 'merchant') {
-    return redirect('/dashboard');
-  } else if (profile.role === 'ca_admin' || profile.role === 'ca_employee') {
-    return redirect('/firms');
-  }
-
-  // Fallback in case of an unknown role
-  return redirect('/dashboard');
+  // Both merchants and CAs now go through the firm selector
+  return redirect('/firms');
 }

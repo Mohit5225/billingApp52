@@ -115,7 +115,7 @@ class LedgerBase(BaseSchema):
     group_id: UUID4
     name: str
     alias: Optional[str] = None
-    type_of_ledger: LedgerType = LedgerType.NOT_APPLICABLE
+    type_of_ledger: Optional[LedgerType] = None
     opening_balance: float = 0
     opening_balance_type: DrCrType
     inventory_values_affected: bool = False

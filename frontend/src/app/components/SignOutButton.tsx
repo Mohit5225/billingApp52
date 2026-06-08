@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { signOut } from "../auth/login/actions";
 
 export default function SignOutButton() {
   const [isConfirming, setIsConfirming] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleSignOut = async () => {
     if (!isConfirming) {
@@ -13,6 +15,10 @@ export default function SignOutButton() {
       return;
     }
 
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem("billingApp_activeFirmId");
+    }
+    queryClient.clear();
     await signOut();
   };
 

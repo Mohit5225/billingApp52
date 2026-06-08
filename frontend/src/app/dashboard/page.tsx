@@ -54,7 +54,7 @@ export default function DashboardPage() {
   const { fromDate, toDate } = useDateFilter();
   const { showToast } = useToast();
 
-  const { data: overview } = useQuery({
+  const { data: overview, isLoading } = useQuery({
     queryKey: ["overview", activeFirmId, fromDate, toDate],
     queryFn: () =>
       apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
@@ -86,6 +86,7 @@ export default function DashboardPage() {
           subtitle={`${overview?.sales.count ?? 0} sales vouchers`}
           trend="up"
           accentColor="#40916C"
+          isLoading={isLoading}
         />
         <KpiCard
           label="Total Purchases"
@@ -93,6 +94,7 @@ export default function DashboardPage() {
           subtitle={`${overview?.purchases.count ?? 0} purchase vouchers`}
           trend="up"
           accentColor="#D49735"
+          isLoading={isLoading}
         />
       </div>
 

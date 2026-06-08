@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useActiveFirm } from "./FirmProvider";
 
 export type ComboboxOption = {
   value: string;
@@ -19,6 +20,8 @@ type Props = {
   inline?: boolean;
   /** If provided, renders a small "+" icon link to open the create page */
   createHref?: string;
+  /** If provided, renders a "+" icon link ONLY when the user's typed input does not match any options, after a debounce delay */
+  dynamicCreateHref?: string;
   disabled?: boolean;
   dataItemField?: boolean;
   mandatory?: boolean;
@@ -27,7 +30,8 @@ type Props = {
   chevron?: boolean;
 };
 
-export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, disabled, dataItemField, mandatory, compact = false, leftIcon, chevron }: Props) {
+export function ComboboxField({ label, value, onChange, options, placeholder = "Type to search…", inline = false, createHref, dynamicCreateHref, disabled, dataItemField, mandatory, compact = false, leftIcon, chevron }: Props) {
+  const { activeFirmId } = useActiveFirm();
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
@@ -35,9 +39,11 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
+  const createBtnRef = useRef<HTMLAnchorElement>(null);
+
   /* Keep the display text in sync when the external value changes */
   const selectedLabel = options.find((o) => o.value === value)?.label ?? "";
-  const displayValue = open ? query : selectedLabel;
+  const displayValue = open ? query : (value ? selectedLabel : query);
 
   const filtered = query.trim() === ""
     ? options
@@ -46,10 +52,26 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
         (o.sublabel?.toLowerCase().includes(query.toLowerCase()) ?? false),
       );
 
+  const [showDynamicCreate, setShowDynamicCreate] = useState(false);
+
   /* Reset highlight whenever the filtered list changes */
   useEffect(() => {
     setHighlighted(-1);
   }, [query]);
+
+  /* Handle dynamic create button visibility */
+  useEffect(() => {
+    setShowDynamicCreate(false);
+    if (!dynamicCreateHref || query.trim() === "") return;
+
+    const t = setTimeout(() => {
+      if (filtered.length === 0) {
+        setShowDynamicCreate(true);
+      }
+    }, 1000);
+
+    return () => clearTimeout(t);
+  }, [query, filtered.length, dynamicCreateHref]);
 
   /* Scroll highlighted item into view */
   useEffect(() => {
@@ -63,7 +85,6 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
     function handler(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setQuery("");
       }
     }
     document.addEventListener("mousedown", handler);
@@ -127,18 +148,26 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
             handleSelect(filtered[highlighted]);
           } else {
             e.preventDefault();
-            setOpen(false);
-            // If they didn't select anything, just pass through/skip
-            setTimeout(() => {
-              if (inputRef.current) {
-                inputRef.current.dispatchEvent(
-                  new CustomEvent("tally-focus-next", { 
-                    bubbles: true, 
-                    detail: { origin: inputRef.current } 
-                  })
-                );
-              }
-            }, 10);
+            
+            if (filtered.length === 0 && dynamicCreateHref) {
+              setShowDynamicCreate(true);
+              setTimeout(() => {
+                createBtnRef.current?.focus();
+              }, 10);
+            } else {
+              setOpen(false);
+              // If they didn't select anything, just pass through/skip
+              setTimeout(() => {
+                if (inputRef.current) {
+                  inputRef.current.dispatchEvent(
+                    new CustomEvent("tally-focus-next", { 
+                      bubbles: true, 
+                      detail: { origin: inputRef.current } 
+                    })
+                  );
+                }
+              }, 10);
+            }
           }
           return;
         }
@@ -177,6 +206,48 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
   if (leftIcon) inputClasses += " pl-9";
   if (chevron) inputClasses += " pr-9";
 
+  const getHrefWithFirm = (href: string) => {
+    if (!href || !activeFirmId) return href;
+    const separator = href.includes("?") ? "&" : "?";
+    return `${href}${separator}firm_id=${activeFirmId}`;
+  };
+
+  const renderCreateBtn = () => {
+    if (disabled) return null;
+    if (createHref) {
+      return (
+        <Link
+          href={getHrefWithFirm(createHref)}
+          title="Create new"
+          data-skip-enter="true"
+          className={`flex shrink-0 items-center justify-center rounded-md border border-slate-500 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600 ${compact ? "h-8 w-8" : "h-10 w-10"}`}
+        >
+          <svg className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        </Link>
+      );
+    }
+    if (dynamicCreateHref && showDynamicCreate && open) {
+      const baseHref = getHrefWithFirm(dynamicCreateHref);
+      const finalHref = `${baseHref}${baseHref.includes('?') ? '&' : '?'}search=${encodeURIComponent(query)}`;
+      return (
+        <Link
+          ref={createBtnRef}
+          href={finalHref}
+          title="Create new item"
+          data-skip-enter="true"
+          className={`flex shrink-0 items-center justify-center rounded-md border border-slate-500 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${compact ? "h-8 w-8" : "h-10 w-10"}`}
+        >
+          <svg className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+        </Link>
+      );
+    }
+    return null;
+  };
+
   if (inline) {
     return (
       <div ref={containerRef} data-dropdown-open={open} className="relative flex w-full items-center gap-1">
@@ -214,20 +285,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
           )}
           {open && query && filtered.length === 0 && !disabled && <EmptyState />}
         </div>
-        {createHref && !disabled && (
-          <Link
-            href={createHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Create new"
-            data-skip-enter="true"
-            className={`flex shrink-0 items-center justify-center rounded-md border border-slate-500 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600 ${compact ? "h-8 w-8" : "h-10 w-10"}`}
-          >
-            <svg className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-          </Link>
-        )}
+        {renderCreateBtn()}
       </div>
     );
   }
@@ -272,20 +330,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
           )}
           {open && query && filtered.length === 0 && !disabled && <EmptyState />}
         </div>
-        {createHref && !disabled && (
-          <Link
-            href={createHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Create new"
-            data-skip-enter="true"
-            className={`flex shrink-0 items-center justify-center rounded-md border border-slate-500 bg-white text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600 ${compact ? "h-8 w-8" : "h-10 w-10"}`}
-          >
-            <svg className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-          </Link>
-        )}
+        {renderCreateBtn()}
       </div>
     </div>
   );

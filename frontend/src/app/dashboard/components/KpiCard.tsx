@@ -4,6 +4,7 @@ interface KpiCardProps {
   subtitle?: string;
   trend?: "up" | "down" | "flat";
   accentColor?: string;
+  isLoading?: boolean;
 }
 
 export default function KpiCard({
@@ -12,6 +13,7 @@ export default function KpiCard({
   subtitle,
   trend = "up",
   accentColor = "#40916C",
+  isLoading = false,
 }: KpiCardProps) {
   const sparklinePoints =
     trend === "up"
@@ -21,7 +23,7 @@ export default function KpiCard({
         : "M0,25 C20,22 30,28 50,25 C70,22 80,28 100,25 C120,22 130,28 150,25";
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl sm:rounded-[32px] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,255,255,0.78))] p-5 sm:p-7 shadow-[0_18px_38px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_26px_52px_rgba(15,23,42,0.12)]">
+    <div className="group relative overflow-hidden rounded-2xl sm:rounded-[32px] border-none md:border md:border-slate-200 bg-[linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,255,255,0.78))] p-5 sm:p-7 shadow-[0_18px_38px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_26px_52px_rgba(15,23,42,0.12)]">
       <div className="absolute inset-x-0 top-0 h-28 bg-[radial-gradient(circle_at_top_left,rgba(82,183,136,0.14),transparent_70%)] opacity-80" />
       <div className="pointer-events-none absolute bottom-0 right-0 h-[75%] w-[45%] sm:w-[60%] opacity-20">
         <svg viewBox="0 0 150 45" preserveAspectRatio="none" className="h-full w-full">
@@ -47,15 +49,27 @@ export default function KpiCard({
 
       <div className="relative z-10">
         <div className="mb-4 sm:mb-5 flex items-center gap-2.5">
-          <p className="text-xs sm:text-[13px] font-semibold uppercase tracking-[0.24em] text-slate-500 truncate" title={label}>{label}</p>
+          {isLoading ? (
+            <div className="h-4 w-24 animate-shimmer-fast rounded-full bg-slate-200" />
+          ) : (
+            <p className="text-xs sm:text-[13px] font-semibold uppercase tracking-[0.24em] text-slate-500 truncate" title={label}>{label}</p>
+          )}
           <svg className="h-5 w-5 sm:h-6 sm:w-6 text-slate-300 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
           </svg>
         </div>
-        <p className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-950 mono-num truncate" title={amount}>
-          {amount}
-        </p>
-        {subtitle && <p className="mt-2.5 text-sm sm:text-base font-medium text-slate-500 truncate" title={subtitle}>{subtitle}</p>}
+        {isLoading ? (
+          <div className="my-1 h-8 sm:h-12 w-32 sm:w-48 animate-shimmer-fast rounded-full bg-slate-200" style={{ animationDelay: "0.1s" }} />
+        ) : (
+          <p className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-950 mono-num truncate" title={amount}>
+            {amount}
+          </p>
+        )}
+        {isLoading ? (
+          <div className="mt-2.5 h-4 sm:h-5 w-40 sm:w-56 animate-shimmer-fast rounded-full bg-slate-200" style={{ animationDelay: "0.2s" }} />
+        ) : (
+          subtitle && <p className="mt-2.5 text-sm sm:text-base font-medium text-slate-500 truncate" title={subtitle}>{subtitle}</p>
+        )}
       </div>
     </div>
   );

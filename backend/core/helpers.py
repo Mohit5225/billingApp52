@@ -6,7 +6,7 @@ from core.supabase import supabase
 
 
 def get_profile_context(jwt: str) -> dict[str, Any]:
-    """Validate the JWT and return the user's profile (firm_id, role)."""
+    """Validate the JWT and return the user's profile (id, firm_id, role)."""
     user_resp = supabase.auth.get_user(jwt)
     user = user_resp.user
     if not user:
@@ -17,7 +17,7 @@ def get_profile_context(jwt: str) -> dict[str, Any]:
 
     profile_resp = (
         supabase.table("profiles")
-        .select("firm_id, role")
+        .select("id, firm_id, role")
         .eq("id", user.id)
         .single()
         .execute()
@@ -39,42 +39,46 @@ def resolve_target_firm_id(
 ) -> str:
     """
     Determine the effective firm_id for the request.
-
-    - If no firm_id is requested, default to the caller's own firm.
-    - If a different firm_id is requested, the caller must be ca_admin or
-      ca_employee AND that firm must be a direct child of their firm.
+    
+    - CA admin/employee: allowed to operate on their own firm, or any
+      client firm. (God mode).
+    - Merchant: must have an explicit row in user_firm_access for the requested firm.
     """
     active_firm_id = requested_firm_id or str(profile["firm_id"])
 
-    # Caller is operating on their own firm — always allowed
-    if active_firm_id == str(profile["firm_id"]):
+    # ── CA path (God Mode) ──────────────────────────────────────────────────
+    if profile["role"] in ("ca_admin", "ca_employee"):
+        if active_firm_id == str(profile["firm_id"]):
+            return active_firm_id
+        # Verify the requested firm actually exists
+        firm_resp = (
+            supabase.table("firms")
+            .select("id")
+            .eq("id", active_firm_id)
+            .maybe_single()
+            .execute()
+        )
+        if not firm_resp or not firm_resp.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Requested firm not found",
+            )
         return active_firm_id
 
-    # Caller wants to act on a client firm — must be CA staff
-    if profile["role"] not in ("ca_admin", "ca_employee"):
+    # ── Merchant path (explicit access check via junction table) ────────────
+    access = (
+        supabase.table("user_firm_access")
+        .select("id")
+        .eq("user_id", str(profile["id"]))
+        .eq("firm_id", active_firm_id)
+        .maybe_single()
+        .execute()
+    )
+    
+    if not access or not access.data:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have access to this firm",
         )
-
-    firm_resp = (
-        supabase.table("firms")
-        .select("id, parent_firm_id")
-        .eq("id", active_firm_id)
-        .single()
-        .execute()
-    )
-
-    firm = firm_resp.data
-    if not firm:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Requested firm not found",
-        )
-
-    # If they are ca_admin or ca_employee, we grant them access to the requested firm.
-    # In a fully multi-tenant setup with strict CA-client silos, we would enforce:
-    # if str(firm.get("parent_firm_id")) != str(profile["firm_id"]): raise 403
-    # But CA admins have god mode access to all firms on the platform.
     
     return active_firm_id

@@ -53,7 +53,7 @@ export default function InventoryHubPage() {
   const { activeFirmId, supabase } = useFirmScope();
   const { showToast } = useToast();
 
-  const { data: overview } = useQuery({
+  const { data: overview, isLoading } = useQuery({
     queryKey: ["overview", activeFirmId],
     queryFn: () =>
       apiRequest<DashboardOverview>(supabase, "/api/workspace/overview", {
@@ -72,6 +72,7 @@ export default function InventoryHubPage() {
           subtitle="Active item masters"
           trend="up"
           accentColor="#40916C"
+          isLoading={isLoading}
         />
         <KpiCard
           label="Measurement Units"
@@ -79,6 +80,7 @@ export default function InventoryHubPage() {
           subtitle="Configured UOMs"
           trend="flat"
           accentColor="#D49735"
+          isLoading={isLoading}
         />
         <KpiCard
           label="Closing Stock Value"
@@ -86,6 +88,7 @@ export default function InventoryHubPage() {
           subtitle={`${formatNumber(overview?.inventory.closing_quantity ?? 0)} units in stock flow`}
           trend="up"
           accentColor="#2563EB"
+          isLoading={isLoading}
         />
       </div>
 

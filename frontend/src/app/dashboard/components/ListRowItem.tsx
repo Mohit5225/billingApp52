@@ -35,7 +35,7 @@ export default function ListRowItem({
     return (
       <Link
         href={href}
-        className="group flex flex-row lg:flex-col items-center lg:items-start lg:justify-between gap-3 lg:gap-0 rounded-2xl lg:rounded-[24px] bg-transparent p-4 sm:p-5 lg:p-6 transition-all duration-300 hover:bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.05)] lg:hover:-translate-y-1 border border-transparent hover:border-slate-100"
+        className="group flex flex-row lg:flex-col items-center lg:items-start lg:justify-between gap-3 lg:gap-0 rounded-2xl lg:rounded-[24px] bg-transparent lg:bg-white/40 p-4 sm:p-5 lg:p-6 transition-all duration-300 hover:bg-white hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] lg:hover:-translate-y-1 border border-transparent lg:border-slate-200/60 hover:border-slate-100 lg:hover:border-slate-300/60"
       >
         <div className="flex w-full items-center lg:items-start justify-between">
           <div className="flex items-center gap-3 lg:gap-0">

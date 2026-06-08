@@ -367,7 +367,7 @@ async def get_next_number(
 
     # 1. Fetch the prefix setting from the firm
     firm_resp = supabase.table("firms").select("*").eq("id", target_firm_id).maybe_single().execute()
-    if not firm_resp.data:
+    if not firm_resp or not firm_resp.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Firm not found")
     firm = firm_resp.data
 
