@@ -1,7 +1,7 @@
 "use client";
 
 import { useProfile } from "@/context/ProfileContext";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import SignOutButton from "../../components/SignOutButton";
 import BottomSheet from "../../components/BottomSheet";
@@ -18,6 +18,9 @@ export default function Header() {
   const [firmName, setFirmName] = useState("");
   const [firmDetails, setFirmDetails] = useState<{ gstin?: string; state?: string }>({});
   
+  const pathname = usePathname();
+  const isDashboardHome = pathname === "/dashboard";
+
   const [isWorkspaceSheetOpen, setIsWorkspaceSheetOpen] = useState(false);
   const [isProfileSheetOpen, setIsProfileSheetOpen] = useState(false);
   const [firmsCount, setFirmsCount] = useState<number | null>(null);
@@ -60,23 +63,19 @@ export default function Header() {
             onClick={() => setIsWorkspaceSheetOpen(true)}
             className="flex min-w-0 flex-1 items-start gap-2.5 sm:gap-3 text-left transition-opacity hover:opacity-80 active:opacity-70 lg:cursor-default lg:pointer-events-none"
           >
-            <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-tally-400 font-bold text-tally-900 shadow-lg shadow-emerald-950/10 lg:hidden">
-              B
-            </div>
-
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+              <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
                 Active Workspace
               </p>
-              <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
-                <h1 className="truncate text-base font-semibold tracking-tight text-slate-950 sm:text-xl lg:text-2xl">
+              <div className="mt-1 flex min-w-0 items-center gap-2">
+                <h1 className="truncate text-lg font-semibold tracking-tight text-slate-950 sm:text-2xl lg:text-[28px]">
                   {firmName || "Loading..."}
                 </h1>
-                <svg className="h-4 w-4 shrink-0 text-slate-400 lg:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className="h-5 w-5 shrink-0 text-slate-400 lg:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                 </svg>
               </div>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:text-xs font-medium text-slate-500">
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs sm:text-sm font-medium text-slate-500">
                 {firmDetails.state && <span>{firmDetails.state}</span>}
                 {firmDetails.gstin && (
                   <>
@@ -88,109 +87,141 @@ export default function Header() {
             </div>
           </button>
 
-          <div className="hidden flex-1 px-6 lg:flex lg:max-w-xl">
-            <div className="relative w-full">
-              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-                <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          {!isDashboardHome && (
+            <div className="hidden flex-1 px-6 lg:flex lg:max-w-2xl">
+              <div className="relative w-full">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                  <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search vouchers, ledgers, reports..."
+                  className="h-[52px] w-full rounded-2xl border border-slate-200/60 bg-white/90 pl-12 pr-20 text-[15px] font-medium text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300 hover:bg-white"
+                />
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                  <span className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold tracking-[0.16em] text-slate-400 shadow-sm">
+                    CMD K
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+            <div className="hidden items-center justify-center gap-6 rounded-[22px] bg-white px-6 py-3.5 text-[16px] font-semibold text-slate-800 shadow-sm xl:flex">
+              <div className="flex items-center gap-4">
+                <svg className="h-[22px] w-[22px] text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <rect x="4" y="5" width="16" height="16" rx="4" ry="4" />
+                  <line x1="16" y1="3" x2="16" y2="7" />
+                  <line x1="8" y1="3" x2="8" y2="7" />
+                  <line x1="4" y1="11" x2="20" y2="11" />
+                  <rect x="7" y="15" width="3" height="3" rx="1" fill="currentColor" />
+                </svg>
+                <input
+                  type="date"
+                  value={fromDate}
+                  max={toDate}
+                  onChange={(e) => setDateRange(e.target.value, toDate)}
+                  className="bg-transparent outline-none cursor-pointer text-slate-800 w-[115px]"
+                />
+              </div>
+              
+              <div className="flex items-center gap-6">
+                <div className="h-5 w-[1px] bg-slate-200" />
+                <span className="text-slate-500 font-medium">to</span>
+                <div className="h-5 w-[1px] bg-slate-200" />
+              </div>
+
+              <div className="flex items-center gap-4">
+                <input
+                  type="date"
+                  value={toDate}
+                  min={fromDate}
+                  onChange={(e) => setDateRange(fromDate, e.target.value)}
+                  className="bg-transparent outline-none cursor-pointer text-slate-800 w-[115px] text-right"
+                />
+                <svg className="h-[22px] w-[22px] text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <rect x="4" y="5" width="16" height="16" rx="4" ry="4" />
+                  <line x1="16" y1="3" x2="16" y2="7" />
+                  <line x1="8" y1="3" x2="8" y2="7" />
+                  <line x1="4" y1="11" x2="20" y2="11" />
+                  <rect x="14" y="15" width="3" height="3" rx="1" fill="currentColor" />
                 </svg>
               </div>
-              <input
-                type="text"
-                placeholder="Search vouchers, ledgers, parties, or reports"
-                className="h-12 w-full rounded-2xl border border-white/70 bg-white/78 pl-11 pr-20 text-sm text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
-              />
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                <span className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-semibold tracking-[0.16em] text-slate-400">
-                  CMD K
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <div className="hidden items-center gap-4 rounded-2xl border border-white/80 bg-white/90 px-5 py-2.5 text-[15px] font-semibold text-slate-700 shadow-sm shadow-emerald-950/5 xl:flex">
-              <input
-                type="date"
-                value={fromDate}
-                max={toDate}
-                onChange={(e) => setDateRange(e.target.value, toDate)}
-                className="bg-transparent outline-none cursor-pointer text-slate-900"
-              />
-              <span className="text-slate-400 text-sm font-medium">to</span>
-              <input
-                type="date"
-                value={toDate}
-                min={fromDate}
-                onChange={(e) => setDateRange(fromDate, e.target.value)}
-                className="bg-transparent outline-none cursor-pointer text-slate-900"
-              />
             </div>
 
-            <button className="relative rounded-2xl border border-transparent bg-white/55 p-2.5 text-slate-500 transition hover:border-white/70 hover:bg-white/80 hover:text-slate-700">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <button className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[20px] bg-white text-slate-600 shadow-sm transition hover:bg-slate-50">
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
               </svg>
-              <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full border-2 border-[rgba(248,245,239,0.84)] bg-red-soft" />
+              <span className="absolute right-[14px] top-[14px] h-[11px] w-[11px] rounded-full border-[2.5px] border-white bg-red-400" />
             </button>
-
-            <div className="hidden items-center gap-3 rounded-2xl border border-white/70 bg-white/82 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] sm:flex">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-tally-700 text-sm font-bold text-white shadow-sm">
-                {profile?.full_name?.charAt(0)?.toUpperCase() || "U"}
-              </div>
-              <div className="hidden min-w-0 lg:block">
-                <p className="truncate text-sm font-semibold text-slate-900">
-                  {profile?.full_name || "User"}
-                </p>
-                <p className="truncate text-xs text-slate-500">
-                  {isCA ? "CA workspace" : "Merchant workspace"}
-                </p>
-              </div>
-            </div>
 
             <button 
               onClick={() => setIsProfileSheetOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-tally-700 text-sm font-bold text-white shadow-sm sm:hidden transition-transform active:scale-95"
+              className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[20px] bg-[#3A604D] text-xl font-medium text-white shadow-sm transition-transform active:scale-95"
             >
-              {profile?.full_name?.charAt(0)?.toUpperCase() || "U"}
+              {profile?.full_name?.charAt(0)?.toUpperCase() || "M"}
             </button>
 
-            <div className="hidden xl:block">
+            <div className="hidden xl:block ml-2">
               <SignOutButton />
             </div>
           </div>
         </div>
 
         <div className="flex flex-col gap-3 lg:hidden">
-          <div className="relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
-              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
+          {!isDashboardHome && (
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                <svg className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search vouchers, ledgers, reports..."
+                className="h-[52px] w-full rounded-2xl border border-slate-200/60 bg-white/90 pl-12 pr-4 text-[15px] font-medium text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300 hover:bg-white"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Search vouchers, ledgers, reports"
-              className="h-11 w-full rounded-2xl border border-white/70 bg-white/78 pl-11 pr-4 text-sm text-slate-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
-            />
-          </div>
+          )}
           
-          <div className="flex items-center justify-center gap-2 rounded-2xl border border-white/70 bg-white/78 px-3 py-2.5 text-xs font-medium text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+          <div className="flex items-center justify-center gap-3 sm:gap-5 rounded-[20px] bg-white px-4 py-3.5 text-sm sm:text-[15px] font-semibold text-slate-800 shadow-sm border border-slate-100">
+            <svg className="h-5 w-5 text-slate-800 shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <rect x="4" y="5" width="16" height="16" rx="4" ry="4" />
+              <line x1="16" y1="3" x2="16" y2="7" />
+              <line x1="8" y1="3" x2="8" y2="7" />
+              <line x1="4" y1="11" x2="20" y2="11" />
+              <rect x="7" y="15" width="3" height="3" rx="1" fill="currentColor" />
+            </svg>
             <input
               type="date"
               value={fromDate}
               max={toDate}
               onChange={(e) => setDateRange(e.target.value, toDate)}
-              className="bg-transparent outline-none cursor-pointer w-[115px] sm:w-auto"
+              className="bg-transparent outline-none cursor-pointer w-[110px] sm:w-[115px]"
             />
-            <span className="text-slate-400">to</span>
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="h-4 w-[1px] bg-slate-200" />
+              <span className="text-slate-500 font-medium">to</span>
+              <div className="h-4 w-[1px] bg-slate-200" />
+            </div>
             <input
               type="date"
               value={toDate}
               min={fromDate}
               onChange={(e) => setDateRange(fromDate, e.target.value)}
-              className="bg-transparent outline-none cursor-pointer w-[115px] sm:w-auto"
+              className="bg-transparent outline-none cursor-pointer w-[110px] sm:w-[115px] sm:text-right"
             />
+            <svg className="h-5 w-5 text-slate-800 shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <rect x="4" y="5" width="16" height="16" rx="4" ry="4" />
+              <line x1="16" y1="3" x2="16" y2="7" />
+              <line x1="8" y1="3" x2="8" y2="7" />
+              <line x1="4" y1="11" x2="20" y2="11" />
+              <rect x="14" y="15" width="3" height="3" rx="1" fill="currentColor" />
+            </svg>
           </div>
         </div>
       </div>

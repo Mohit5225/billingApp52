@@ -65,16 +65,61 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1800px] space-y-6 lg:space-y-8">
-      <section className="relative overflow-hidden rounded-2xl sm:rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(18,58,41,0.96),rgba(33,92,70,0.92))] px-5 py-6 sm:px-10 sm:py-12 text-white shadow-[0_24px_60px_rgba(15,23,42,0.14)]">
-        <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(216,243,220,0.28),transparent_58%)]" />
-        <div className="relative z-10 max-w-4xl">
-          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.24em] text-white/70">Overview</p>
-          <h2 className="mt-3 text-4xl font-semibold tracking-tight sm:text-6xl">
-            Day-to-day billing, inventory, and books in one real workspace.
-          </h2>
-          <p className="mt-4 max-w-3xl text-sm sm:text-lg leading-relaxed text-white/80">
-            The dashboard now pulls live voucher and inventory data so the main shortcuts, books, and recent activity all land on working screens.
-          </p>
+      <section className="relative rounded-2xl sm:rounded-[28px] border border-white/70 bg-[linear-gradient(135deg,rgba(18,58,41,0.96),rgba(33,92,70,0.92))] px-4 py-5 sm:px-8 sm:py-6 lg:px-10 lg:py-8 text-white shadow-[0_12px_40px_rgba(15,23,42,0.12)]">
+        <div className="absolute inset-0 overflow-hidden rounded-2xl sm:rounded-[28px] pointer-events-none">
+          <div className="absolute inset-y-0 right-0 w-full md:w-3/4 bg-[radial-gradient(circle_at_center_right,rgba(216,243,220,0.15),transparent_70%)]" />
+        </div>
+        
+        <div className="relative z-10 flex flex-row items-center justify-between gap-3 sm:gap-8 pr-2 sm:pr-6">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-[19px] sm:text-3xl md:text-4xl lg:text-5xl xl:text-[52px] font-semibold tracking-tight leading-[1.2] sm:leading-[1.15] xl:leading-[1.1]">
+              Day-to-day billing, inventory, and books in one real workspace.
+            </h2>
+          </div>
+
+          <div className="relative flex shrink-0 items-center justify-center">
+            {/* Main Floating Card - Responsive explicitly for mobile/pc */}
+            <div className="relative w-[135px] sm:w-[240px] lg:w-[320px] rounded-[14px] sm:rounded-3xl bg-white p-2.5 sm:p-5 shadow-2xl shadow-emerald-950/40 border border-white">
+              
+              {/* Top Section: Charts */}
+              <div className="flex gap-1.5 sm:gap-4">
+                {/* Bar Chart Box */}
+                <div className="flex flex-1 items-end gap-1 sm:gap-2 rounded-[10px] sm:rounded-2xl border border-slate-100 bg-slate-50 p-1.5 sm:p-4 h-[45px] sm:h-[90px]">
+                  <div className="w-full bg-emerald-300 rounded-[1px] sm:rounded-sm h-[40%]" />
+                  <div className="w-full bg-emerald-500 rounded-[1px] sm:rounded-sm h-[80%]" />
+                  <div className="w-full bg-emerald-600 rounded-[1px] sm:rounded-sm h-[60%]" />
+                  <div className="w-full bg-emerald-400 rounded-[1px] sm:rounded-sm h-[95%]" />
+                </div>
+                {/* Pie Chart Box */}
+                <div className="flex w-[45px] sm:w-[90px] shrink-0 items-center justify-center rounded-[10px] sm:rounded-2xl border border-slate-100 bg-slate-50">
+                  <div className="h-6 w-6 sm:h-12 sm:w-12 rounded-full" style={{ background: 'conic-gradient(#EAB308 0deg 80deg, #10B981 80deg 360deg)' }} />
+                </div>
+              </div>
+
+              {/* Bottom Section: List Rows */}
+              <div className="mt-2 sm:mt-4 space-y-1 sm:space-y-2 rounded-[10px] sm:rounded-2xl border border-slate-100 bg-white p-1.5 sm:p-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center gap-1.5 sm:gap-3">
+                    <svg className="h-2.5 w-2.5 sm:h-4 sm:w-4 text-emerald-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    <div className="h-1 sm:h-2 w-full rounded-full bg-slate-200" />
+                    <div className="h-1 sm:h-2 w-1/3 rounded-full bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+
+              {/* Floating Dark Green "Phone" overlay */}
+              <div className="absolute -bottom-3 -right-2.5 sm:-bottom-8 sm:-right-6 w-[55px] sm:w-[100px] rounded-lg sm:rounded-2xl border-[2px] sm:border-4 border-[#254A39] bg-[#163326] p-1.5 sm:p-3 shadow-xl shadow-emerald-950/50 rotate-[-12deg] transform transition-transform hover:rotate-[-8deg]">
+                <div className="h-1.5 sm:h-3 w-full rounded-full bg-white/20 mb-3 sm:mb-6" />
+                <div className="flex items-center justify-center rounded-md sm:rounded-xl bg-emerald-500/20 p-1.5 sm:p-3 mb-1.5 sm:mb-4">
+                  <BookIcon />
+                </div>
+                <div className="h-0.5 sm:h-1.5 w-3/4 rounded-full bg-white/30 mb-0.5 sm:mb-2" />
+                <div className="h-0.5 sm:h-1.5 w-1/2 rounded-full bg-white/20" />
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
