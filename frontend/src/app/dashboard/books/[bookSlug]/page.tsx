@@ -148,7 +148,7 @@ export default function BookDetailPage() {
 
   return (
     <div className="space-y-6">
-      <PageHero eyebrow="Book Detail" title={copy.title} description={copy.description} />
+      <PageHero eyebrow="Book Detail" title={copy.title} description={copy.description} backHref="/dashboard/books" />
       {bookSlug !== "ledger" ? (
         <div className="flex justify-end gap-2">
           <button

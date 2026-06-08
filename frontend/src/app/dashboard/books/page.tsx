@@ -1,6 +1,8 @@
 "use client";
 
 import ListRowItem from "../components/ListRowItem";
+import { useGlobalSearch } from "@/context/GlobalSearchContext";
+import { useEffect } from "react";
 
 const BookIcon = () => (
   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -29,6 +31,19 @@ const BOOKS = [
 ];
 
 export default function BooksHubPage() {
+  const { globalSearchQuery, setGlobalSearchQuery } = useGlobalSearch();
+
+  useEffect(() => {
+    // Clear search on mount/unmount so it doesn't bleed over from other pages
+    setGlobalSearchQuery("");
+    return () => setGlobalSearchQuery("");
+  }, [setGlobalSearchQuery]);
+
+  const filteredBooks = BOOKS.filter(book => 
+    book.title.toLowerCase().includes(globalSearchQuery.toLowerCase()) || 
+    book.description.toLowerCase().includes(globalSearchQuery.toLowerCase())
+  );
+
   return (
     <div className="mx-auto max-w-[1100px]">
       <section className="rounded-2xl sm:rounded-[32px] border border-white/80 bg-white/80 backdrop-blur-md p-4 sm:p-6 lg:p-10 shadow-[0_8px_40px_rgba(15,23,42,0.04)]">
@@ -47,16 +62,22 @@ export default function BooksHubPage() {
         </div>
 
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mt-6">
-          {BOOKS.map((book) => (
-            <ListRowItem
-              key={book.title}
-              title={book.title}
-              description={book.description}
-              href={book.href}
-              icon={book.icon}
-              variant="card"
-            />
-          ))}
+          {filteredBooks.length > 0 ? (
+            filteredBooks.map((book) => (
+              <ListRowItem
+                key={book.title}
+                title={book.title}
+                description={book.description}
+                href={book.href}
+                icon={book.icon}
+                variant="card"
+              />
+            ))
+          ) : (
+            <div className="col-span-full py-12 text-center text-slate-500 border border-dashed border-slate-200 rounded-2xl bg-white/50">
+              No books or registers found matching "{globalSearchQuery}"
+            </div>
+          )}
         </div>
       </section>
     </div>

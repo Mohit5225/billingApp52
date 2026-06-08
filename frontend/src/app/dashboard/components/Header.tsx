@@ -10,10 +10,12 @@ import { apiRequest } from "@/lib/http";
 
 import { useDateFilter } from "@/context/DateFilterContext";
 import { useFirmScope } from "../shared/useFirmScope";
+import { useGlobalSearch } from "@/context/GlobalSearchContext";
 
 export default function Header() {
   const { fromDate, toDate, setDateRange } = useDateFilter();
   const { profile, isCA, activeFirmId, supabase } = useFirmScope();
+  const { globalSearchQuery, setGlobalSearchQuery } = useGlobalSearch();
   
   const [firmName, setFirmName] = useState("");
   const [firmDetails, setFirmDetails] = useState<{ gstin?: string; state?: string }>({});
@@ -55,8 +57,12 @@ export default function Header() {
     void fetchFirmsCount();
   }, [activeFirmId, profile, supabase]);
 
+  const isInventorySubpage = pathname.startsWith("/dashboard/inventory/");
+  const isBooksSubpage = pathname.startsWith("/dashboard/books/");
+  const hideHeaderOnMobile = isInventorySubpage || isBooksSubpage;
+
   return (
-    <header className="sticky top-0 z-30 border-b border-white/60 bg-[rgba(248,245,239,0.84)] backdrop-blur-xl">
+    <header className={`sticky top-0 z-30 border-b border-white/60 bg-[rgba(248,245,239,0.84)] backdrop-blur-xl ${hideHeaderOnMobile ? 'hidden lg:block' : ''}`}>
       <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 pt-4 pb-1.5 sm:px-6 lg:px-8 sm:py-4">
         <div className="flex w-full flex-wrap items-start justify-between gap-4 lg:flex-nowrap lg:items-center">
           <button 
@@ -98,6 +104,8 @@ export default function Header() {
                 <input
                   type="text"
                   placeholder="Search vouchers, ledgers, reports..."
+                  value={globalSearchQuery}
+                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
                   className="h-[52px] w-full rounded-2xl border border-slate-200/60 bg-white/90 pl-12 pr-20 text-[15px] font-medium text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300 hover:bg-white"
                 />
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
@@ -183,6 +191,8 @@ export default function Header() {
               <input
                 type="text"
                 placeholder="Search vouchers, ledgers, reports..."
+                value={globalSearchQuery}
+                onChange={(e) => setGlobalSearchQuery(e.target.value)}
                 className="h-[52px] w-full rounded-2xl border border-slate-200/60 bg-white/90 pl-12 pr-4 text-[15px] font-medium text-slate-700 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 hover:border-slate-300 hover:bg-white"
               />
             </div>

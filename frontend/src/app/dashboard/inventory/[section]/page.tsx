@@ -204,61 +204,69 @@ export default function InventorySectionPage() {
   // (Moved searchParams logic into the section useEffect below)
 
   const { data: itemData, isLoading: itemsLoading } = useQuery({
-    queryKey: ["items", activeFirmId, search],
+    queryKey: ["items", activeFirmId],
     queryFn: () =>
       apiRequest<ItemDetail[]>(supabase, "/api/items", {
-        query: { firm_id: activeFirmId, active_only: false, search },
+        query: { firm_id: activeFirmId, active_only: false },
       }),
     enabled: !!activeFirmId && section === "items",
   });
 
   const { data: uomData, isLoading: uomLoading } = useQuery({
-    queryKey: ["uom", activeFirmId, search],
+    queryKey: ["uom", activeFirmId],
     queryFn: async () => {
-      const data = await apiRequest<Uom[]>(supabase, "/api/uom", {
+      return apiRequest<Uom[]>(supabase, "/api/uom", {
         query: { firm_id: activeFirmId },
       });
-      if (section === "uom") {
-        return (data || []).filter((row) =>
-          row.name.toLowerCase().includes(search.toLowerCase())
-        );
-      }
-      return data;
     },
     enabled: !!activeFirmId && (section === "items" || section === "uom"),
   });
 
   const { data: stockData, isLoading: stockLoading } = useQuery({
-    queryKey: ["stock-position", activeFirmId, search],
+    queryKey: ["stock-position", activeFirmId],
     queryFn: () =>
       apiRequest<StockPositionRow[]>(supabase, "/api/workspace/stock-position", {
-        query: {
-          firm_id: activeFirmId,
-          search: section === "stock-position" ? search : "",
-        },
+        query: { firm_id: activeFirmId },
       }),
     enabled: !!activeFirmId && (section === "items" || section === "stock-position"),
   });
 
   const { data: hsnData, isLoading: hsnLoading } = useQuery({
-    queryKey: ["hsn", activeFirmId, search],
+    queryKey: ["hsn", activeFirmId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("hsn_codes")
         .select("*")
         .eq("firm_id", activeFirmId);
       if (error) throw error;
-      return (data || []).filter((row) =>
-        row.hsn_code.toLowerCase().includes(search.toLowerCase())
-      );
+      return data || [];
     },
     enabled: !!activeFirmId && section === "hsn",
   });
 
-  const items = itemData || [];
-  const uom = uomData || [];
-  const stockRows = stockData || [];
-  const hsn = hsnData || [];
+  const rawItems = itemData || [];
+  const rawUom = uomData || [];
+  const rawStockRows = stockData || [];
+  const rawHsn = hsnData || [];
+
+  const items = useMemo(() => 
+    rawItems.filter(item => item.name.toLowerCase().includes(search.toLowerCase())), 
+  [rawItems, search]);
+
+  const uom = useMemo(() => 
+    rawUom.filter(u => u.name.toLowerCase().includes(search.toLowerCase())), 
+  [rawUom, search]);
+
+  const stockRows = useMemo(() => 
+    rawStockRows.filter(row => row.item_name.toLowerCase().includes(search.toLowerCase())), 
+  [rawStockRows, search]);
+
+  const hsn = useMemo(() => 
+    rawHsn.filter(h => 
+      h.hsn_code.toLowerCase().includes(search.toLowerCase()) || 
+      (h.description && h.description.toLowerCase().includes(search.toLowerCase()))
+    ), 
+  [rawHsn, search]);
 
   const isLoading = itemsLoading || uomLoading || stockLoading || hsnLoading;
 
@@ -923,6 +931,7 @@ export default function InventorySectionPage() {
         eyebrow="Inventory Detail"
         title={copy.title}
         description={copy.description}
+        backHref="/dashboard/inventory"
       />
 
       <SurfaceCard title="Find records" description="Search stays local to this working view so you can move quickly without jumping screens.">

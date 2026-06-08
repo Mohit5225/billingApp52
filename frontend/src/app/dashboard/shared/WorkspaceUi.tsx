@@ -1,24 +1,39 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 export function PageHero({
   eyebrow,
   title,
   description,
   children,
+  backHref,
 }: {
   eyebrow: string;
   title: string;
   description: string;
   children?: ReactNode;
+  backHref?: string;
 }) {
   return (
     <section className="relative overflow-hidden rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(18,58,41,0.96),rgba(33,92,70,0.92))] px-6 py-7 text-white shadow-[0_24px_60px_rgba(15,23,42,0.14)] sm:px-8 sm:py-9">
       <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_top_right,rgba(216,243,220,0.28),transparent_58%)]" />
       <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-3xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">{eyebrow}</p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">{title}</h1>
-          <p className="mt-3 text-sm leading-6 text-white/72 sm:text-base">{description}</p>
+        <div className="max-w-3xl flex items-start gap-4 sm:gap-6">
+          {backHref && (
+            <Link 
+              href={backHref}
+              className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20 active:scale-95 sm:mt-2 sm:h-12 sm:w-12"
+            >
+              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+          )}
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-white/55">{eyebrow}</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:mt-3 sm:text-4xl">{title}</h1>
+            <p className="mt-2 text-sm leading-6 text-white/72 sm:mt-3 sm:text-base">{description}</p>
+          </div>
         </div>
         {children}
       </div>

@@ -9,6 +9,7 @@ import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import BottomNav from "./components/BottomNav";
 import { FirmProvider } from "./shared/FirmProvider";
+import { GlobalSearchProvider } from "@/context/GlobalSearchContext";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
   const { profile, isLoading, refreshProfile, supabase } = useProfile();
@@ -149,7 +150,9 @@ export default function DashboardLayout({
   return (
     <Suspense fallback={<div className="min-h-screen bg-canvas" />}>
       <FirmProvider>
-        <DashboardShell>{children}</DashboardShell>
+        <GlobalSearchProvider>
+          <DashboardShell>{children}</DashboardShell>
+        </GlobalSearchProvider>
       </FirmProvider>
     </Suspense>
   );
