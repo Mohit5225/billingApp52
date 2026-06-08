@@ -134,6 +134,27 @@ export default function LedgerStatementPage() {
           </button>
         </div>
       </PageHero>
+
+      <SurfaceCard
+        title="Balance summary"
+        description="Opening balance and the current running position for the selected ledger."
+      >
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="rounded-[24px] border border-slate-100 bg-white/90 p-4 shadow-sm">
+                <div className="h-3.5 w-24 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.15}s` }} />
+                <div className="mt-3.5 h-8 w-32 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.15 + 0.05}s` }} />
+                <div className="mt-2.5 h-3.5 w-40 animate-shimmer-fast rounded-full" style={{ animationDelay: `${i * 0.15 + 0.1}s` }} />
+              </div>
+            ))}
+          </div>
+        ) : statement ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            <MetricTile label="Opening balance" value={openingBalanceLabel} helper="Carried forward from the ledger master." />
+            <MetricTile label="Current balance" value={closingBalanceLabel} helper="After applying all posted voucher lines." />
+            <MetricTile label="Total movement" value={formatCurrency(statement.total_debit + statement.total_credit)} helper="Combined Dr and Cr activity in the visible range." />
+          </div>
         ) : (
           <EmptyState title="No statement loaded" description="Select a ledger from Books to inspect its voucher movement." />
         )}
