@@ -1,4 +1,5 @@
 import { BaseEntity } from "./base";
+import { DrCrType } from "./ledger";
 
 export type VoucherCategory =
   | "Sales"
@@ -9,6 +10,24 @@ export type VoucherCategory =
   | "Journal"
   | "Debit Note"
   | "Credit Note";
+
+export type BillRefType = "New Ref" | "Agst Ref" | "Advance" | "On Account";
+
+export interface BillAllocationCreate {
+  ref_type: BillRefType;
+  ref_name: string;
+  amount: number;
+  amount_type: DrCrType;
+  due_date?: string | null;
+}
+
+export interface BillAllocation extends BillAllocationCreate {
+  id: string;
+  voucher_id: string;
+  firm_id: string;
+  party_ledger_id: string;
+  accounting_line_id: string;
+}
 
 export interface AccountingLine {
   id?: string;
@@ -59,6 +78,7 @@ export interface Voucher extends BaseEntity {
 export interface VoucherDetail extends Voucher {
   accounting_lines: AccountingLine[];
   inventory_lines: InventoryLine[];
+  bill_allocations: BillAllocation[];
 }
 
 export interface VoucherWritePayload {
@@ -70,4 +90,5 @@ export interface VoucherWritePayload {
   party_ledger_id?: string | null;
   accounting_lines: AccountingLine[];
   inventory_lines: InventoryLine[];
+  bill_allocations?: BillAllocationCreate[];
 }

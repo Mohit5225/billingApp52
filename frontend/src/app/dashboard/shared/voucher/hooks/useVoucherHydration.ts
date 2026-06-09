@@ -96,10 +96,21 @@ export function useVoucherHydration({
               Math.max(line.debit_amount, line.credit_amount),
             ),
           );
+
+          // Hydrate bill allocations
+          const billAllocations = (voucher.bill_allocations || []).map((a) => ({
+            ref_type: a.ref_type as "New Ref" | "Agst Ref" | "Advance" | "On Account",
+            ref_name: a.ref_name,
+            amount: a.amount,
+            amount_type: a.amount_type as "Dr" | "Cr",
+            due_date: a.due_date || "",
+          }));
+
           setForm((prev) => ({
             ...prev,
             cash_bank_ledger_id: bankLine?.ledger_id || "",
             amount,
+            bill_allocations: billAllocations,
           }));
         }
 

@@ -9,7 +9,11 @@ import {
 export function resolveTemplateType(group: AccountGroup | null): LedgerTemplateType {
   if (!group) return "default";
   if (group.name === "Bank Accounts" || group.name === "Bank OD A/c") return "bank";
-  if (group.name === "Duties & Taxes") return "tax";
+  if (group.name === "Duties & Taxes" || group.parent_name === "Duties & Taxes") return "tax";
+  
+  if (group.name === "Stock-in-Hand" || group.parent_name === "Stock-in-Hand") return "default";
+  if (group.name === "Cash-in-Hand" || group.parent_name === "Cash-in-Hand") return "default";
+
   if (
     group.name === "Sundry Debtors" ||
     group.name === "Sundry Creditors" ||

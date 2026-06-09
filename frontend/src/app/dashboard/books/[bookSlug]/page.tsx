@@ -25,6 +25,30 @@ const BOOK_LABELS: Record<string, { title: string; description: string }> = {
     title: "Purchase Register",
     description: "Monitor inward invoices and supplier-facing voucher activity.",
   },
+  "receipt-register": {
+    title: "Receipt Register",
+    description: "Track all incoming payments and receipts.",
+  },
+  "payment-register": {
+    title: "Payment Register",
+    description: "Track all outgoing payments and disbursements.",
+  },
+  "journal-register": {
+    title: "Journal Register",
+    description: "Review journal entries and adjustment vouchers.",
+  },
+  "contra-register": {
+    title: "Contra Register",
+    description: "Monitor internal cash and bank transfers.",
+  },
+  "debit-note-reg": {
+    title: "Debit Note Register",
+    description: "Track debit notes issued to suppliers or customers.",
+  },
+  "credit-note-reg": {
+    title: "Credit Note Register",
+    description: "Track credit notes issued to customers or suppliers.",
+  },
   "day-book": {
     title: "Day Book",
     description: "Chronological voucher stream for the active firm.",

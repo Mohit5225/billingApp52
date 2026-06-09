@@ -261,6 +261,18 @@ export function buildVoucherPayload({
     const cashBankLedgerId = requireSelection(form.cash_bank_ledger_id, "cash or bank ledger");
 
     const isReceipt = category === "Receipt";
+
+    // Map bill allocations from form state
+    const billAllocations = form.bill_allocations
+      .filter((a) => a.ref_name && a.amount > 0)
+      .map((a) => ({
+        ref_type: a.ref_type,
+        ref_name: a.ref_name,
+        amount: a.amount,
+        amount_type: a.amount_type,
+        due_date: a.due_date || null,
+      }));
+
     return {
       firm_id: activeFirmId,
       category,
@@ -283,6 +295,7 @@ export function buildVoucherPayload({
         },
       ],
       inventory_lines: [],
+      bill_allocations: billAllocations.length > 0 ? billAllocations : undefined,
     };
   }
 

@@ -322,6 +322,12 @@ def _build_register_export_rows(book_slug: str, rows: list[dict[str, Any]]) -> l
     title_map = {
         "sales-register": "Sales Register Export",
         "purchase-register": "Purchase Register Export",
+        "receipt-register": "Receipt Register Export",
+        "payment-register": "Payment Register Export",
+        "journal-register": "Journal Register Export",
+        "contra-register": "Contra Register Export",
+        "debit-note-reg": "Debit Note Register Export",
+        "credit-note-reg": "Credit Note Register Export",
         "day-book": "Day Book Export",
         "cash-book": "Cash Book Export",
     }
@@ -586,6 +592,18 @@ async def get_book(
         category_filters = [VoucherCategory.SALES.value]
     elif book_slug == "purchase-register":
         category_filters = [VoucherCategory.PURCHASE.value]
+    elif book_slug == "receipt-register":
+        category_filters = [VoucherCategory.RECEIPT.value]
+    elif book_slug == "payment-register":
+        category_filters = [VoucherCategory.PAYMENT.value]
+    elif book_slug == "journal-register":
+        category_filters = [VoucherCategory.JOURNAL.value]
+    elif book_slug == "contra-register":
+        category_filters = [VoucherCategory.CONTRA.value]
+    elif book_slug == "debit-note-reg":
+        category_filters = [VoucherCategory.DEBIT_NOTE.value]
+    elif book_slug == "credit-note-reg":
+        category_filters = [VoucherCategory.CREDIT_NOTE.value]
     elif book_slug == "day-book":
         category_filters = None
     elif book_slug == "cash-book":

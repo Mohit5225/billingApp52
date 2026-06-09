@@ -10,6 +10,8 @@ from core.security import get_verified_jwt
 from core.supabase import supabase
 from models.voucher import (
     AccountingLineCreate,
+    BillAllocationCreate,
+    BillRefType,
     InventoryLineCreate,
     Voucher,
     VoucherCategory,
@@ -216,7 +218,7 @@ def _build_inventory_line_payloads(
 
 
 def _build_header_payload(voucher_in: VoucherCreate, target_firm_id: str) -> dict[str, Any]:
-    payload = voucher_in.model_dump(mode="json", exclude={"accounting_lines", "inventory_lines"})
+    payload = voucher_in.model_dump(mode="json", exclude={"accounting_lines", "inventory_lines", "bill_allocations"})
     payload["firm_id"] = target_firm_id
     payload["voucher_date"] = str(voucher_in.voucher_date)
     if voucher_in.party_ledger_id:
@@ -285,11 +287,137 @@ def _fetch_voucher_detail(voucher_id: str) -> dict[str, Any]:
         .order("line_number")
         .execute()
     )
+    bill_alloc_resp = (
+        supabase.table("bill_allocations")
+        .select("*")
+        .eq("voucher_id", voucher_id)
+        .execute()
+    )
 
     result = voucher_resp.data
     result["accounting_lines"] = acc_lines_resp.data or []
     result["inventory_lines"] = inv_lines_resp.data or []
+    result["bill_allocations"] = bill_alloc_resp.data or []
     return result
+
+
+def _find_party_accounting_line_id(
+    voucher_id: str,
+    party_ledger_id: str,
+) -> str | None:
+    """Find the accounting line ID for the party ledger in a voucher."""
+    resp = (
+        supabase.table("voucher_accounting_lines")
+        .select("id")
+        .eq("voucher_id", voucher_id)
+        .eq("ledger_id", party_ledger_id)
+        .limit(1)
+        .execute()
+    )
+    if resp.data:
+        return resp.data[0]["id"]
+    return None
+
+
+def _persist_bill_allocations(
+    voucher_id: str,
+    firm_id: str,
+    party_ledger_id: str,
+    accounting_line_id: str,
+    allocations: list[BillAllocationCreate],
+) -> None:
+    """Insert bill_allocations rows for a voucher."""
+    if not allocations:
+        return
+
+    payloads = [
+        {
+            "voucher_id": voucher_id,
+            "firm_id": firm_id,
+            "party_ledger_id": party_ledger_id,
+            "accounting_line_id": accounting_line_id,
+            "ref_type": alloc.ref_type.value,
+            "ref_name": alloc.ref_name,
+            "amount": float(alloc.amount),
+            "amount_type": alloc.amount_type.value if hasattr(alloc.amount_type, 'value') else alloc.amount_type,
+            "due_date": str(alloc.due_date) if alloc.due_date else None,
+        }
+        for alloc in allocations
+    ]
+    supabase.table("bill_allocations").insert(payloads).execute()
+
+
+def _delete_bill_allocations(voucher_id: str) -> None:
+    """Delete all bill_allocations for a voucher."""
+    supabase.table("bill_allocations").delete().eq("voucher_id", voucher_id).execute()
+
+
+def _auto_create_new_ref(
+    voucher_id: str,
+    firm_id: str,
+    voucher_in: VoucherCreate,
+) -> None:
+    """Auto-create a 'New Ref' allocation for Sales/Purchase vouchers."""
+    party_ledger_id = str(voucher_in.party_ledger_id) if voucher_in.party_ledger_id else None
+    if not party_ledger_id:
+        return
+
+    # Check if party has maintain_bill_by_bill enabled
+    party_resp = (
+        supabase.table("ledger_party_details")
+        .select("maintain_bill_by_bill, default_credit_days")
+        .eq("ledger_id", party_ledger_id)
+        .maybe_single()
+        .execute()
+    )
+    if not party_resp.data or not party_resp.data.get("maintain_bill_by_bill"):
+        return
+
+    # Find the party's accounting line
+    acc_line_id = _find_party_accounting_line_id(voucher_id, party_ledger_id)
+    if not acc_line_id:
+        return
+
+    # Calculate grand total from the party's accounting line
+    party_line = (
+        supabase.table("voucher_accounting_lines")
+        .select("debit_amount, credit_amount")
+        .eq("id", acc_line_id)
+        .single()
+        .execute()
+    ).data
+    amount = float(party_line["debit_amount"] or party_line["credit_amount"])
+
+    # Determine Dr/Cr direction:
+    # Sales/Debit Note → party is debited (Dr)
+    # Purchase/Credit Note → party is credited (Cr)
+    is_sales_type = voucher_in.category in (
+        VoucherCategory.SALES,
+        VoucherCategory.DEBIT_NOTE,
+    )
+    amount_type = "Dr" if is_sales_type else "Cr"
+
+    # Calculate due date
+    credit_days = party_resp.data.get("default_credit_days") or 0
+    voucher_date = voucher_in.voucher_date
+    from datetime import timedelta
+    due_date = voucher_date + timedelta(days=credit_days) if credit_days else voucher_date
+
+    _persist_bill_allocations(
+        voucher_id=voucher_id,
+        firm_id=firm_id,
+        party_ledger_id=party_ledger_id,
+        accounting_line_id=acc_line_id,
+        allocations=[
+            BillAllocationCreate(
+                ref_type=BillRefType.NEW_REF,
+                ref_name=voucher_in.voucher_number,
+                amount=amount,
+                amount_type=amount_type,
+                due_date=due_date,
+            )
+        ],
+    )
 
 
 @router.get("/", response_model=list[Voucher])
@@ -343,6 +471,24 @@ async def create_voucher(
     voucher_id = header_resp.data[0]["id"]
     try:
         _replace_voucher_lines(voucher_id, voucher_in, target_firm_id)
+
+        # ── Bill allocations ──
+        party_id = str(voucher_in.party_ledger_id) if voucher_in.party_ledger_id else None
+        if party_id and voucher_in.bill_allocations:
+            # User-supplied allocations (Payment/Receipt or manual)
+            acc_line_id = _find_party_accounting_line_id(voucher_id, party_id)
+            if acc_line_id:
+                _persist_bill_allocations(
+                    voucher_id, target_firm_id, party_id, acc_line_id,
+                    voucher_in.bill_allocations,
+                )
+        elif voucher_in.category in (
+            VoucherCategory.SALES, VoucherCategory.PURCHASE,
+            VoucherCategory.DEBIT_NOTE, VoucherCategory.CREDIT_NOTE,
+        ):
+            # Auto-create New Ref for invoice-family vouchers
+            _auto_create_new_ref(voucher_id, target_firm_id, voucher_in)
+
     except HTTPException:
         supabase.table("vouchers").delete().eq("id", voucher_id).execute()
         raise
@@ -440,6 +586,92 @@ async def get_next_number(
     return {"next_number": f"{base_prefix}{next_val_str}"}
 
 
+@router.get("/outstanding-bills")
+async def get_outstanding_bills(
+    firm_id: str,
+    party_ledger_id: str,
+    jwt: str = Depends(get_verified_jwt),
+) -> list[dict[str, Any]]:
+    """
+    Return all pending (non-zero-balance) bills for a party ledger.
+    Computes outstanding by grouping allocations by ref_name and netting Dr vs Cr.
+    """
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+
+    # Fetch all allocations for this party, excluding cancelled vouchers
+    alloc_resp = (
+        supabase.table("bill_allocations")
+        .select("ref_name, ref_type, amount, amount_type, due_date, voucher_id")
+        .eq("firm_id", target_firm_id)
+        .eq("party_ledger_id", party_ledger_id)
+        .execute()
+    )
+    allocations = alloc_resp.data or []
+    
+    print(f"FETCHED ALLOCATIONS for party {party_ledger_id}:", allocations)
+
+    if not allocations:
+        return []
+
+    # Fetch voucher statuses to exclude cancelled vouchers
+    voucher_ids = list({str(a["voucher_id"]) for a in allocations})
+    voucher_resp = (
+        supabase.table("vouchers")
+        .select("id, is_cancelled, voucher_date")
+        .in_("id", voucher_ids)
+        .execute()
+    )
+    voucher_map = {
+        str(v["id"]): v for v in (voucher_resp.data or [])
+    }
+
+    # Group by ref_name and compute net balance
+    refs: dict[str, dict[str, Any]] = {}
+    for alloc in allocations:
+        voucher = voucher_map.get(str(alloc["voucher_id"]))
+        if not voucher or voucher.get("is_cancelled"):
+            continue
+
+        ref_name = alloc["ref_name"]
+        if ref_name not in refs:
+            refs[ref_name] = {
+                "ref_name": ref_name,
+                "ref_type": alloc["ref_type"],
+                "bill_date": voucher.get("voucher_date"),
+                "due_date": alloc.get("due_date") or voucher.get("voucher_date"),
+                "total_dr": 0.0,
+                "total_cr": 0.0,
+            }
+
+        amount = float(alloc["amount"])
+        if alloc["amount_type"] == "Dr":
+            refs[ref_name]["total_dr"] += amount
+        else:
+            refs[ref_name]["total_cr"] += amount
+
+    # Build result — only return refs with non-zero balance
+    result = []
+    for ref in refs.values():
+        balance = round(ref["total_dr"] - ref["total_cr"], 2)
+        if balance == 0:
+            continue
+
+        balance_type = "Dr" if balance > 0 else "Cr"
+        result.append({
+            "ref_name": ref["ref_name"],
+            "ref_type": ref["ref_type"],
+            "bill_date": ref["bill_date"],
+            "due_date": ref["due_date"],
+            "balance": abs(balance),
+            "balance_type": balance_type,
+        })
+        
+
+
+    return result
+
+
 @router.get("/{voucher_id}", response_model=VoucherDetail)
 async def get_voucher(
     voucher_id: str,
@@ -520,6 +752,23 @@ async def replace_voucher(
             _build_header_payload(voucher_in, target_firm_id)
         ).eq("id", voucher_id).execute()
         _replace_voucher_lines(voucher_id, voucher_in, target_firm_id)
+
+        # ── Replace bill allocations ──
+        _delete_bill_allocations(voucher_id)
+        party_id = str(voucher_in.party_ledger_id) if voucher_in.party_ledger_id else None
+        if party_id and voucher_in.bill_allocations:
+            acc_line_id = _find_party_accounting_line_id(voucher_id, party_id)
+            if acc_line_id:
+                _persist_bill_allocations(
+                    voucher_id, target_firm_id, party_id, acc_line_id,
+                    voucher_in.bill_allocations,
+                )
+        elif voucher_in.category in (
+            VoucherCategory.SALES, VoucherCategory.PURCHASE,
+            VoucherCategory.DEBIT_NOTE, VoucherCategory.CREDIT_NOTE,
+        ):
+            _auto_create_new_ref(voucher_id, target_firm_id, voucher_in)
+
     except HTTPException:
         supabase.table("vouchers").update(previous_header).eq("id", voucher_id).execute()
         # No need to restore lines since _replace_voucher_lines deletes them AFTER validation now
@@ -634,4 +883,7 @@ async def cancel_voucher(
 
     resolve_target_firm_id(profile, str(existing.data["firm_id"]))
     supabase.table("vouchers").update({"is_cancelled": True}).eq("id", voucher_id).execute()
+
+
+
 

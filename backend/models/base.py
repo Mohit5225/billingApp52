@@ -1,6 +1,11 @@
 from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from typing import Optional
+from enum import Enum
+
+class DrCrType(str, Enum):
+    DR = "Dr"
+    CR = "Cr"
 
 class BaseSchema(BaseModel):
     """Base class for all schemas with common configuration."""

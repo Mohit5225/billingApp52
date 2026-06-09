@@ -1,4 +1,5 @@
-import { VoucherCategory } from "@/interfaces/voucher";
+import { VoucherCategory, BillRefType } from "@/interfaces/voucher";
+import { DrCrType } from "@/interfaces/ledger";
 
 export type VoucherSlug =
   | "sales-invoice"
@@ -49,6 +50,14 @@ export type AdditionalLedgerState = {
   is_manual?: boolean;
 };
 
+export type BillAllocationState = {
+  ref_type: BillRefType;
+  ref_name: string;
+  amount: number;
+  amount_type: DrCrType;
+  due_date: string;
+};
+
 export type FormState = {
   voucher_number: string;
   voucher_date: string;
@@ -61,6 +70,7 @@ export type FormState = {
   amount: number;
   manual_tax_mode: TaxMode;
   additional_ledgers: AdditionalLedgerState[];
+  bill_allocations: BillAllocationState[];
 };
 
 export const VOUCHER_META: Record<VoucherSlug, VoucherMeta> = {
@@ -133,6 +143,7 @@ export const getEmptyForm = (fromDate: string, toDate: string): FormState => ({
   amount: 0,
   manual_tax_mode: "intra",
   additional_ledgers: [],
+  bill_allocations: [],
 });
 
 export const EMPTY_INVOICE_LINE: InvoiceLineState = {

@@ -3,14 +3,8 @@ from typing import Optional
 
 from pydantic import UUID4
 
-from .base import BaseSchema, TimestampSchema
+from .base import BaseSchema, TimestampSchema, DrCrType
 from .voucher import VoucherCategory
-
-
-class DrCrType(str, Enum):
-    DR = "Dr"
-    CR = "Cr"
-
 
 class AccountNature(str, Enum):
     ASSET = "Asset"

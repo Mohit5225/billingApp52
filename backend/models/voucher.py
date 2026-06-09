@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from pydantic import UUID4
 
-from .base import BaseSchema, TimestampSchema
+from .base import BaseSchema, TimestampSchema, DrCrType
 from .item import GstTaxability
 
 
@@ -17,6 +17,13 @@ class VoucherCategory(str, Enum):
     JOURNAL = "Journal"
     DEBIT_NOTE = "Debit Note"
     CREDIT_NOTE = "Credit Note"
+
+
+class BillRefType(str, Enum):
+    NEW_REF = "New Ref"
+    AGST_REF = "Agst Ref"
+    ADVANCE = "Advance"
+    ON_ACCOUNT = "On Account"
 
 
 # ── Accounting Line ───────────────────────────────────────────────────────────
@@ -84,9 +91,28 @@ class VoucherBase(BaseSchema):
     party_ledger_id: Optional[UUID4] = None
 
 
+# ── Bill Allocation ───────────────────────────────────────────────────────────
+
+class BillAllocationCreate(BaseSchema):
+    ref_type: BillRefType
+    ref_name: str
+    amount: float
+    amount_type: DrCrType
+    due_date: Optional[date] = None
+
+
+class BillAllocation(BillAllocationCreate):
+    id: UUID4
+    voucher_id: UUID4
+    firm_id: UUID4
+    party_ledger_id: UUID4
+    accounting_line_id: UUID4
+
+
 class VoucherCreate(VoucherBase):
     accounting_lines: List[AccountingLineCreate]
     inventory_lines: List[InventoryLineCreate] = []
+    bill_allocations: List[BillAllocationCreate] = []
 
 
 class VoucherUpdate(BaseSchema):
@@ -104,3 +130,4 @@ class VoucherDetail(Voucher):
     """Full voucher with all line items — used for GET /vouchers/{id}."""
     accounting_lines: List[AccountingLine] = []
     inventory_lines: List[InventoryLine] = []
+    bill_allocations: List[BillAllocation] = []

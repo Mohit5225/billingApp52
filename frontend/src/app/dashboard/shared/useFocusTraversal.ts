@@ -137,226 +137,226 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
     }
   }, [focusElement, getFocusableElements]);
 
-  useEffect(() => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent | KeyboardEvent) => {
     const container = containerRef.current;
     if (!container) return;
+    const activeElement = document.activeElement as HTMLElement;
+    if (!activeElement || !container?.contains(activeElement)) return;
 
-    function handleKeyDown(e: KeyboardEvent) {
-      const activeElement = document.activeElement as HTMLElement;
-      if (!activeElement || !container?.contains(activeElement)) return;
-
-      // Explicit < and > shortcuts for forced sideways navigation (useful for number inputs)
-      if (
-        (e.key === ">" || e.key === "<") &&
-        !e.altKey &&
-        !e.ctrlKey &&
-        !e.metaKey
-      ) {
-        const isComboboxOpen = Boolean(activeElement.closest("[data-dropdown-open=\"true\"]"));
-        if (!isComboboxOpen && activeElement.tagName !== "TEXTAREA") {
-          e.preventDefault();
-          if (e.key === ">") focusNext();
-          else focusPrevious();
-          return;
-        }
+    // Explicit < and > shortcuts for forced sideways navigation (useful for number inputs)
+    if (
+      (e.key === ">" || e.key === "<") &&
+      !e.altKey &&
+      !e.ctrlKey &&
+      !e.metaKey
+    ) {
+      const isComboboxOpen = Boolean(activeElement.closest("[data-dropdown-open=\"true\"]"));
+      if (!isComboboxOpen && activeElement.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        if (e.key === ">") focusNext();
+        else focusPrevious();
+        return;
       }
+    }
 
-      if (
-        (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
-        !e.altKey &&
-        !e.ctrlKey &&
-        !e.metaKey
-      ) {
-        const isComboboxOpen = Boolean(activeElement.closest("[data-dropdown-open=\"true\"]"));
-        if (!isComboboxOpen) {
-          if (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA") {
-            const inputEl = activeElement as HTMLInputElement;
-            const inputType = "type" in inputEl ? inputEl.type : "";
-            if (inputType === "number" || inputType === "date") {
-              e.preventDefault();
-              if (e.key === "ArrowLeft") focusPrevious();
-              if (e.key === "ArrowRight") focusNext();
-              return;
-            }
-
-            try {
-
-              const isAllSelected = inputEl.value.length > 0 && inputEl.selectionStart === 0 && inputEl.selectionEnd === inputEl.value.length;
-              if (isAllSelected) {
-                e.preventDefault();
-                if (e.key === "ArrowLeft") focusPrevious();
-                if (e.key === "ArrowRight") focusNext();
-                return;
-              }
-
-              if (e.key === "ArrowLeft" && inputEl.selectionStart === 0 && inputEl.selectionEnd === 0) {
-                e.preventDefault();
-                focusPrevious();
-                return;
-              }
-              if (e.key === "ArrowRight" && inputEl.selectionStart === inputEl.value.length && inputEl.selectionEnd === inputEl.value.length) {
-                e.preventDefault();
-                focusNext();
-                return;
-              }
-            } catch {
-              // Fallback for inputs that throw on selectionStart
-              e.preventDefault();
-              if (e.key === "ArrowLeft") focusPrevious();
-              if (e.key === "ArrowRight") focusNext();
-              return;
-            }
+    if (
+      (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+      !e.altKey &&
+      !e.ctrlKey &&
+      !e.metaKey
+    ) {
+      const isComboboxOpen = Boolean(activeElement.closest("[data-dropdown-open=\"true\"]"));
+      if (!isComboboxOpen) {
+        if (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA") {
+          const inputEl = activeElement as HTMLInputElement;
+          const inputType = "type" in inputEl ? inputEl.type : "";
+          if (inputType === "number" || inputType === "date") {
+            e.preventDefault();
+            if (e.key === "ArrowLeft") focusPrevious();
+            if (e.key === "ArrowRight") focusNext();
+            return;
           }
-        }
-      }
 
-      if (e.key === "Backspace") {
-        if (
-          activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA"
-        ) {
-          const inputEl = activeElement as HTMLInputElement | HTMLTextAreaElement;
-          if (inputEl.tagName === "TEXTAREA") {
-            if (inputEl.value === "") {
+          try {
+
+            const isAllSelected = inputEl.value.length > 0 && inputEl.selectionStart === 0 && inputEl.selectionEnd === inputEl.value.length;
+            if (isAllSelected) {
+              e.preventDefault();
+              if (e.key === "ArrowLeft") focusPrevious();
+              if (e.key === "ArrowRight") focusNext();
+              return;
+            }
+
+            if (e.key === "ArrowLeft" && inputEl.selectionStart === 0 && inputEl.selectionEnd === 0) {
               e.preventDefault();
               focusPrevious();
+              return;
             }
-            return;
-          }
-
-          const isCombobox = activeElement.closest("[data-dropdown-open]");
-          const isOpenCombobox = activeElement.closest("[data-dropdown-open=\"true\"]");
-          const inputType = "type" in inputEl ? inputEl.type : "";
-          
-          // Remove closed combobox immediate jump logic so backspace can erase text natively.
-
-          let atStart = false;
-          let deleteThenMoveBack = false;
-          try {
-            const selectionStart = inputEl.selectionStart ?? 0;
-            const selectionEnd = inputEl.selectionEnd ?? 0;
-            const isAllSelected =
-              inputEl.value.length > 0 &&
-              selectionStart === 0 &&
-              selectionEnd === inputEl.value.length;
-
-            if (inputEl.value === "") {
-              atStart = true;
-            } else if (selectionStart === 0 && selectionEnd === 0) {
-              atStart = true;
-            } else if (
-              (isAllSelected || (selectionStart === inputEl.value.length && selectionEnd === inputEl.value.length)) &&
-              inputEl.value.length <= 1
-            ) {
-              deleteThenMoveBack = true;
+            if (e.key === "ArrowRight" && inputEl.selectionStart === inputEl.value.length && inputEl.selectionEnd === inputEl.value.length) {
+              e.preventDefault();
+              focusNext();
+              return;
             }
           } catch {
-            atStart = inputEl.value === "";
-          }
-
-          if (isOpenCombobox && inputEl.value !== "") {
-            atStart = false; // Actively typing in open combobox, don't jump back
-          }
-
-          if (deleteThenMoveBack) {
-            requestAnimationFrame(() => {
-              if (document.activeElement === inputEl && inputEl.value === "") {
-                focusPrevious();
-              }
-            });
+            // Fallback for inputs that throw on selectionStart
+            e.preventDefault();
+            if (e.key === "ArrowLeft") focusPrevious();
+            if (e.key === "ArrowRight") focusNext();
             return;
           }
-
-          if (!atStart) {
-            return; // Let native backspace delete text
-          }
         }
-
-        e.preventDefault();
-        focusPrevious();
       }
+    }
 
-      if (e.key === "Tab") {
-        const isComboboxOpen = Boolean(activeElement.closest("[data-dropdown-open=\"true\"]"));
-        if (isComboboxOpen) {
-          // Handled by ComboboxField React onKeyDown
+    if (e.key === "Backspace") {
+      if (
+        activeElement.tagName === "INPUT" ||
+        activeElement.tagName === "TEXTAREA"
+      ) {
+        const inputEl = activeElement as HTMLInputElement | HTMLTextAreaElement;
+        if (inputEl.tagName === "TEXTAREA") {
+          if (inputEl.value === "") {
+            e.preventDefault();
+            focusPrevious();
+          }
           return;
         }
 
-        e.preventDefault();
-        if (e.shiftKey) {
-          focusPrevious();
-        } else {
-          // For item-field comboboxes: check mandatory + empty before moving forward
-          if (activeElement.hasAttribute("data-item-field")) {
-            const isEmpty = activeElement.getAttribute("data-empty") === "true" ||
-                            (activeElement as HTMLInputElement).value.trim() === "";
-            if (isEmpty) {
-              if (activeElement.hasAttribute("data-mandatory")) {
-                activeElement.classList.remove("animate-shake");
-                void activeElement.offsetWidth;
-                activeElement.classList.add("animate-shake");
-                return;
-              } else {
-                const escapeTarget = container.querySelector("[data-escape-target=\"true\"]") as HTMLElement;
-                if (escapeTarget) {
-                  focusElement(escapeTarget);
-                  return;
-                }
-              }
-            }
+        const isCombobox = activeElement.closest("[data-dropdown-open]");
+        const isOpenCombobox = activeElement.closest("[data-dropdown-open=\"true\"]");
+        const inputType = "type" in inputEl ? inputEl.type : "";
+
+        let atStart = false;
+        let deleteThenMoveBack = false;
+        try {
+          const selectionStart = inputEl.selectionStart ?? 0;
+          const selectionEnd = inputEl.selectionEnd ?? 0;
+          const isAllSelected =
+            inputEl.value.length > 0 &&
+            selectionStart === 0 &&
+            selectionEnd === inputEl.value.length;
+
+          if (inputEl.value === "") {
+            atStart = true;
+          } else if (selectionStart === 0 && selectionEnd === 0) {
+            atStart = true;
+          } else if (
+            (isAllSelected || (selectionStart === inputEl.value.length && selectionEnd === inputEl.value.length)) &&
+            inputEl.value.length <= 1
+          ) {
+            deleteThenMoveBack = true;
           }
-          focusNext();
+        } catch {
+          atStart = inputEl.value === "";
         }
+
+        if (isOpenCombobox && inputEl.value !== "") {
+          atStart = false; // Actively typing in open combobox, don't jump back
+        }
+
+        if (deleteThenMoveBack) {
+          requestAnimationFrame(() => {
+            if (document.activeElement === inputEl && inputEl.value === "") {
+              focusPrevious();
+            }
+          });
+          return;
+        }
+
+        if (!atStart) {
+          return; // Let native backspace delete text
+        }
+      }
+
+      e.preventDefault();
+      focusPrevious();
+    }
+
+    if (e.key === "Tab") {
+      const isComboboxOpen = Boolean(activeElement.closest("[data-dropdown-open=\"true\"]"));
+      if (isComboboxOpen) {
+        // Handled by ComboboxField React onKeyDown
         return;
       }
 
-      if (e.key === "Enter") {
-        if (activeElement.tagName === "TEXTAREA") {
-          if (e.shiftKey) {
-            return; // let native shift+enter add new line
-          }
-          // Otherwise fall through and let Enter go to the next field (e.g., Save)
-        }
-
-        // If we're inside a combobox that is open, let the combobox handle Enter
-        const comboboxContainer = activeElement.closest("[data-dropdown-open=\"true\"]");
-        if (comboboxContainer) {
-          return;
-        }
-
-        // For item-field comboboxes (whether open or closed): check mandatory + empty
+      e.preventDefault();
+      if (e.shiftKey) {
+        focusPrevious();
+      } else {
+        // For item-field comboboxes: check mandatory + empty before moving forward
         if (activeElement.hasAttribute("data-item-field")) {
-          // A combobox is empty when data-empty="true" OR when no value label is displayed
           const isEmpty = activeElement.getAttribute("data-empty") === "true" ||
                           (activeElement as HTMLInputElement).value.trim() === "";
           if (isEmpty) {
-            e.preventDefault();
             if (activeElement.hasAttribute("data-mandatory")) {
-              // Mandatory — block and shake
               activeElement.classList.remove("animate-shake");
               void activeElement.offsetWidth;
               activeElement.classList.add("animate-shake");
+              return;
             } else {
-              // Non-mandatory empty item field — escape to narration
               const escapeTarget = container.querySelector("[data-escape-target=\"true\"]") as HTMLElement;
               if (escapeTarget) {
                 focusElement(escapeTarget);
+                return;
               }
             }
-            return;
           }
         }
-
-        if (activeElement.tagName === "BUTTON" && activeElement.hasAttribute("data-entry-action")) {
-          // For buttons like "Save", Enter should trigger them naturally.
-          return;
-        }
-
-        e.preventDefault();
         focusNext();
       }
+      return;
     }
+
+    if (e.key === "Enter") {
+      if (activeElement.tagName === "TEXTAREA") {
+        if (e.shiftKey) {
+          return; // let native shift+enter add new line
+        }
+        // Otherwise fall through and let Enter go to the next field (e.g., Save)
+      }
+
+      // If we're inside a combobox that is open, let the combobox handle Enter
+      const comboboxContainer = activeElement.closest("[data-dropdown-open=\"true\"]");
+      if (comboboxContainer) {
+        return;
+      }
+
+      // For item-field comboboxes (whether open or closed): check mandatory + empty
+      if (activeElement.hasAttribute("data-item-field")) {
+        // A combobox is empty when data-empty="true" OR when no value label is displayed
+        const isEmpty = activeElement.getAttribute("data-empty") === "true" ||
+                        (activeElement as HTMLInputElement).value.trim() === "";
+        if (isEmpty) {
+          e.preventDefault();
+          if (activeElement.hasAttribute("data-mandatory")) {
+            // Mandatory — block and shake
+            activeElement.classList.remove("animate-shake");
+            void activeElement.offsetWidth;
+            activeElement.classList.add("animate-shake");
+          } else {
+            // Non-mandatory empty item field — escape to narration
+            const escapeTarget = container.querySelector("[data-escape-target=\"true\"]") as HTMLElement;
+            if (escapeTarget) {
+              focusElement(escapeTarget);
+            }
+          }
+          return;
+        }
+      }
+
+      if (activeElement.tagName === "BUTTON" && activeElement.hasAttribute("data-entry-action")) {
+        // For buttons like "Save", Enter should trigger them naturally.
+        return;
+      }
+
+      e.preventDefault();
+      focusNext();
+    }
+  }, [containerRef, focusNext, focusPrevious, focusElement]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
     function handleCustomNext(e: Event) {
       const customEvent = e as CustomEvent;
@@ -364,13 +364,9 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
       focusNext(origin);
     }
 
-    // Use capturing phase so we can intercept before React synthetic events if needed, 
-    // though bubbling is usually fine.
-    container.addEventListener("keydown", handleKeyDown);
     container.addEventListener("tally-focus-next", handleCustomNext);
 
     return () => {
-      container.removeEventListener("keydown", handleKeyDown);
       container.removeEventListener("tally-focus-next", handleCustomNext);
     };
   }, [containerRef, focusNext]);
@@ -386,5 +382,5 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
     });
   }, [containerRef, getFocusableElements]);
 
-  return { initFocus, focusNext, focusPrevious };
+  return { initFocus, focusNext, focusPrevious, handleKeyDown };
 }

@@ -14,6 +14,7 @@ import { useFocusTraversal } from "./useFocusTraversal";
 import { useDateFilter } from "@/context/DateFilterContext";
 import { round2, numberToWords, recalcLine } from "./voucher/utils";
 import { InvoicePreviewOverlay } from "./voucher/components/InvoicePreviewOverlay";
+import { BillWiseDetailsModal } from "./voucher/components/BillWiseDetailsModal";
 
 import {
   VoucherSlug,
@@ -71,12 +72,13 @@ export function VoucherWorkbench({
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showBillWise, setShowBillWise] = useState(false);
 
   const itemsScrollRef = useRef<HTMLDivElement>(null);
   const prevInvoiceLinesLength = useRef(invoiceLines.length);
   const prevJournalLinesLength = useRef(journalLines.length);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { initFocus } = useFocusTraversal(containerRef);
+  const { initFocus, handleKeyDown } = useFocusTraversal(containerRef);
 
   useEffect(() => {
     if (!isLoading && activeFirmId) {
@@ -194,11 +196,17 @@ export function VoucherWorkbench({
 
 
   useEffect(() => {
-    if (nextNumberData?.next_number && form.voucher_number === "") {
+    if (nextNumberData?.next_number && !isEditing) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm((prev) => ({ ...prev, voucher_number: nextNumberData.next_number }));
+      setForm((prev) => {
+        // Only set it once if it's currently empty, avoiding reset on user erase
+        if (prev.voucher_number === "") {
+          return { ...prev, voucher_number: nextNumberData.next_number };
+        }
+        return prev;
+      });
     }
-  }, [nextNumberData, form.voucher_number]);
+  }, [nextNumberData, isEditing]);
 
   useEffect(() => {
     if (!isEditing) {
@@ -438,7 +446,7 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div ref={containerRef} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-500 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]">
+    <div ref={containerRef} onKeyDown={handleKeyDown} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-500 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]">
       {/* ── Voucher Command Ribbon ── */}
       <VoucherHeader
         meta={meta}
@@ -462,6 +470,7 @@ export function VoucherWorkbench({
         selectedPartyLedger={selectedPartyLedger}
         taxMode={taxMode}
         readOnly={readOnly}
+        onOpenBillWise={() => setShowBillWise(true)}
       />
 
       {/* ── Zone C: Items Table ── */}
@@ -515,6 +524,25 @@ export function VoucherWorkbench({
         <InvoicePreviewOverlay
           buildPreviewData={buildPreviewData}
           onClose={() => setShowPreview(false)}
+        />
+      )}
+
+      {/* ── Bill-wise Details Modal ── */}
+      {showBillWise && meta.family === "payment" && activeFirmId && (
+        <BillWiseDetailsModal
+          open={showBillWise}
+          onClose={() => setShowBillWise(false)}
+          onSave={(allocations) => {
+            setForm((prev) => ({ ...prev, bill_allocations: allocations }));
+          }}
+          partyName={selectedPartyLedger?.name || "Party"}
+          totalAmount={form.amount}
+          allocationAmountType={meta.category === "Receipt" ? "Cr" : "Dr"}
+          firmId={activeFirmId}
+          partyLedgerId={form.party_ledger_id}
+          supabase={supabase}
+          existingAllocations={form.bill_allocations}
+          voucherDate={form.voucher_date}
         />
       )}
     </div>
