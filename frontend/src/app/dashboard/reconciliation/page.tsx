@@ -437,7 +437,7 @@ export default function ReconciliationPage() {
                           {deviations.map(d => (
                             <div key={d} className="mb-1 bg-amber-50 rounded px-2 py-1 border border-amber-100">
                               <span className="font-semibold">{d}:</span><br/>
-                              Ours: {row[d] || "0"} | Portal: {pMatch.portal_row[d] || "0"}
+                              Ours: {(row as any)[d] || "0"} | Portal: {(pMatch.portal_row as any)[d] || "0"}
                             </div>
                           ))}
                         </td>
