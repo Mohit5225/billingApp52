@@ -1,4 +1,5 @@
 import io
+import zipfile
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
 from fastapi.responses import Response
@@ -215,7 +216,9 @@ async def reconcile_gstr2a(
 
     file_bytes = await file.read()
     try:
-        gstr2a_rows = parse_gstr2a_excel(file_bytes)
+        gstr2a_rows = parse_gstr2a_excel(file_bytes, file.filename)
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="The uploaded file is not a valid .xlsx file. (Note: Older .xls files or CSV files are not supported. Please save as an .xlsx Workbook).")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse Excel: {e}")
 
@@ -240,7 +243,9 @@ async def download_reconciliation_report(
 
     file_bytes = await file.read()
     try:
-        gstr2a_rows = parse_gstr2a_excel(file_bytes)
+        gstr2a_rows = parse_gstr2a_excel(file_bytes, file.filename)
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="The uploaded file is not a valid .xlsx file. (Note: Older .xls files or CSV files are not supported. Please save as an .xlsx Workbook).")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse Excel: {e}")
 
