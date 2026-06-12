@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .endpoints import health, firms, ledgers, uom, items, vouchers, workspace
+from .endpoints import health, firms, ledgers, uom, items, vouchers, workspace, reconciliation
 
 api_router = APIRouter()
 
@@ -11,3 +11,4 @@ api_router.include_router(uom.router,       prefix="/api/uom",       tags=["uom"
 api_router.include_router(items.router,     prefix="/api/items",     tags=["items"])
 api_router.include_router(vouchers.router,  prefix="/api/vouchers",  tags=["vouchers"])
 api_router.include_router(workspace.router, prefix="/api/workspace", tags=["workspace"])
+api_router.include_router(reconciliation.router, prefix="/api/reconciliation", tags=["reconciliation"])

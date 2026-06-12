@@ -26,6 +26,8 @@ interface FormFields {
   purchase_prefix: string;
   payment_prefix: string;
   receipt_prefix: string;
+  eway_bill_username: string;
+  eway_bill_password: string;
 }
 
 const INITIAL_FIELDS: FormFields = {
@@ -48,6 +50,8 @@ const INITIAL_FIELDS: FormFields = {
   purchase_prefix: "",
   payment_prefix: "",
   receipt_prefix: "",
+  eway_bill_username: "",
+  eway_bill_password: "",
 };
 
 export default function FirmDetailsPage() {
@@ -97,6 +101,8 @@ export default function FirmDetailsPage() {
         purchase_prefix: firmData.purchase_prefix || "",
         payment_prefix: firmData.payment_prefix || "",
         receipt_prefix: firmData.receipt_prefix || "",
+        eway_bill_username: firmData.eway_bill_username || "",
+        eway_bill_password: firmData.eway_bill_password || "",
       });
     }
   }, [firmData]);
@@ -139,6 +145,8 @@ export default function FirmDetailsPage() {
           purchase_prefix: form.purchase_prefix.trim() || null,
           payment_prefix: form.payment_prefix.trim() || null,
           receipt_prefix: form.receipt_prefix.trim() || null,
+          eway_bill_username: form.eway_bill_username.trim() || null,
+          eway_bill_password: form.eway_bill_password.trim() || null,
         }
       });
 
@@ -467,6 +475,44 @@ export default function FirmDetailsPage() {
                 onChange={handleChange}
                 placeholder="e.g. RCPT/"
                 className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-[15px] font-mono text-slate-900 outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/10"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Card 5: E-way Bill Credentials */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3 mb-5 uppercase tracking-wide text-xs text-slate-500">
+            5. E-way Bill Credentials
+          </h2>
+          <p className="text-sm text-slate-500 mb-5">
+            Save your E-way Bill portal login credentials. These will be shown when you use the &ldquo;Create E-way Bill&rdquo; quick action from the dashboard.
+          </p>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                E-way Bill Username
+              </label>
+              <input
+                type="text"
+                name="eway_bill_username"
+                value={form.eway_bill_username}
+                onChange={handleChange}
+                placeholder="Your ewaybillgst.gov.in username..."
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-[15px] font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/10"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                E-way Bill Password
+              </label>
+              <input
+                type="password"
+                name="eway_bill_password"
+                value={form.eway_bill_password}
+                onChange={handleChange}
+                placeholder="Your portal password..."
+                className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-[15px] font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/10"
               />
             </div>
           </div>

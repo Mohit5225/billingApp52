@@ -81,6 +81,17 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    label: "Reconcile",
+    icon: (
+      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.59 48.59 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52v8.625c0 2.873-2.372 5.25-5.25 5.25m-8.25-13.87v8.625c0 2.873 2.372 5.25 5.25 5.25" />
+      </svg>
+    ),
+    children: [
+      { label: "GSTR-2A Recon", href: "/dashboard/reconciliation" },
+    ],
+  },
+  {
     label: "Settings",
     icon: (
       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
