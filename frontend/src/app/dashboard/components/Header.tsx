@@ -63,7 +63,7 @@ export default function Header() {
 
   return (
     <header className={`sticky top-0 z-30 border-b border-white/60 bg-[rgba(248,245,239,0.84)] backdrop-blur-xl ${hideHeaderOnMobile ? 'hidden lg:block' : ''}`}>
-      <div className="mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 pt-4 pb-1.5 sm:px-6 lg:px-8 sm:py-4">
+      <div className="mx-auto flex w-full max-w-[var(--content-max-w)] flex-col gap-4 px-4 pt-4 pb-1.5 sm:px-6 lg:px-8 sm:py-4 transition-[max-width] duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)]">
         <div className="flex w-full flex-wrap items-start justify-between gap-4 lg:flex-nowrap lg:items-center">
           <button 
             onClick={() => setIsWorkspaceSheetOpen(true)}

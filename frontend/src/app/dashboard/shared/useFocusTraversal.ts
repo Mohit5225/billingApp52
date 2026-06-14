@@ -204,6 +204,11 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
             if (e.key === "ArrowRight") focusNext();
             return;
           }
+        } else if (activeElement.tagName === "BUTTON") {
+          e.preventDefault();
+          if (e.key === "ArrowLeft") focusPrevious();
+          if (e.key === "ArrowRight") focusNext();
+          return;
         }
       }
     }

@@ -21,7 +21,7 @@ export function JournalLinesTable({
     <div className="flex-1 flex flex-col min-h-[250px] border-b border-slate-100 bg-white">
       <div className="flex-1 flex flex-col overflow-x-auto custom-scrollbar">
         <div className="min-w-full md:min-w-[800px] flex flex-col flex-1">
-          <div className="shrink-0 hidden grid-cols-[2fr_1fr_1fr_40px] gap-4 border-b border-slate-500 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 md:grid">
+          <div className="shrink-0 hidden grid-cols-[2fr_1fr_1fr_40px] gap-4 border-b border-slate-300 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-[17px] font-extrabold uppercase tracking-wider text-slate-800 bg-slate-50/50 backdrop-blur-sm md:grid">
             <div>Ledger</div>
             <div>Debit (Dr)</div>
             <div>Credit (Cr)</div>
@@ -41,7 +41,7 @@ export function JournalLinesTable({
                   }}
                 >
                   <div className="col-span-2 md:col-span-1 flex flex-col md:block">
-                    <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">
+                    <span className="mb-1 text-[17px] font-extrabold uppercase tracking-wider text-slate-600 md:hidden">
                       Ledger
                     </span>
                     <ComboboxField
@@ -67,7 +67,7 @@ export function JournalLinesTable({
                     />
                   </div>
                   <div className="flex flex-col md:block">
-                    <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">
+                    <span className="mb-1 text-[17px] font-extrabold uppercase tracking-wider text-slate-600 md:hidden">
                       Debit
                     </span>
                     <input
@@ -85,11 +85,11 @@ export function JournalLinesTable({
                         )
                       }
                       placeholder="0.00"
-                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-bold text-slate-900 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                     />
                   </div>
                   <div className="flex flex-col md:block">
-                    <span className="mb-1 text-base font-semibold uppercase tracking-wider text-slate-500 md:hidden">
+                    <span className="mb-1 text-[17px] font-extrabold uppercase tracking-wider text-slate-600 md:hidden">
                       Credit
                     </span>
                     <input
@@ -107,7 +107,7 @@ export function JournalLinesTable({
                         )
                       }
                       placeholder="0.00"
-                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base font-medium text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
+                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-bold text-slate-900 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16] md:h-12"
                     />
                   </div>
                   <div className="col-span-2 md:col-span-1 flex justify-end md:justify-center">
@@ -140,7 +140,7 @@ export function JournalLinesTable({
                 <button
                   data-skip-enter="true"
                   onClick={() => setJournalLines((prev) => [...prev, { ...EMPTY_JOURNAL_LINE }])}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-base font-semibold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
+                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[17px] font-bold text-tally-600 transition-colors hover:bg-tally-50 hover:text-tally-700"
                 >
                   <svg
                     className="h-4 w-4"

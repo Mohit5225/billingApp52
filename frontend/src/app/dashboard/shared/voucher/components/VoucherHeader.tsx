@@ -30,22 +30,12 @@ export function VoucherHeader({
             {meta.title}
           </h1>
           {!isEditing ? (
-            <span className="hidden sm:inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-600">
-              <svg
-                className="h-3.5 w-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                />
+            <div className="hidden sm:flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/50 px-2.5 py-1 text-blue-600">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
-              Draft
-            </span>
+              <span className="text-[15px] font-semibold">Draft</span>
+            </div>
           ) : (
             <span className="hidden sm:inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-base font-semibold text-amber-600 ring-1 ring-inset ring-amber-500/20">
               Editing
@@ -77,10 +67,10 @@ export function VoucherHeader({
 
       {/* Inputs */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto order-3 md:order-2 md:ml-12">
-        <div className="flex flex-col gap-1.5 w-full sm:w-auto">
-          <label className="text-xs font-semibold text-slate-600">Invoice No.</label>
+        <div className="flex flex-col gap-1 w-full sm:w-auto">
+          <label className="text-[14px] font-bold text-slate-700">Invoice No.</label>
           <input
-            className="h-10 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-500 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+            className="h-12 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-300 bg-white px-3.5 text-[17px] font-bold text-slate-900 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50"
             placeholder="e.g. 1"
             size={Math.max(14, form.voucher_number.length + 2)}
             value={form.voucher_number}
@@ -89,11 +79,11 @@ export function VoucherHeader({
             data-mandatory="true"
           />
         </div>
-        <div className="flex flex-col gap-1.5 w-full sm:w-40">
-          <label className="text-xs font-semibold text-slate-600">Invoice Date</label>
+        <div className="flex flex-col gap-1 w-full sm:w-44">
+          <label className="text-[14px] font-bold text-slate-700">Invoice Date</label>
           <input
             type="date"
-            className="h-10 w-full rounded-lg border border-slate-500 bg-white px-3 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+            className="h-12 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-[17px] font-bold text-slate-900 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50"
             value={form.voucher_date}
             min={globalFromDate}
             max={globalToDate}

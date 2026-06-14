@@ -41,11 +41,11 @@ const BOOK_LABELS: Record<string, { title: string; description: string }> = {
     title: "Contra Register",
     description: "Monitor internal cash and bank transfers.",
   },
-  "debit-note-reg": {
+  "debit-note-register": {
     title: "Debit Note Register",
     description: "Track debit notes issued to suppliers or customers.",
   },
-  "credit-note-reg": {
+  "credit-note-register": {
     title: "Credit Note Register",
     description: "Track credit notes issued to customers or suppliers.",
   },

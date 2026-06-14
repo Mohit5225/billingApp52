@@ -63,7 +63,7 @@ export default function InventoryHubPage() {
   });
 
   return (
-    <div className="mx-auto max-w-[1800px] space-y-6 lg:space-y-8">
+    <div className="mx-auto w-full space-y-6 lg:space-y-8">
       {/* KPIs */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard

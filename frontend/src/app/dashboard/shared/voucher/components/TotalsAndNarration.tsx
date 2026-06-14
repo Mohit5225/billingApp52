@@ -55,7 +55,12 @@ export function TotalsAndNarration({
   ledgers,
 }: TotalsAndNarrationProps) {
   const additionalLedgerOptions = ledgers.filter(
-    (l) => l.type_of_ledger === "Invoice Rounding"
+    (l) =>
+      l.type_of_ledger === "Invoice Rounding" ||
+      l.group_name === "Direct Expenses" ||
+      l.group_name === "Indirect Expenses" ||
+      l.group_parent_name === "Direct Expenses" ||
+      l.group_parent_name === "Indirect Expenses"
   );
 
   const addAdditionalLedger = () => {
@@ -132,18 +137,23 @@ export function TotalsAndNarration({
   }, [invoiceTotals.grandTotal, ledgers, form.additional_ledgers, setForm]);
 
   return (
-    <div className="shrink-0 mt-auto flex flex-col-reverse border-b border-slate-100 bg-white sm:grid sm:grid-cols-2 sm:items-start">
+    <div
+      className={`shrink-0 mt-auto flex flex-col-reverse border-b border-slate-200 bg-white sm:grid sm:grid-cols-2 ${
+        form.additional_ledgers && form.additional_ledgers.length > 0 ? "border-t border-slate-400" : ""
+      }`}
+    >
       {/* Narration */}
-      <div className="border-t border-slate-100 p-5 sm:border-r sm:border-t-0 sm:p-6 flex flex-col">
-        <label className="mb-2 block text-base font-semibold uppercase tracking-wider text-slate-500">
-          Narration
-        </label>
-        <div className="relative">
+      <div className="p-5 sm:p-6 flex flex-col justify-end">
+        <div className="mt-auto">
+          <label className="mb-2 block text-[17px] font-extrabold uppercase tracking-wider text-slate-800">
+            Narration
+          </label>
+          <div className="relative">
           <textarea
             data-escape-target="true"
             disabled={readOnly}
             maxLength={250}
-            className="min-h-[80px] w-full rounded-lg border border-slate-500 bg-white p-3 pb-8 text-base text-slate-700 outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.18]"
+            className="min-h-[80px] w-full rounded-lg border border-slate-400 bg-white p-3 pb-8 text-[17px] font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20"
             placeholder="Enter narration for this voucher…"
             value={form.narration}
             onChange={(e) => setForm((prev) => ({ ...prev, narration: e.target.value }))}
@@ -151,6 +161,7 @@ export function TotalsAndNarration({
           <div className="absolute bottom-3 right-3 text-xs text-slate-400">
             {form.narration.length} / 250
           </div>
+        </div>
         </div>
       </div>
 
@@ -160,16 +171,16 @@ export function TotalsAndNarration({
           <div className="ml-auto w-full sm:max-w-md">
             <div className="space-y-1 px-2">
               <div className="flex items-center justify-between py-1">
-                <span className="text-sm text-slate-500">Taxable Amount</span>
-                <span className="mono-num text-sm font-semibold text-slate-900">
+                <span className="text-[15px] font-bold text-slate-600">Taxable Amount</span>
+                <span className="mono-num text-[17px] font-bold text-slate-900">
                   {formatCurrency(invoiceTotals.taxable)}
                 </span>
               </div>
 
               {taxMode === "inter" && invoiceTotals.igst > 0 && (
                 <div className="flex items-center justify-between py-1">
-                  <span className="text-sm text-slate-500">IGST</span>
-                  <span className="mono-num text-sm font-semibold text-slate-900">
+                  <span className="text-[15px] font-bold text-slate-600">IGST</span>
+                  <span className="mono-num text-[17px] font-bold text-slate-900">
                     {formatCurrency(invoiceTotals.igst)}
                   </span>
                 </div>
@@ -177,14 +188,14 @@ export function TotalsAndNarration({
               {taxMode === "intra" && (invoiceTotals.cgst > 0 || invoiceTotals.sgst > 0) && (
                 <>
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-slate-500">CGST</span>
-                    <span className="mono-num text-sm font-semibold text-slate-900">
+                    <span className="text-[15px] font-bold text-slate-600">CGST</span>
+                    <span className="mono-num text-[17px] font-bold text-slate-900">
                       {formatCurrency(invoiceTotals.cgst)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-slate-500">SGST</span>
-                    <span className="mono-num text-sm font-semibold text-slate-900">
+                    <span className="text-[15px] font-bold text-slate-600">SGST</span>
+                    <span className="mono-num text-[17px] font-bold text-slate-900">
                       {formatCurrency(invoiceTotals.sgst)}
                     </span>
                   </div>
@@ -192,8 +203,8 @@ export function TotalsAndNarration({
               )}
               {invoiceTotals.cess > 0 && (
                 <div className="flex items-center justify-between py-1">
-                  <span className="text-sm text-slate-500">Cess</span>
-                  <span className="mono-num text-sm font-semibold text-slate-900">
+                  <span className="text-[15px] font-bold text-slate-600">Cess</span>
+                  <span className="mono-num text-[17px] font-bold text-slate-900">
                     {formatCurrency(invoiceTotals.cess)}
                   </span>
                 </div>
@@ -204,43 +215,54 @@ export function TotalsAndNarration({
                 invoiceTotals.sgst === 0 &&
                 invoiceTotals.cess === 0 && (
                   <div className="flex items-center justify-between py-1">
-                    <span className="text-sm text-slate-500">Total Tax (0%)</span>
-                    <span className="mono-num text-sm font-semibold text-slate-900">₹0.00</span>
+                    <span className="text-[15px] font-bold text-slate-600">Total Tax (0%)</span>
+                    <span className="mono-num text-[17px] font-bold text-slate-900">₹0.00</span>
                   </div>
                 )}
 
               {/* Additional Ledgers */}
               {form.additional_ledgers?.map((al, idx) => (
-                <div key={idx} className="flex items-center justify-between py-1 gap-2">
-                  <select
-                    disabled={readOnly}
-                    value={al.ledger_id}
-                    onChange={(e) => updateAdditionalLedger(idx, "ledger_id", e.target.value)}
-                    className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm outline-none hover:border-tally-400 focus:border-tally-500"
-                  >
-                    <option value="">Select Ledger</option>
-                    {additionalLedgerOptions.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    type="number"
-                    step="0.01"
-                    disabled={readOnly}
-                    value={al.amount || ""}
-                    onChange={(e) => updateAdditionalLedger(idx, "amount", parseFloat(e.target.value))}
-                    placeholder="0.00"
-                    className="w-24 rounded border border-slate-300 px-2 py-1 text-right text-sm outline-none hover:border-tally-400 focus:border-tally-500 mono-num"
-                  />
+                <div key={idx} className="flex items-center justify-between py-1.5 gap-3 group relative">
+                  <div className="flex-1 relative">
+                    <select
+                      disabled={readOnly}
+                      value={al.ledger_id}
+                      onChange={(e) => updateAdditionalLedger(idx, "ledger_id", e.target.value)}
+                      className="h-10 w-full appearance-none rounded-lg border border-slate-400 bg-white pl-3 pr-8 text-[15px] font-semibold text-slate-800 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50 cursor-pointer"
+                    >
+                      <option value="">Select Ledger…</option>
+                      {additionalLedgerOptions.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-semibold text-[15px]">₹</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      disabled={readOnly}
+                      value={al.amount || ""}
+                      onChange={(e) => updateAdditionalLedger(idx, "amount", parseFloat(e.target.value))}
+                      placeholder="0.00"
+                      className="h-10 w-[110px] sm:w-[130px] rounded-lg border border-slate-400 bg-white pl-8 pr-3 text-right text-[16px] font-bold text-slate-900 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50 mono-num"
+                    />
+                  </div>
                   {!readOnly && (
                     <button
                       type="button"
                       onClick={() => removeAdditionalLedger(idx)}
-                      className="text-slate-400 hover:text-red-500"
+                      title="Remove Ledger"
+                      className="absolute -right-8 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -251,7 +273,7 @@ export function TotalsAndNarration({
                 <button
                   type="button"
                   onClick={addAdditionalLedger}
-                  className="mt-1 text-sm font-semibold text-tally-600 hover:text-tally-700 flex items-center gap-1"
+                  className="mt-1 text-[15px] font-bold text-tally-600 hover:text-tally-700 flex items-center gap-1"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -260,15 +282,15 @@ export function TotalsAndNarration({
                 </button>
               )}
             </div>
-            <div className="mt-3 border-t border-dashed border-slate-500 px-2 pt-3">
+            <div className="mt-3 border-t border-dashed border-slate-300 px-2 pt-3">
               <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-emerald-700">
+                <span className="flex items-center gap-2 text-[15px] font-extrabold uppercase tracking-wider text-emerald-700">
                   <svg className="h-5 w-5 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                   Grand Total
                 </span>
-                <span className="mono-num text-xl font-bold text-emerald-700">
+                <span className="mono-num text-[22px] font-extrabold text-emerald-700">
                   {formatCurrency(finalGrandTotal)}
                 </span>
               </div>

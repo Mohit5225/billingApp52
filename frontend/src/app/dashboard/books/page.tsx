@@ -45,7 +45,7 @@ export default function BooksHubPage() {
   );
 
   return (
-    <div className="mx-auto max-w-[1100px]">
+    <div className="mx-auto w-full">
       <section className="rounded-2xl sm:rounded-[32px] border border-white/80 bg-white/80 backdrop-blur-md p-4 sm:p-6 lg:p-10 shadow-[0_8px_40px_rgba(15,23,42,0.04)]">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8 lg:mb-10 border-b border-slate-100 pb-6 sm:pb-8">
           <div className="min-w-0">
@@ -61,7 +61,7 @@ export default function BooksHubPage() {
           </div>
         </div>
 
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 mt-6">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 mt-6">
           {filteredBooks.length > 0 ? (
             filteredBooks.map((book) => (
               <ListRowItem

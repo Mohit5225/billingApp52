@@ -1,6 +1,6 @@
 "use client";
 
-import { DashboardChromeProvider } from "@/context/DashboardChromeContext";
+import { useDashboardChrome, DashboardChromeProvider } from "@/context/DashboardChromeContext";
 import { DateFilterProvider } from "@/context/DateFilterContext";
 import { useProfile } from "@/context/ProfileContext";
 import { usePathname, useRouter } from "next/navigation";
@@ -16,6 +16,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const hasRetriedProfile = useRef(false);
+  const { isSidebarCollapsed } = useDashboardChrome();
   
   const isVoucherScreen = pathname.includes("/dashboard/create/") || pathname.includes("/dashboard/vouchers/");
 
@@ -107,38 +108,37 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   if (!profile) return null;
 
   return (
-    <DashboardChromeProvider>
-      <DateFilterProvider>
-        <div className="min-h-screen bg-canvas">
-          <Sidebar />
+    <div className="min-h-screen bg-canvas">
+      <Sidebar />
 
-          <div className="min-h-screen lg:pl-[320px]">
-            {!isVoucherScreen && (
-              <Suspense
-                fallback={<div className="h-[88px] border-b border-white/60 bg-white/70 backdrop-blur-xl" />}
-              >
-                <Header />
-              </Suspense>
-            )}
+      <div className={`min-h-screen transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isSidebarCollapsed ? "lg:pl-[104px]" : "lg:pl-[320px]"}`}>
+        {!isVoucherScreen && (
+          <Suspense
+            fallback={<div className="h-[88px] border-b border-white/60 bg-white/70 backdrop-blur-xl" />}
+          >
+            <Header />
+          </Suspense>
+        )}
 
-            <div className="relative isolate">
-              {!isVoucherScreen && (
-                <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_top,rgba(82,183,136,0.14),transparent_58%)]" />
-              )}
-              <main className={`mx-auto flex flex-col min-h-screen w-full max-w-[1800px] ${
-                isVoucherScreen 
-                  ? "p-2 sm:p-4 lg:p-6" 
-                  : "px-4 pb-28 pt-1.5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8 min-h-[calc(100vh-88px)]"
-              }`}>
-                {children}
-              </main>
-            </div>
-          </div>
-
-          <BottomNav />
+        <div className="relative isolate">
+          {!isVoucherScreen && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_top,rgba(82,183,136,0.14),transparent_58%)]" />
+          )}
+          <main 
+            className={`mx-auto flex flex-col min-h-screen w-full max-w-[var(--content-max-w)] transition-[max-width] duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
+              isVoucherScreen 
+                ? "p-2 sm:p-4 lg:p-4" 
+                : "px-4 pb-28 pt-1.5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8 min-h-[calc(100vh-88px)]"
+            }`}
+            style={{ "--content-max-w": isVoucherScreen ? "100%" : isSidebarCollapsed ? "2400px" : "1800px" } as React.CSSProperties}
+          >
+            {children}
+          </main>
         </div>
-      </DateFilterProvider>
-    </DashboardChromeProvider>
+      </div>
+
+      <BottomNav />
+    </div>
   );
 }
 
@@ -151,7 +151,11 @@ export default function DashboardLayout({
     <Suspense fallback={<div className="min-h-screen bg-canvas" />}>
       <FirmProvider>
         <GlobalSearchProvider>
-          <DashboardShell>{children}</DashboardShell>
+          <DashboardChromeProvider>
+            <DateFilterProvider>
+              <DashboardShell>{children}</DashboardShell>
+            </DateFilterProvider>
+          </DashboardChromeProvider>
         </GlobalSearchProvider>
       </FirmProvider>
     </Suspense>

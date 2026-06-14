@@ -36,8 +36,8 @@ export function VoucherPartySection({
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-white">
         {/* Account Bar (Tally style) */}
-        <div className="shrink-0 border-b border-slate-500 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 bg-sky-50/50">
-          <label className="w-16 sm:w-20 text-base font-semibold text-slate-700">Account</label>
+        <div className="shrink-0 border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-4 bg-slate-50/80">
+          <label className="w-16 sm:w-20 text-[17px] font-bold text-slate-800">Account</label>
           <div className="w-full max-w-md">
             <ComboboxField
               inline
@@ -53,7 +53,7 @@ export function VoucherPartySection({
 
         {/* Particulars Table */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-500 px-6 py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50">
+          <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-200 px-6 py-2.5 text-[15px] font-extrabold uppercase tracking-wider text-slate-800 bg-slate-50/50 backdrop-blur-sm">
             <div>Particulars</div>
             <div className="text-right">Amount</div>
           </div>
@@ -70,7 +70,7 @@ export function VoucherPartySection({
                   disabled={readOnly}
                 />
                 {selectedPartyLedger && (
-                  <div className="mt-1.5 text-base text-slate-500 italic flex gap-2 ml-1">
+                  <div className="mt-1.5 text-[15px] font-medium text-slate-600 italic flex gap-2 ml-1">
                     <span>Cur Bal:</span>
                     <span>0.00 Cr</span>
                   </div>
@@ -78,7 +78,7 @@ export function VoucherPartySection({
               </div>
               <div>
                 <input
-                  className="h-12 w-full rounded-md border border-slate-500 bg-white px-3 text-base font-semibold text-slate-900 text-right outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                  className="h-12 w-full rounded-md border border-slate-300 bg-white px-3 text-[17px] font-bold text-slate-900 text-right shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50"
                   type="number"
                   step="0.01"
                   value={form.amount}
@@ -97,6 +97,7 @@ export function VoucherPartySection({
                   className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-100 hover:border-sky-300 disabled:opacity-50"
                   onClick={onOpenBillWise}
                   disabled={readOnly}
+                  data-entry-action="true"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
@@ -136,15 +137,15 @@ export function VoucherPartySection({
         <div className="grid gap-3 md:grid-cols-2 lg:gap-4 max-w-7xl">
           {/* Card 1: Bill To / Party / Primary Ledger */}
           {(meta.family === "invoice" || meta.family === "contra") && (
-            <div className="rounded-xl border border-slate-500 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-slate-700">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+            <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+              <h3 className="mb-3 flex items-center gap-2.5 text-[17px] font-extrabold uppercase tracking-wider text-slate-800">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                   {meta.family === "contra" ? (
                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
                     </svg>
                   ) : (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                     </svg>
                   )}
@@ -161,7 +162,7 @@ export function VoucherPartySection({
                 ) : (
                   <>
                     <div className="flex flex-col gap-1">
-                      <label className="text-sm font-semibold text-slate-600">Party Name <span className="text-rose-500">*</span></label>
+                      <label className="text-[13px] font-bold text-slate-700">Party Name <span className="text-rose-500">*</span></label>
                       <ComboboxField
                         inline
                         compact={true}
@@ -176,7 +177,7 @@ export function VoucherPartySection({
                       />
                     </div>
                     <div className="flex flex-col gap-1 mt-1.5">
-                      <label className="text-sm font-semibold text-slate-600">
+                      <label className="text-[13px] font-bold text-slate-700">
                         {meta.category === "Sales" || meta.category === "Credit Note" ? "Sales Ledger" : "Purchase Ledger"} <span className="text-rose-500">*</span>
                       </label>
                       <ComboboxField
@@ -194,7 +195,7 @@ export function VoucherPartySection({
                     </div>
 
                     {selectedPartyLedger?.party_details && (
-                      <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-100/50 bg-emerald-50/30 p-3.5 text-sm text-slate-600">
+                      <div className="mt-3 flex flex-col gap-2 rounded-xl border border-emerald-100/50 bg-emerald-50/30 p-3.5 text-[15px] font-medium text-slate-700">
                         {selectedPartyLedger.party_details.address && (
                           <div className="flex items-start gap-2.5">
                             <svg className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -230,11 +231,11 @@ export function VoucherPartySection({
 
           {/* Card 2: Additional Details / Cash-Bank / Amount */}
           {(meta.family === "invoice" || meta.family === "contra") && (
-            <div className="rounded-xl border border-slate-500 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-orange-700">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+            <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+              <h3 className="mb-3 flex items-center gap-2.5 text-[17px] font-extrabold uppercase tracking-wider text-orange-600">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600">
                   {meta.family === "invoice" ? (
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                     </svg>
                   ) : (
@@ -248,9 +249,9 @@ export function VoucherPartySection({
               <div className="space-y-2.5">
                 {meta.family === "contra" ? (
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-sm font-semibold text-slate-600">Amount <span className="text-rose-500">*</span></label>
+                    <label className="text-[13px] font-bold text-slate-700">Amount <span className="text-rose-500">*</span></label>
                     <input
-                      className="h-8 w-full rounded-md border border-slate-500 bg-white px-2.5 text-sm font-medium text-slate-900 outline-none transition focus:border-tally-500 focus:ring-1 focus:ring-tally-500 disabled:opacity-60 disabled:bg-slate-50"
+                      className="h-10 w-full rounded-md border border-slate-300 bg-white px-2.5 text-[15px] font-bold text-slate-900 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50"
                       type="number"
                       step="0.01"
                       value={form.amount}
@@ -265,8 +266,8 @@ export function VoucherPartySection({
                   <div className="grid grid-cols-2 gap-4">
                     {/* Place of Supply (just a visual representation of State for now) */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-sm font-semibold text-slate-600">Place of Supply</label>
-                      <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-500 bg-slate-50 px-3 text-sm text-slate-600">
+                      <label className="text-[13px] font-bold text-slate-700">Place of Supply</label>
+                      <div className="flex h-11 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 text-[15px] font-semibold text-slate-800 shadow-sm">
                         {selectedPartyLedger?.party_details?.state || "—"}
                         <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -276,8 +277,8 @@ export function VoucherPartySection({
 
                     {/* Tax Mode (derived) */}
                     <div className="flex flex-col gap-1">
-                      <label className="text-sm font-semibold text-slate-600">Tax Mode</label>
-                      <div className="flex h-10 w-full items-center justify-between rounded-md border border-slate-500 bg-slate-50 px-3 text-sm text-slate-600 capitalize">
+                      <label className="text-[13px] font-bold text-slate-700">Tax Mode</label>
+                      <div className="flex h-11 w-full items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 text-[15px] font-semibold text-slate-800 capitalize shadow-sm">
                         {taxMode === "intra" ? "Intra-State" : "Inter-State"}
                         <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />

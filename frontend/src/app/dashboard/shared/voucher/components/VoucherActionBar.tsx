@@ -38,7 +38,7 @@ export function VoucherActionBar({
       <div className="flex items-center gap-3">
         {meta.family === "invoice" && meta.category !== "Purchase" && (
           <button
-            data-skip-enter="true"
+            data-entry-action="true"
             onClick={onPreview}
             className="flex items-center justify-center gap-2 rounded-lg border border-slate-500 bg-white p-3 sm:px-4 sm:py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
             title="Preview Invoice"
@@ -61,7 +61,7 @@ export function VoucherActionBar({
           </button>
         )}
         <button
-          data-skip-enter="true"
+          data-entry-action="true"
           onClick={onCancel}
           className="hidden sm:flex items-center gap-2 rounded-lg border border-slate-500 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:bg-slate-50 hover:shadow"
         >

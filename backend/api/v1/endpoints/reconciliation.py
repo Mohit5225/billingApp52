@@ -3,11 +3,13 @@ import zipfile
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
 from fastapi.responses import Response
+from pydantic import BaseModel
+from typing import Optional, List
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
 from core.supabase import supabase
-from core.gstr2a_helpers import parse_gstr2a_excel, reconcile, build_software_rows, build_result_excel, COLUMNS
+from core.gstr2a_helpers import parse_gstr2a_excel, reconcile, build_software_rows, build_result_excel, COLUMNS, normalize_key_str
 import openpyxl
 from openpyxl.styles import Font
 
@@ -205,6 +207,7 @@ async def reconcile_gstr2a(
     from_date: date = Form(...),
     to_date: date = Form(...),
     match_type: str = Form("purchases"),
+    tolerance: float = Form(1.0),
     file: UploadFile = File(...),
     jwt: str = Depends(get_verified_jwt),
 ):
@@ -225,7 +228,7 @@ async def reconcile_gstr2a(
     raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
-    result = reconcile(software_rows, gstr2a_rows)
+    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance)
     return result
 
 
@@ -235,6 +238,7 @@ async def download_reconciliation_report(
     from_date: date = Form(...),
     to_date: date = Form(...),
     match_type: str = Form("purchases"),
+    tolerance: float = Form(1.0),
     file: UploadFile = File(...),
     jwt: str = Depends(get_verified_jwt),
 ):
@@ -252,7 +256,7 @@ async def download_reconciliation_report(
     raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
-    result = reconcile(software_rows, gstr2a_rows)
+    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance)
     excel_bytes = build_result_excel(result)
 
     return Response(
@@ -260,3 +264,4 @@ async def download_reconciliation_report(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=reconciliation_report.xlsx"}
     )
+

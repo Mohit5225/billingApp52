@@ -610,8 +610,11 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
     if ledger_in.party_details:
         gstin = (ledger_in.party_details.gstin or "").strip()
         pan = (ledger_in.party_details.pan_number or "").strip()
+        gst_type = ledger_in.party_details.gst_registration_type
         
         if gstin:
+            if gst_type not in ("Regular", "Composition"):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A GSTIN is provided, so the Registration Type must be Regular or Composition.")
             gstin_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("gstin", gstin).eq("ledgers.firm_id", target_firm_id).execute()
             if gstin_check.data:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this GSTIN already exists.")
@@ -620,6 +623,9 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
             pan_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("pan_number", pan).eq("ledgers.firm_id", target_firm_id).execute()
             if pan_check.data:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this PAN number already exists.")
+        
+        if not gstin and gst_type in ("Regular", "Composition"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A GSTIN is required for Regular or Composition registration types.")
 
     payload = ledger_in.model_dump(
         mode="json",
@@ -673,8 +679,11 @@ async def update_ledger(
     if ledger_in.party_details:
         gstin = (ledger_in.party_details.gstin or "").strip()
         pan = (ledger_in.party_details.pan_number or "").strip()
+        gst_type = ledger_in.party_details.gst_registration_type
         
         if gstin:
+            if gst_type not in ("Regular", "Composition"):
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A GSTIN is provided, so the Registration Type must be Regular or Composition.")
             gstin_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("gstin", gstin).eq("ledgers.firm_id", target_firm_id).neq("ledger_id", ledger_id).execute()
             if gstin_check.data:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this GSTIN already exists.")
@@ -683,6 +692,9 @@ async def update_ledger(
             pan_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("pan_number", pan).eq("ledgers.firm_id", target_firm_id).neq("ledger_id", ledger_id).execute()
             if pan_check.data:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this PAN number already exists.")
+
+        if not gstin and gst_type in ("Regular", "Composition"):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A GSTIN is required for Regular or Composition registration types.")
 
     payload = ledger_in.model_dump(
         mode="json",

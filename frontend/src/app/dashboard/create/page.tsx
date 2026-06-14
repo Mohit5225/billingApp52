@@ -40,7 +40,7 @@ const CREATE_ACTIONS = [
 
 export default function CreateHubPage() {
   return (
-    <div className="mx-auto max-w-[1800px]">
+    <div className="mx-auto w-full">
       <section className="rounded-2xl sm:rounded-[32px] border border-white/70 bg-white/78 p-4 sm:p-6 lg:p-8 shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:mb-8">
           <div className="min-w-0">

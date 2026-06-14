@@ -326,8 +326,8 @@ def _build_register_export_rows(book_slug: str, rows: list[dict[str, Any]]) -> l
         "payment-register": "Payment Register Export",
         "journal-register": "Journal Register Export",
         "contra-register": "Contra Register Export",
-        "debit-note-reg": "Debit Note Register Export",
-        "credit-note-reg": "Credit Note Register Export",
+        "debit-note-register": "Debit Note Register Export",
+        "credit-note-register": "Credit Note Register Export",
         "day-book": "Day Book Export",
         "cash-book": "Cash Book Export",
     }
@@ -600,9 +600,9 @@ async def get_book(
         category_filters = [VoucherCategory.JOURNAL.value]
     elif book_slug == "contra-register":
         category_filters = [VoucherCategory.CONTRA.value]
-    elif book_slug == "debit-note-reg":
+    elif book_slug == "debit-note-register":
         category_filters = [VoucherCategory.DEBIT_NOTE.value]
-    elif book_slug == "credit-note-reg":
+    elif book_slug == "credit-note-register":
         category_filters = [VoucherCategory.CREDIT_NOTE.value]
     elif book_slug == "day-book":
         category_filters = None

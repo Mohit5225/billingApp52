@@ -77,9 +77,13 @@ def _map_header(raw_header: str) -> str | None:
     return None
 
 def normalize_key_str(s: str | None) -> str:
+    """Strips all non-alphanumeric characters and uppercases.
+    Used ONLY for building match keys, not for display.
+    e.g. INV/2024/001 and INV2024001 both become INV2024001.
+    """
     if not s:
         return ""
-    return re.sub(r"\s+", "", str(s)).upper()
+    return re.sub(r"[^A-Z0-9]", "", str(s).upper())
 
 def normalize_state(s: str | None) -> str:
     if not s:
@@ -278,6 +282,12 @@ def parse_gstr2a_excel(file_bytes: bytes, filename: str) -> list[dict[str, Any]]
             gstin = row_data["GSTN"]
             inv_no = row_data["Invoice Num"]
             if inv_no:
+                # Tag the sheet type so reconcile() can handle B2BA amendments correctly
+                sheet_upper = sheet_name.upper()
+                if "B2BA" in sheet_upper or "CDNRA" in sheet_upper:
+                    row_data["_sheet_type"] = "B2BA"
+                else:
+                    row_data["_sheet_type"] = "B2B"
                 results.append(row_data)
                 data_row_count += 1
 
@@ -291,210 +301,336 @@ def parse_gstr2a_excel(file_bytes: bytes, filename: str) -> list[dict[str, Any]]
 
 
 
-def reconcile(software_rows: list[dict[str, Any]], gstr2a_rows: list[dict[str, Any]]) -> dict[str, Any]:
-    software_map = {}
-    software_inv_only_map = {}
+def reconcile(
+    software_rows: list[dict[str, Any]], 
+    gstr2a_rows: list[dict[str, Any]],
+    tolerance: float = 1.0
+) -> dict[str, Any]:
+    from collections import defaultdict
+    warnings: list[str] = []
+
+    def _check_deviations(s_row: dict, g_row: dict) -> list[str]:
+        """Compare two matched rows and return list of field names that deviate."""
+        devs = []
+
+        # Invoice Num: keys matched (normalized), but display strings may differ (e.g. INV/001 vs INV001)
+        if s_row["Invoice Num"].strip() != g_row["Invoice Num"].strip():
+            devs.append("Invoice Num")
+
+        # Numeric fields (tolerance for rounding)
+        for col in ["Invoice Value", "Taxable Value", "IGST", "CGST", "SGST"]:
+            if abs(s_row[col] - g_row[col]) > tolerance:
+                devs.append(col)
+
+        # Tax type swap: one side IGST, other side CGST+SGST, but total is same
+        s_igst, s_cgst, s_sgst = s_row["IGST"], s_row["CGST"], s_row["SGST"]
+        g_igst, g_cgst, g_sgst = g_row["IGST"], g_row["CGST"], g_row["SGST"]
+        
+        if s_igst > 0 and g_igst == 0 and abs(s_igst - (g_cgst + g_sgst)) <= tolerance:
+            pass # Ignore deviation
+        elif g_igst > 0 and s_igst == 0 and abs(g_igst - (s_cgst + s_sgst)) <= tolerance:
+            pass # Ignore deviation
+        elif s_igst > 0 and g_igst == 0 and abs(s_igst - (g_cgst + g_sgst)) > tolerance:
+            devs.append("Tax Type (IGST vs CGST+SGST)")
+        elif g_igst > 0 and s_igst == 0 and abs(g_igst - (s_cgst + s_sgst)) > tolerance:
+            devs.append("Tax Type (IGST vs CGST+SGST)")
+
+        # Date
+        if s_row["date"] != g_row["date"]:
+            devs.append("date")
+
+        # State / Place of Supply
+        if normalize_state(s_row["State"]) != normalize_state(g_row["State"]):
+            devs.append("State")
+
+        return devs
+
+    def get_group_key(r: dict) -> str:
+        g = normalize_key_str(r.get("GSTN", ""))
+        if not g:
+            return "__MISSING__"
+        return g
+
+    # ── Step 1: Group software rows by normalized GSTIN ──────────────────────
+    software_by_gstin: dict[str, list] = defaultdict(list)
     for r in software_rows:
-        gstin = normalize_key_str(r["GSTN"])
-        inv = normalize_key_str(r["Invoice Num"])
-        key = gstin + "|" + inv
-        software_map[key] = r
-        if not gstin and inv:
-            software_inv_only_map[inv] = r
+        software_by_gstin[get_group_key(r)].append(r)
 
-    gstr2a_map = {}
+    # ── Step 2: Group GSTR-2A rows by GSTIN, resolve B2BA and duplicates ─────
+    # gstr2a_by_gstin[gstin][inv_key] = row
+    gstr2a_by_gstin: dict[str, dict] = defaultdict(dict)
     for r in gstr2a_rows:
-        gstin = normalize_key_str(r["GSTN"])
-        inv = normalize_key_str(r["Invoice Num"])
-        key = gstin + "|" + inv
-        if key in gstr2a_map:
-            existing = gstr2a_map[key]
-            existing["Taxable Value"] += r["Taxable Value"]
-            existing["IGST"] += r["IGST"]
-            existing["CGST"] += r["CGST"]
-            existing["SGST"] += r["SGST"]
-            existing["Invoice Value"] = max(existing["Invoice Value"], r["Invoice Value"])
-        else:
-            gstr2a_map[key] = r
-
-    matched = []
-    partially_matched = []
-    unmatched = []
-
-    matched_s_keys = set()
-    matched_g_keys = set()
-    
-    # PASS 1: Exact match by GSTIN + Invoice Num
-    for g_key, g_row in gstr2a_map.items():
-        if g_key in software_map:
-            s_row = software_map[g_key]
-            matched_s_keys.add(g_key)
-            matched_g_keys.add(g_key)
-            
-            deviations = []
-            for col in ["Invoice Value", "Taxable Value", "IGST", "CGST", "SGST"]:
-                if abs(s_row[col] - g_row[col]) > 1.0:
-                    deviations.append(col)
-            if s_row["date"] != g_row["date"]:
-                deviations.append("date")
-            if normalize_state(s_row["State"]) != normalize_state(g_row["State"]):
-                deviations.append("State")
-
-            if not deviations:
-                matched.append(s_row)
+        gstin_key = get_group_key(r)
+        inv_key   = normalize_key_str(r["Invoice Num"])
+        if inv_key in gstr2a_by_gstin[gstin_key]:
+            existing = gstr2a_by_gstin[gstin_key][inv_key]
+            if r.get("_sheet_type") == "B2BA":
+                # Amendment replaces the original
+                gstr2a_by_gstin[gstin_key][inv_key] = r
             else:
-                partially_matched.append({"software_row": s_row, "portal_row": g_row, "deviations": deviations})
+                # Plain duplicate — sum tax values
+                existing["Taxable Value"] += r["Taxable Value"]
+                existing["IGST"]          += r["IGST"]
+                existing["CGST"]          += r["CGST"]
+                existing["SGST"]          += r["SGST"]
+                existing["Invoice Value"]  = max(existing["Invoice Value"], r["Invoice Value"])
+        else:
+            gstr2a_by_gstin[gstin_key][inv_key] = r
 
-    # PASS 2: Match by Invoice Num only (for software rows with no GSTIN)
-    for g_key, g_row in gstr2a_map.items():
-        if g_key in matched_g_keys:
-            continue
-            
-        inv = normalize_key_str(g_row["Invoice Num"])
-        if inv in software_inv_only_map:
-            s_row = software_inv_only_map[inv]
-            s_key = normalize_key_str(s_row["GSTN"]) + "|" + inv
-            
-            if s_key not in matched_s_keys:
-                matched_s_keys.add(s_key)
-                matched_g_keys.add(g_key)
-                
-                deviations = []
-                # Also add GSTN to deviations since they matched without it
-                deviations.append("GSTN")
-                
-                for col in ["Invoice Value", "Taxable Value", "IGST", "CGST", "SGST"]:
-                    if abs(s_row[col] - g_row[col]) > 1.0:
-                        deviations.append(col)
-                if s_row["date"] != g_row["date"]:
-                    deviations.append("date")
-                
-                # We won't strictly deviation-check State if GSTN was blank, but we can
-                if normalize_state(s_row["State"]) != normalize_state(g_row["State"]):
-                    deviations.append("State")
+    # ── Step 3: Match invoice-by-invoice within each party ───────────────────
+    matched_grouped:          dict[str, list] = {}
+    partial_grouped:          dict[str, list] = {}
+    not_at_site_grouped:      dict[str, list] = {}
+    not_in_software_grouped:  dict[str, list] = {}
 
-                partially_matched.append({"software_row": s_row, "portal_row": g_row, "deviations": deviations})
+    all_gstins = set(software_by_gstin.keys()) | set(gstr2a_by_gstin.keys())
 
-    # Unmatched - Not in Software
-    for key, row in gstr2a_map.items():
-        if key not in matched_g_keys:
-            r_copy = row.copy()
-            r_copy["Remark"] = "Not in Software"
-            unmatched.append(r_copy)
+    for gstin in all_gstins:
+        s_rows   = software_by_gstin.get(gstin, [])
+        g_inv_map = gstr2a_by_gstin.get(gstin, {})
 
-    # Unmatched - Not at Site
-    for key, row in software_map.items():
-        if key not in matched_s_keys:
-            r_copy = row.copy()
-            r_copy["Remark"] = "Not at Site"
-            unmatched.append(r_copy)
+        # Build software invoice map; warn on duplicate invoice numbers
+        s_inv_map: dict[str, dict] = {}
+        for r in s_rows:
+            inv_key = normalize_key_str(r["Invoice Num"])
+            if inv_key in s_inv_map:
+                warnings.append(
+                    f"Duplicate in books ignored: GSTIN '{r['GSTN']}', Invoice '{r['Invoice Num']}'"
+                )
+            else:
+                s_inv_map[inv_key] = r
+
+        matched_s: set[str] = set()
+        matched_g: set[str] = set()
+
+        for inv_key, g_row in g_inv_map.items():
+            if inv_key in s_inv_map:
+                s_row = s_inv_map[inv_key]
+                matched_s.add(inv_key)
+                matched_g.add(inv_key)
+
+                deviations = _check_deviations(s_row, g_row)
+
+                if not deviations:
+                    matched_grouped.setdefault(gstin, []).append(s_row)
+                else:
+                    partial_grouped.setdefault(gstin, []).append({
+                        "software_row": s_row,
+                        "portal_row":   g_row,
+                        "deviations":   deviations,
+                    })
+
+        # Not in Software — portal invoices with no books match
+        for inv_key, g_row in g_inv_map.items():
+            if inv_key not in matched_g:
+                r_copy = g_row.copy()
+                r_copy["Remark"] = "Not in Software"
+                not_in_software_grouped.setdefault(gstin, []).append(r_copy)
+
+        # Not at Site — books invoices with no portal match
+        for inv_key, s_row in s_inv_map.items():
+            if inv_key not in matched_s:
+                r_copy = s_row.copy()
+                r_copy["Remark"] = "Not at Site"
+                not_at_site_grouped.setdefault(gstin, []).append(r_copy)
+
+    # ── Step 4: Summary counts ────────────────────────────────────────────────
+    matched_count        = sum(len(v) for v in matched_grouped.values())
+    partial_count        = sum(len(v) for v in partial_grouped.values())
+    not_at_site_count    = sum(len(v) for v in not_at_site_grouped.values())
+    not_in_software_count = sum(len(v) for v in not_in_software_grouped.values())
 
     return {
-        "matched": matched,
-        "partially_matched": partially_matched,
-        "unmatched": unmatched,
+        "matched_grouped":         matched_grouped,
+        "partial_grouped":         partial_grouped,
+        "not_at_site_grouped":     not_at_site_grouped,
+        "not_in_software_grouped": not_in_software_grouped,
+        "warnings":                warnings,
         "summary": {
-            "matched": len(matched),
-            "partially_matched": len(partially_matched),
-            "unmatched": len(unmatched)
-        }
+            "matched":          matched_count,
+            "partially_matched": partial_count,
+            "not_at_site":      not_at_site_count,
+            "not_in_software":  not_in_software_count,
+        },
     }
 
 
 def build_result_excel(reconciliation_result: dict[str, Any]) -> bytes:
     wb = openpyxl.Workbook()
-    
-    # Remove default sheet
     if "Sheet" in wb.sheetnames:
         wb.remove(wb["Sheet"])
 
-    header_font = Font(bold=True)
-    red_fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+    header_font  = Font(bold=True)
+    party_font   = Font(bold=True, color="FFFFFF")
+    party_fill   = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid")
+    books_fill   = PatternFill(start_color="E8F4FD", end_color="E8F4FD", fill_type="solid")
+    portal_fill  = PatternFill(start_color="FFF9E6", end_color="FFF9E6", fill_type="solid")
+    red_fill     = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
 
-    # 0. Summary Sheet
-    ws_summary = wb.create_sheet("Summary", 0)  # Insert at position 0
-    ws_summary.append(["Reconciliation Summary"])
-    ws_summary.cell(row=1, column=1).font = Font(bold=True, size=14)
-    ws_summary.append([])
-    ws_summary.append(["Matched", reconciliation_result["summary"]["matched"]])
-    ws_summary.append(["Partially Matched", reconciliation_result["summary"]["partially_matched"]])
-    ws_summary.append(["Unmatched", reconciliation_result["summary"]["unmatched"]])
-    
-    # 1. Matched Sheet
-    ws_matched = wb.create_sheet("Matched")
-    ws_matched.append(COLUMNS)
-    for col_idx in range(1, len(COLUMNS) + 1):
-        ws_matched.cell(row=1, column=col_idx).font = header_font
-    
-    sr_matched = 1
-    for row_data in reconciliation_result["matched"]:
-        rd = row_data.copy()
-        rd["Sr"] = sr_matched
-        ws_matched.append([rd[c] for c in COLUMNS])
-        sr_matched += 1
+    summary      = reconciliation_result["summary"]
 
-    # 2. Partially Matched Sheet
-    ws_partial = wb.create_sheet("Partially Matched")
-    partial_headers = COLUMNS + ["Deviation"]
-    ws_partial.append(partial_headers)
-    for col_idx in range(1, len(partial_headers) + 1):
-        ws_partial.cell(row=1, column=col_idx).font = header_font
+    def _party_name_from_rows(rows: list, key: str = "Recipient Name") -> str:
+        """Pull display name from the first row in a group."""
+        if not rows:
+            return ""
+        row = rows[0]
+        if isinstance(row, dict) and "software_row" in row:
+            row = row["software_row"]
+        return str(row.get(key, "") or "")
 
-    current_row = 2
-    sr_partial = 1
-    for p_match in reconciliation_result["partially_matched"]:
-        s_row = p_match["software_row"].copy()
-        g_row = p_match["portal_row"]
-        deviations = p_match["deviations"]
-        
-        # We will print the software row, but highlight deviated cells in red.
-        # And add a Deviation column explaining it.
-        dev_texts = []
-        for d in deviations:
-            s_val = s_row[d]
-            g_val = g_row[d]
-            dev_texts.append(f"{d}: Ours {s_val} vs Portal {g_val}")
-            
-        s_row["Sr"] = sr_partial
-        row_values = [s_row[c] for c in COLUMNS] + ["\n".join(dev_texts)]
-        
-        for c_idx, val in enumerate(row_values, start=1):
-            cell = ws_partial.cell(row=current_row, column=c_idx, value=val)
-            if c_idx <= len(COLUMNS):
-                col_name = COLUMNS[c_idx - 1]
-                if col_name in deviations:
-                    cell.fill = red_fill
-                    
-        current_row += 1
-        sr_partial += 1
+    def _write_party_header(ws, current_row: int, gstin: str, party_name: str,
+                            n_cols: int, count: int) -> int:
+        """Write a full-width merged party header row. Returns next row index."""
+        if not gstin or str(gstin) == "__MISSING__":
+            label = f"  MISSING GST NUM  ·  {count} invoice(s)"
+        else:
+            label = f"  {party_name}  —  {gstin}  ·  {count} invoice(s)"
+        ws.cell(row=current_row, column=1, value=label)
+        ws.cell(row=current_row, column=1).font  = party_font
+        ws.cell(row=current_row, column=1).fill  = party_fill
+        if n_cols > 1:
+            ws.merge_cells(start_row=current_row, start_column=1,
+                           end_row=current_row, end_column=n_cols)
+        return current_row + 1
 
-    # 3. Unmatched Sheet
-    ws_unmatched = wb.create_sheet("Unmatched")
-    unmatch_headers = COLUMNS + ["Remark"]
-    ws_unmatched.append(unmatch_headers)
-    for col_idx in range(1, len(unmatch_headers) + 1):
-        ws_unmatched.cell(row=1, column=col_idx).font = header_font
-
-    sr_unmatched = 1
-    for row_data in reconciliation_result["unmatched"]:
-        rd = row_data.copy()
-        rd["Sr"] = sr_unmatched
-        ws_unmatched.append([rd[c] for c in COLUMNS] + [rd["Remark"]])
-        sr_unmatched += 1
-
-    # Adjust column widths
-    for ws in wb.worksheets:
+    def _autofit(ws):
         for col in ws.columns:
-            max_length = 0
-            column = col[0].column_letter # Get the column name
+            max_len = 0
+            col_letter = col[0].column_letter
             for cell in col:
                 try:
-                    if len(str(cell.value)) > max_length:
-                        max_length = len(str(cell.value))
-                except:
+                    max_len = max(max_len, len(str(cell.value)))
+                except Exception:
                     pass
-            adjusted_width = min(max_length + 2, 50)
-            ws.column_dimensions[column].width = adjusted_width
+            ws.column_dimensions[col_letter].width = min(max_len + 2, 50)
+
+    # ── 0. Summary ────────────────────────────────────────────────────────────
+    ws_sum = wb.create_sheet("Summary", 0)
+    ws_sum.append(["Reconciliation Summary"])
+    ws_sum.cell(row=1, column=1).font = Font(bold=True, size=14)
+    ws_sum.append([])
+    ws_sum.append(["Matched",           summary["matched"]])
+    ws_sum.append(["Partially Matched", summary["partially_matched"]])
+    ws_sum.append(["Not at Site",       summary["not_at_site"]])
+    ws_sum.append(["Not in Software",   summary["not_in_software"]])
+    for r in range(3, 7):
+        ws_sum.cell(row=r, column=1).font = header_font
+
+    # ── 1. Matched ────────────────────────────────────────────────────────────
+    ws_m = wb.create_sheet("Matched")
+    ws_m.append(COLUMNS)
+    for c in range(1, len(COLUMNS) + 1):
+        ws_m.cell(row=1, column=c).font = header_font
+    cur = 2
+    sr  = 1
+    for gstin, rows in reconciliation_result["matched_grouped"].items():
+        party_name = _party_name_from_rows(rows)
+        cur = _write_party_header(ws_m, cur, gstin, party_name, len(COLUMNS), len(rows))
+        for row_data in rows:
+            rd = row_data.copy()
+            rd["Sr"] = sr
+            ws_m.append([rd.get(c, "") for c in COLUMNS])
+            sr  += 1
+            cur += 1
+        ws_m.append([])   # blank separator between parties
+        cur += 1
+    _autofit(ws_m)
+
+    # ── 2. Partially Matched ──────────────────────────────────────────────────
+    ws_p = wb.create_sheet("Partially Matched")
+    ph = ["Source"] + COLUMNS + ["Deviations"]
+    ws_p.append(ph)
+    for c in range(1, len(ph) + 1):
+        ws_p.cell(row=1, column=c).font = header_font
+    cur = 2
+    sr  = 1
+    for gstin, pairs in reconciliation_result["partial_grouped"].items():
+        party_name = _party_name_from_rows(pairs)
+        n_devs = sum(len(p["deviations"]) for p in pairs)
+        label  = f"  {party_name}  —  {gstin}  ·  {len(pairs)} invoice(s)  ·  {n_devs} deviation(s)"
+        ws_p.cell(row=cur, column=1, value=label).font = party_font
+        ws_p.cell(row=cur, column=1).fill = party_fill
+        ws_p.merge_cells(start_row=cur, start_column=1,
+                         end_row=cur, end_column=len(ph))
+        cur += 1
+
+        for p in pairs:
+            s_row = p["software_row"].copy()
+            g_row = p["portal_row"]
+            devs  = p["deviations"]
+            dev_text = "  |  ".join(
+                f"{d}: Books={s_row.get(d, '')} / Portal={g_row.get(d, '')}"
+                for d in devs
+            )
+
+            # Books row
+            s_row["Sr"] = sr
+            books_vals  = ["Books"] + [s_row.get(c, "") for c in COLUMNS] + [dev_text]
+            for c_idx, val in enumerate(books_vals, start=1):
+                cell = ws_p.cell(row=cur, column=c_idx, value=val)
+                cell.fill = books_fill
+                col_name  = COLUMNS[c_idx - 2] if 2 <= c_idx <= len(COLUMNS) + 1 else ""
+                if col_name in devs:
+                    cell.fill = red_fill
+            cur += 1
+
+            # Portal row
+            g_row_copy = g_row.copy()
+            g_row_copy["Sr"] = sr
+            portal_vals = ["Portal"] + [g_row_copy.get(c, "") for c in COLUMNS] + [""]
+            for c_idx, val in enumerate(portal_vals, start=1):
+                cell = ws_p.cell(row=cur, column=c_idx, value=val)
+                cell.fill = portal_fill
+                col_name  = COLUMNS[c_idx - 2] if 2 <= c_idx <= len(COLUMNS) + 1 else ""
+                if col_name in devs:
+                    cell.fill = red_fill
+            cur += 1
+            sr  += 1
+
+        ws_p.append([])   # blank separator
+        cur += 1
+    _autofit(ws_p)
+
+    # ── 3. Not at Site ────────────────────────────────────────────────────────
+    ws_nas = wb.create_sheet("Not at Site")
+    nas_headers = COLUMNS + ["Remark"]
+    ws_nas.append(nas_headers)
+    for c in range(1, len(nas_headers) + 1):
+        ws_nas.cell(row=1, column=c).font = header_font
+    cur = 2
+    sr  = 1
+    for gstin, rows in reconciliation_result["not_at_site_grouped"].items():
+        party_name = _party_name_from_rows(rows)
+        cur = _write_party_header(ws_nas, cur, gstin, party_name, len(nas_headers), len(rows))
+        for row_data in rows:
+            rd = row_data.copy()
+            rd["Sr"] = sr
+            ws_nas.append([rd.get(c, "") for c in COLUMNS] + [rd.get("Remark", "")])
+            sr  += 1
+            cur += 1
+        ws_nas.append([])
+        cur += 1
+    _autofit(ws_nas)
+
+    # ── 4. Not in Software ────────────────────────────────────────────────────
+    ws_nis = wb.create_sheet("Not in Software")
+    ws_nis.append(nas_headers)
+    for c in range(1, len(nas_headers) + 1):
+        ws_nis.cell(row=1, column=c).font = header_font
+    cur = 2
+    sr  = 1
+    for gstin, rows in reconciliation_result["not_in_software_grouped"].items():
+        party_name = _party_name_from_rows(rows)
+        cur = _write_party_header(ws_nis, cur, gstin, party_name, len(nas_headers), len(rows))
+        for row_data in rows:
+            rd = row_data.copy()
+            rd["Sr"] = sr
+            ws_nis.append([rd.get(c, "") for c in COLUMNS] + [rd.get("Remark", "")])
+            sr  += 1
+            cur += 1
+        ws_nis.append([])
+        cur += 1
+    _autofit(ws_nis)
 
     out = io.BytesIO()
     wb.save(out)

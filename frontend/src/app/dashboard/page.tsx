@@ -73,7 +73,7 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="mx-auto max-w-[1800px] space-y-6 lg:space-y-8">
+    <div className="mx-auto w-full space-y-6 lg:space-y-8">
       <section className="relative rounded-2xl sm:rounded-[28px] border border-white/70 bg-[linear-gradient(135deg,rgba(18,58,41,0.96),rgba(33,92,70,0.92))] px-4 py-5 sm:px-8 sm:py-6 lg:px-10 lg:py-8 text-white shadow-[0_12px_40px_rgba(15,23,42,0.12)]">
         <div className="absolute inset-0 overflow-hidden rounded-2xl sm:rounded-[28px] pointer-events-none">
           <div className="absolute inset-y-0 right-0 w-full md:w-3/4 bg-[radial-gradient(circle_at_center_right,rgba(216,243,220,0.15),transparent_70%)]" />

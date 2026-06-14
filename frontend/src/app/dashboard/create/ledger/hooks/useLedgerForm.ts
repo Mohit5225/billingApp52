@@ -172,6 +172,21 @@ export function useLedgerForm() {
       }
 
       if (templateType === "party") {
+        const gstType = form.party_details.gst_registration_type;
+        const gstin = form.party_details.gstin?.trim();
+
+        if (gstin) {
+          if (gstType !== "Regular" && gstType !== "Composition") {
+            showToast("A GSTIN is provided, so the Registration Type must be Regular or Composition.", "error");
+            return;
+          }
+        } else {
+          if (gstType === "Regular" || gstType === "Composition") {
+            showToast("A GSTIN is required for Regular or Composition registration types.", "error");
+            return;
+          }
+        }
+
         if (!form.party_details.state.trim()) {
           showToast(
             "State is mandatory for Party ledgers (Debtors/Creditors) to calculate GST.",

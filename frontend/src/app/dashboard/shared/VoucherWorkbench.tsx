@@ -77,6 +77,7 @@ export function VoucherWorkbench({
   const itemsScrollRef = useRef<HTMLDivElement>(null);
   const prevInvoiceLinesLength = useRef(invoiceLines.length);
   const prevJournalLinesLength = useRef(journalLines.length);
+  const prevAdditionalLedgersLength = useRef(form.additional_ledgers?.length || 0);
   const containerRef = useRef<HTMLDivElement>(null);
   const { initFocus, handleKeyDown } = useFocusTraversal(containerRef);
 
@@ -89,22 +90,24 @@ export function VoucherWorkbench({
   useEffect(() => {
     if (
       invoiceLines.length > prevInvoiceLinesLength.current ||
-      journalLines.length > prevJournalLinesLength.current
+      journalLines.length > prevJournalLinesLength.current ||
+      (form.additional_ledgers?.length || 0) > prevAdditionalLedgersLength.current
     ) {
-      if (containerRef.current) {
+      if (itemsScrollRef.current) {
         setTimeout(() => {
-          if (containerRef.current) {
-            containerRef.current.scrollTo({
-              top: containerRef.current.scrollHeight,
+          if (itemsScrollRef.current) {
+            itemsScrollRef.current.scrollTo({
+              top: itemsScrollRef.current.scrollHeight,
               behavior: "smooth"
             });
           }
-        }, 10);
+        }, 50);
       }
     }
     prevInvoiceLinesLength.current = invoiceLines.length;
     prevJournalLinesLength.current = journalLines.length;
-  }, [invoiceLines.length, journalLines.length]);
+    prevAdditionalLedgersLength.current = form.additional_ledgers?.length || 0;
+  }, [invoiceLines.length, journalLines.length, form.additional_ledgers?.length]);
 
   // ── Data fetching via React Query ──
   const {
@@ -408,7 +411,7 @@ export function VoucherWorkbench({
 
   if (!depsReady || isLoading) {
     return (
-      <div className="flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden p-6 space-y-6">
+      <div className="flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-2rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden p-6 space-y-6">
         <div className="flex justify-between">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 animate-shimmer-fast rounded-md bg-slate-200" />
@@ -446,7 +449,7 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div ref={containerRef} onKeyDown={handleKeyDown} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-500 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]">
+    <div ref={containerRef} onKeyDown={handleKeyDown} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-2rem)] lg:min-h-[800px] rounded-xl border border-slate-300 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]">
       {/* ── Voucher Command Ribbon ── */}
       <VoucherHeader
         meta={meta}

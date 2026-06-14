@@ -61,10 +61,10 @@ export function InvoiceItemsTable({
       {/* ============================================================== */}
       {/* DESKTOP VIEW (Hidden on Mobile)                                */}
       {/* ============================================================== */}
-      <div className="hidden md:flex flex-1 flex-col overflow-x-auto custom-scrollbar border-b border-slate-100">
-        <div className="min-w-full md:min-w-[1000px] flex flex-col flex-1">
+      <div className="hidden md:flex flex-1 flex-col min-h-0 overflow-x-auto custom-scrollbar border-b border-slate-100">
+        <div className="min-w-full md:min-w-[1000px] flex flex-col flex-1 min-h-0">
           {/* Table header */}
-          <div className="shrink-0 grid grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_1fr_1.2fr_40px] gap-2 border-b border-slate-500 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-base font-bold uppercase tracking-wider text-slate-500 bg-slate-50 whitespace-nowrap">
+          <div className="shrink-0 grid grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_1fr_1.2fr_40px] gap-2 border-b border-slate-300 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-[17px] font-extrabold uppercase tracking-wider text-slate-800 bg-slate-50/50 backdrop-blur-sm whitespace-nowrap">
             <div className="text-center">#</div>
             <div>Name of Item</div>
             <div>HSN/SAC</div>
@@ -74,7 +74,7 @@ export function InvoiceItemsTable({
             <div className="text-right">Amount (₹)</div>
             <div className="w-10" />
           </div>
-          <div className="flex-1 custom-scrollbar" ref={itemsScrollRef}>
+          <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar" ref={itemsScrollRef}>
             <div className="divide-y divide-slate-100 pt-4">
               {invoiceLines.map((line, index) => (
                 <div
@@ -88,7 +88,7 @@ export function InvoiceItemsTable({
                     (e.currentTarget as HTMLElement).style.background = "";
                   }}
                 >
-                  <div className="flex h-12 items-center justify-center text-base font-medium text-slate-400">
+                  <div className="flex h-12 items-center justify-center text-[17px] font-bold text-slate-500">
                     {index + 1}
                   </div>
                   <div className="col-span-1 block">
@@ -110,7 +110,7 @@ export function InvoiceItemsTable({
                     />
                   </div>
                   <div className="block">
-                    <div className="mono-num flex h-12 w-full items-center px-2 text-base text-slate-500 opacity-80">
+                    <div className="mono-num flex h-12 w-full items-center px-2 text-[15px] font-medium text-slate-600 opacity-90">
                       {items.find((i) => i.id === line.item_id)?.hsn_code || "—"}
                     </div>
                   </div>
@@ -122,7 +122,7 @@ export function InvoiceItemsTable({
                       value={line.quantity || ""}
                       onChange={(e) => updateInvoiceLine(index, { quantity: Number(e.target.value) })}
                       placeholder="0"
-                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
+                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-semibold text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
                       data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
                     />
                   </div>
@@ -134,7 +134,7 @@ export function InvoiceItemsTable({
                       value={line.unit_price || ""}
                       onChange={(e) => updateInvoiceLine(index, { unit_price: Number(e.target.value) })}
                       placeholder="0.00"
-                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
+                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-semibold text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
                       data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
                     />
                   </div>
@@ -146,11 +146,11 @@ export function InvoiceItemsTable({
                       value={line.discount_amount || ""}
                       onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
                       placeholder="0.00"
-                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-base text-slate-700 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
+                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-semibold text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
                     />
                   </div>
                   <div className="flex items-center justify-end pr-1">
-                    <span className="mono-num font-semibold text-slate-900">
+                    <span className="mono-num text-[17px] font-bold text-slate-900">
                       {formatCurrency(line.taxable_amount)}
                     </span>
                   </div>
@@ -176,12 +176,13 @@ export function InvoiceItemsTable({
                 <button
                   data-skip-enter="true"
                   onClick={() => setInvoiceLines((prev) => [...prev, { ...EMPTY_INVOICE_LINE }])}
-                  className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-1.5 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+                  className="flex items-center gap-1.5 rounded-lg border border-emerald-200 shadow-sm bg-emerald-50/50 px-3 py-1.5 text-[15px] font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
-                  Add Line Item
+                  {/* Changed text below */}
+                  Add Item
                 </button>
               )}
             </div>

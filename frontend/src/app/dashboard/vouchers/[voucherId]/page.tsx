@@ -42,7 +42,7 @@ export default function VoucherDetailPage() {
 
   if (isLoading || !voucher) {
     return (
-      <div className="flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-3rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden p-6 space-y-6">
+      <div className="flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-2rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden p-6 space-y-6">
         <div className="flex justify-between">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 animate-shimmer-fast rounded-md bg-slate-200" />

@@ -6,22 +6,46 @@ import {
   useLayoutEffect,
   useMemo,
   useState,
+  useEffect,
   type ReactNode,
 } from "react";
 
 type DashboardChromeContextValue = {
   bottomNavVisible: boolean;
   setBottomNavVisible: (visible: boolean) => void;
+  isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: (collapsed: boolean) => void;
 };
 
 const DashboardChromeContext = createContext<DashboardChromeContextValue | undefined>(undefined);
 
 export function DashboardChromeProvider({ children }: { children: ReactNode }) {
   const [bottomNavVisible, setBottomNavVisible] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  // Load initial state from localStorage safely on the client side
+  useEffect(() => {
+    setIsClient(true);
+    const savedState = localStorage.getItem("sidebarCollapsed");
+    if (savedState) {
+      setIsSidebarCollapsed(savedState === "true");
+    }
+  }, []);
+
+  const handleSetSidebarCollapsed = (collapsed: boolean) => {
+    setIsSidebarCollapsed(collapsed);
+    localStorage.setItem("sidebarCollapsed", String(collapsed));
+  };
 
   const value = useMemo(
-    () => ({ bottomNavVisible, setBottomNavVisible }),
-    [bottomNavVisible],
+    () => ({ 
+      bottomNavVisible, 
+      setBottomNavVisible,
+      isSidebarCollapsed,
+      setIsSidebarCollapsed: handleSetSidebarCollapsed
+    }),
+    [bottomNavVisible, isSidebarCollapsed],
   );
 
   return <DashboardChromeContext.Provider value={value}>{children}</DashboardChromeContext.Provider>;
