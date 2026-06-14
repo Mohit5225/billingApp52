@@ -14,6 +14,7 @@ type InvoiceItemsTableProps = {
   taxMode: TaxMode;
   readOnly: boolean;
   itemsScrollRef: RefObject<HTMLDivElement | null>;
+  showDiscount?: boolean;
 };
 
 export function InvoiceItemsTable({
@@ -23,6 +24,7 @@ export function InvoiceItemsTable({
   taxMode,
   readOnly,
   itemsScrollRef,
+  showDiscount = false,
 }: InvoiceItemsTableProps) {
   const [isMobileWindowOpen, setIsMobileWindowOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
@@ -64,13 +66,13 @@ export function InvoiceItemsTable({
       <div className="hidden md:flex flex-1 flex-col min-h-0 overflow-x-auto custom-scrollbar border-b border-slate-100">
         <div className="min-w-full md:min-w-[1000px] flex flex-col flex-1 min-h-0">
           {/* Table header */}
-          <div className="shrink-0 grid grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_1fr_1.2fr_40px] gap-2 border-b border-slate-300 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-[17px] font-extrabold uppercase tracking-wider text-slate-800 bg-slate-50/50 backdrop-blur-sm whitespace-nowrap">
+          <div className={`shrink-0 grid ${showDiscount ? 'grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_1fr_1.2fr_40px]' : 'grid-cols-[40px_5fr_0.9fr_0.9fr_0.9fr_1.2fr_40px]'} gap-2 border-b border-slate-300 pl-4 pr-4 md:pl-5 md:pr-[calc(1.25rem+8px)] py-2.5 text-[17px] font-extrabold uppercase tracking-wider text-slate-800 bg-slate-50/50 backdrop-blur-sm whitespace-nowrap`}>
             <div className="text-center">#</div>
             <div>Name of Item</div>
             <div>HSN/SAC</div>
             <div>Qty</div>
             <div>Rate (₹)</div>
-            <div>Discount (₹)</div>
+            {showDiscount && <div>Discount (₹)</div>}
             <div className="text-right">Amount (₹)</div>
             <div className="w-10" />
           </div>
@@ -79,7 +81,7 @@ export function InvoiceItemsTable({
               {invoiceLines.map((line, index) => (
                 <div
                   key={index}
-                  className="group grid grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_1fr_1.2fr_40px] items-center gap-2 p-5 py-2 scroll-mt-12 transition-colors duration-100"
+                  className={`group grid ${showDiscount ? 'grid-cols-[40px_4fr_0.9fr_0.9fr_0.9fr_1fr_1.2fr_40px]' : 'grid-cols-[40px_5fr_0.9fr_0.9fr_0.9fr_1.2fr_40px]'} items-center gap-2 p-5 py-2 scroll-mt-12 transition-colors duration-100`}
                   style={{ "--tw-bg-opacity": "1" } as React.CSSProperties}
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLElement).style.background = "var(--voucher-row-hover)";
@@ -138,17 +140,19 @@ export function InvoiceItemsTable({
                       data-mandatory={index === 0 || !!line.item_id ? "true" : undefined}
                     />
                   </div>
-                  <div className="block">
-                    <input
-                      disabled={readOnly}
-                      type="number"
-                      step="0.01"
-                      value={line.discount_amount || ""}
-                      onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
-                      placeholder="0.00"
-                      className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-semibold text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
-                    />
-                  </div>
+                  {showDiscount && (
+                    <div className="block">
+                      <input
+                        disabled={readOnly}
+                        type="number"
+                        step="0.01"
+                        value={line.discount_amount || ""}
+                        onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
+                        placeholder="0.00"
+                        className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-semibold text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-center justify-end pr-1">
                     <span className="mono-num text-[17px] font-bold text-slate-900">
                       {formatCurrency(line.taxable_amount)}
@@ -283,6 +287,7 @@ export function InvoiceItemsTable({
           taxMode={taxMode}
           readOnly={readOnly}
           onClose={() => setIsMobileWindowOpen(false)}
+          showDiscount={showDiscount}
         />
       )}
 

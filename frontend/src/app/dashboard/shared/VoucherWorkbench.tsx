@@ -115,6 +115,7 @@ export function VoucherWorkbench({
     items,
     firmDetails,
     firmState,
+    permanentDiscountToggle,
     depsReady,
     partyLedgers,
     cashBankLedgers,
@@ -485,6 +486,7 @@ export function VoucherWorkbench({
           taxMode={taxMode}
           readOnly={readOnly}
           itemsScrollRef={itemsScrollRef}
+          showDiscount={permanentDiscountToggle}
         />
       ) : null}
 

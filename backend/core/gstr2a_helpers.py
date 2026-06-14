@@ -1,7 +1,7 @@
 import io
 import re
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Optional
 import openpyxl
 import xlrd
 from openpyxl.styles import PatternFill, Font
@@ -122,6 +122,18 @@ def _safe_date_str(val: Any) -> str:
                 pass
         return s
     return ""
+
+
+def _parse_date_to_obj(date_str: str) -> Optional[date]:
+    """Convert a dd-mm-yyyy or ISO date string to a date object. Returns None on failure."""
+    if not date_str:
+        return None
+    for fmt in ("%d-%m-%Y", "%Y-%m-%d", "%d-%b-%Y", "%d-%b-%y", "%d-%m-%y"):
+        try:
+            return datetime.strptime(date_str.strip(), fmt).date()
+        except ValueError:
+            pass
+    return None
 
 def build_software_rows(vouchers: list[dict[str, Any]], expected_type: str) -> list[dict[str, Any]]:
     """
@@ -304,7 +316,9 @@ def parse_gstr2a_excel(file_bytes: bytes, filename: str) -> list[dict[str, Any]]
 def reconcile(
     software_rows: list[dict[str, Any]], 
     gstr2a_rows: list[dict[str, Any]],
-    tolerance: float = 1.0
+    tolerance: float = 1.0,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
 ) -> dict[str, Any]:
     from collections import defaultdict
     warnings: list[str] = []
@@ -377,6 +391,38 @@ def reconcile(
         else:
             gstr2a_by_gstin[gstin_key][inv_key] = r
 
+    # ── Step 2b: Detect outside-range portal rows (if date range provided) ─────
+    outside_range_grouped: dict[str, list] = {}
+    if from_date and to_date:
+        filtered_gstr2a_rows = []
+        for r in gstr2a_rows:
+            row_date = _parse_date_to_obj(r.get("date", ""))
+            if row_date and (row_date < from_date or row_date > to_date):
+                gstin_key = get_group_key(r)
+                r_copy = r.copy()
+                r_copy["Remark"] = "Outside Date Range"
+                outside_range_grouped.setdefault(gstin_key, []).append(r_copy)
+            else:
+                filtered_gstr2a_rows.append(r)
+        gstr2a_rows = filtered_gstr2a_rows
+        # Rebuild the gstr2a_by_gstin map with filtered rows
+        gstr2a_by_gstin = defaultdict(dict)
+        for r in gstr2a_rows:
+            gstin_key = get_group_key(r)
+            inv_key   = normalize_key_str(r["Invoice Num"])
+            if inv_key in gstr2a_by_gstin[gstin_key]:
+                existing = gstr2a_by_gstin[gstin_key][inv_key]
+                if r.get("_sheet_type") == "B2BA":
+                    gstr2a_by_gstin[gstin_key][inv_key] = r
+                else:
+                    existing["Taxable Value"] += r["Taxable Value"]
+                    existing["IGST"]          += r["IGST"]
+                    existing["CGST"]          += r["CGST"]
+                    existing["SGST"]          += r["SGST"]
+                    existing["Invoice Value"]  = max(existing["Invoice Value"], r["Invoice Value"])
+            else:
+                gstr2a_by_gstin[gstin_key][inv_key] = r
+
     # ── Step 3: Match invoice-by-invoice within each party ───────────────────
     matched_grouped:          dict[str, list] = {}
     partial_grouped:          dict[str, list] = {}
@@ -439,18 +485,21 @@ def reconcile(
     partial_count        = sum(len(v) for v in partial_grouped.values())
     not_at_site_count    = sum(len(v) for v in not_at_site_grouped.values())
     not_in_software_count = sum(len(v) for v in not_in_software_grouped.values())
+    outside_range_count  = sum(len(v) for v in outside_range_grouped.values())
 
     return {
         "matched_grouped":         matched_grouped,
         "partial_grouped":         partial_grouped,
         "not_at_site_grouped":     not_at_site_grouped,
         "not_in_software_grouped": not_in_software_grouped,
+        "outside_range_grouped":   outside_range_grouped,
         "warnings":                warnings,
         "summary": {
             "matched":          matched_count,
             "partially_matched": partial_count,
             "not_at_site":      not_at_site_count,
             "not_in_software":  not_in_software_count,
+            "outside_range":    outside_range_count,
         },
     }
 
@@ -631,6 +680,35 @@ def build_result_excel(reconciliation_result: dict[str, Any]) -> bytes:
         ws_nis.append([])
         cur += 1
     _autofit(ws_nis)
+
+    # ── 5. Outside Date Range ─────────────────────────────────────────────────
+    outside_range_grouped = reconciliation_result.get("outside_range_grouped", {})
+    if outside_range_grouped:
+        odr_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
+        odr_font = Font(bold=True, color="856404")
+        ws_odr = wb.create_sheet("Outside Date Range")
+        odr_headers = COLUMNS + ["Remark"]
+        ws_odr.append(odr_headers)
+        for c in range(1, len(odr_headers) + 1):
+            cell = ws_odr.cell(row=1, column=c)
+            cell.font = header_font
+            cell.fill = PatternFill(start_color="FFC107", end_color="FFC107", fill_type="solid")
+        cur = 2
+        sr  = 1
+        for gstin, rows in outside_range_grouped.items():
+            party_name = _party_name_from_rows(rows)
+            cur = _write_party_header(ws_odr, cur, gstin, party_name, len(odr_headers), len(rows))
+            for row_data in rows:
+                rd = row_data.copy()
+                rd["Sr"] = sr
+                ws_odr.append([rd.get(c, "") for c in COLUMNS] + [rd.get("Remark", "")])
+                for c_idx in range(1, len(odr_headers) + 1):
+                    ws_odr.cell(row=cur, column=c_idx).fill = odr_fill
+                sr  += 1
+                cur += 1
+            ws_odr.append([])
+            cur += 1
+        _autofit(ws_odr)
 
     out = io.BytesIO()
     wb.save(out)

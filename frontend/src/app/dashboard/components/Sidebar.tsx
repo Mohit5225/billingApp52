@@ -101,6 +101,7 @@ const NAV_ITEMS: NavItem[] = [
     ),
     children: [
       { label: "Configure a bill template", href: "/dashboard/settings/bill-template" },
+      { label: "Configure Voucher Details", href: "/dashboard/settings/voucher-details" },
       { label: "Firm Details", href: "/dashboard/settings/firm-details" },
     ],
   },

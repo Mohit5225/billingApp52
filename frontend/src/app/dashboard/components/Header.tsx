@@ -345,6 +345,32 @@ export default function Header() {
               </div>
               Configure Bill Template
             </Link>
+
+            <Link 
+              href="/dashboard/settings/voucher-details"
+              onClick={() => setIsProfileSheetOpen(false)}
+              className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:bg-slate-100"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2Z" />
+                </svg>
+              </div>
+              Configure Voucher Details
+            </Link>
+
+            <Link 
+              href="/dashboard/reconciliation"
+              onClick={() => setIsProfileSheetOpen(false)}
+              className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 active:bg-slate-100"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v17.25m0 0c-1.472 0-2.882.265-4.185.75M12 20.25c1.472 0 2.882.265 4.185.75M18.75 4.97A48.59 48.59 0 0 0 12 4.5c-2.291 0-4.545.16-6.75.47m13.5 0c1.01.143 2.01.317 3 .52m-3-.52v8.625c0 2.873-2.372 5.25-5.25 5.25m-8.25-13.87v8.625c0 2.873 2.372 5.25 5.25 5.25" />
+                </svg>
+              </div>
+              GSTR-2A Reconciliation
+            </Link>
             
             <div className="my-2 h-px w-full bg-slate-100" />
             

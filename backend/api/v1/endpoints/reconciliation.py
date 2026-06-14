@@ -228,7 +228,24 @@ async def reconcile_gstr2a(
     raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
-    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance)
+    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance,
+                       from_date=from_date, to_date=to_date)
+
+    # Compute actual date range present in the uploaded sheet
+    from core.gstr2a_helpers import _parse_date_to_obj
+    all_dates = [
+        _parse_date_to_obj(r.get("date", ""))
+        for r in gstr2a_rows
+        if _parse_date_to_obj(r.get("date", ""))
+    ]
+    if all_dates:
+        result["sheet_date_range"] = {
+            "min": min(all_dates).strftime("%Y-%m-%d"),
+            "max": max(all_dates).strftime("%Y-%m-%d"),
+        }
+    else:
+        result["sheet_date_range"] = None
+
     return result
 
 
@@ -256,7 +273,8 @@ async def download_reconciliation_report(
     raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
-    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance)
+    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance,
+                       from_date=from_date, to_date=to_date)
     excel_bytes = build_result_excel(result)
 
     return Response(

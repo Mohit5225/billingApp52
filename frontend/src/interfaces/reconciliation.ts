@@ -40,12 +40,17 @@ export interface ReconciliationResult {
   not_at_site_grouped: Record<string, ReconciliationRow[]>;
   /** gstin → rows on portal but not in books */
   not_in_software_grouped: Record<string, ReconciliationRow[]>;
+  /** gstin → portal rows whose date falls outside the selected range */
+  outside_range_grouped: Record<string, ReconciliationRow[]>;
   warnings: string[];
   summary: {
     matched: number;
     partially_matched: number;
     not_at_site: number;
     not_in_software: number;
+    outside_range: number;
   };
+  /** Actual date span found in the uploaded sheet (ISO yyyy-mm-dd) */
+  sheet_date_range: { min: string; max: string } | null;
 }
 

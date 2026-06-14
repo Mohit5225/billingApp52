@@ -237,7 +237,7 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
           href={finalHref}
           title="Create new item"
           data-skip-enter="true"
-          className={`flex shrink-0 items-center justify-center rounded-md border border-slate-300 bg-white shadow-sm text-slate-500 transition hover:border-emerald-400 hover:text-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${compact ? "h-10 w-10" : "h-11 w-11"}`}
+          className={`flex shrink-0 items-center justify-center rounded-md border border-emerald-400 bg-emerald-50/50 text-emerald-600 shadow-[0_0_12px_rgba(52,211,153,0.5)] ring-2 ring-emerald-400/30 transition-all hover:bg-emerald-100 hover:shadow-[0_0_16px_rgba(52,211,153,0.7)] hover:ring-emerald-400/50 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 ${compact ? "h-10 w-10" : "h-11 w-11"}`}
         >
           <svg className={compact ? "h-4 w-4" : "h-5 w-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

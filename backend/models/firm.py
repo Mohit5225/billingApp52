@@ -26,6 +26,7 @@ class FirmBase(TimestampSchema):
     receipt_prefix: Optional[str] = None
     eway_bill_username: Optional[str] = None
     eway_bill_password: Optional[str] = None
+    permanent_discount_toggle: Optional[bool] = False
 
 class FirmCreate(FirmBase):
     """Schema for creating a new Firm."""

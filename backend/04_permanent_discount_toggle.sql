@@ -1,0 +1,1 @@
+ALTER TABLE firms ADD COLUMN IF NOT EXISTS permanent_discount_toggle BOOLEAN DEFAULT FALSE;

@@ -51,14 +51,56 @@ export function VoucherPartySection({
           </div>
         </div>
 
-        {/* Particulars Table */}
+        {/* Particulars Section */}
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="sticky top-0 z-10 grid grid-cols-[1fr_200px] gap-4 border-b border-slate-200 px-6 py-2.5 text-[15px] font-extrabold uppercase tracking-wider text-slate-800 bg-slate-50/50 backdrop-blur-sm">
-            <div>Particulars</div>
-            <div className="text-right">Amount</div>
+
+          {/* Header — desktop: two cols, mobile: single */}
+          <div className="sticky top-0 z-10 border-b border-slate-200 px-6 py-2.5 text-[15px] font-extrabold uppercase tracking-wider text-slate-800 bg-slate-50/50 backdrop-blur-sm">
+            <div className="md:hidden">Particulars</div>
+            <div className="hidden md:grid md:grid-cols-[1fr_200px] gap-4">
+              <div>Particulars</div>
+              <div className="text-right">Amount</div>
+            </div>
           </div>
+
           <div className="divide-y divide-slate-100">
-            <div className="grid grid-cols-[1fr_200px] gap-4 p-4 md:px-6 md:py-3 items-start hover:bg-amber-50/30 transition-colors">
+
+            {/* ── Mobile: stacked with labels ── */}
+            <div className="md:hidden flex flex-col gap-4 p-4 hover:bg-amber-50/30 transition-colors">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-bold text-slate-600 uppercase tracking-wide">Party</label>
+                <ComboboxField
+                  inline
+                  value={form.party_ledger_id}
+                  onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
+                  options={partyLedgers}
+                  placeholder="Select Party…"
+                  createHref="/dashboard/create/ledger"
+                  disabled={readOnly}
+                />
+                {selectedPartyLedger && (
+                  <div className="text-[13px] font-medium text-slate-500 italic flex gap-1.5 ml-1">
+                    <span>Cur Bal:</span>
+                    <span>0.00 Cr</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[13px] font-bold text-slate-600 uppercase tracking-wide">Amount</label>
+                <input
+                  className="h-11 w-full rounded-md border border-slate-400 bg-white px-3 text-[16px] font-bold text-slate-900 text-left shadow-sm outline-none transition hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:opacity-60 disabled:bg-slate-50"
+                  type="number"
+                  step="0.01"
+                  value={form.amount}
+                  onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
+                  placeholder="0.00"
+                  disabled={readOnly}
+                />
+              </div>
+            </div>
+
+            {/* ── Desktop: original side-by-side grid ── */}
+            <div className="hidden md:grid md:grid-cols-[1fr_200px] gap-4 px-6 py-3 items-start hover:bg-amber-50/30 transition-colors">
               <div>
                 <ComboboxField
                   inline
@@ -78,7 +120,7 @@ export function VoucherPartySection({
               </div>
               <div>
                 <input
-                  className="h-12 w-full rounded-md border border-slate-300 bg-white px-3 text-[17px] font-bold text-slate-900 text-right shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50"
+                  className="h-11 w-full rounded-md border border-slate-400 bg-white px-3 text-[16px] font-bold text-slate-900 text-right shadow-sm outline-none transition hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/[0.15] disabled:opacity-60 disabled:bg-slate-50"
                   type="number"
                   step="0.01"
                   value={form.amount}
@@ -88,6 +130,7 @@ export function VoucherPartySection({
                 />
               </div>
             </div>
+
 
             {/* Bill-wise Details Button + Summary */}
             {partyHasBillByBill && form.party_ledger_id && form.amount > 0 && (

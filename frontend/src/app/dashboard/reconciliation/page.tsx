@@ -35,7 +35,7 @@ const CURRENCY_COLS = new Set<string>([
   "SGST",
 ]);
 
-type ActiveTab = "matched" | "partially" | "not_at_site" | "not_in_software";
+type ActiveTab = "matched" | "partially" | "not_at_site" | "not_in_software" | "outside_range";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -430,6 +430,15 @@ export default function ReconciliationPage() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("matched");
   const [warningsDismissed, setWarningsDismissed] = useState(false);
 
+  // Date-range warning modal state
+  const [dateRangeWarning, setDateRangeWarning] = useState<{
+    sheetMin: string;
+    sheetMax: string;
+    outsideCount: number;
+    pendingFormData: FormData;
+    pendingSession: string;
+  } | null>(null);
+
   const [tolerance, setTolerance] = useState<number>(1.0);
 
   const [localFromDate, setLocalFromDate] = useState(fromDate);
@@ -527,6 +536,27 @@ export default function ReconciliationPage() {
       }
 
       const data: ReconciliationResult = await response.json();
+
+      // Check if the sheet has dates outside the selected range
+      const outsideCount = data.summary.outside_range ?? 0;
+      if (outsideCount > 0 && data.sheet_date_range) {
+        // Show warning modal — store result and pause
+        setDateRangeWarning({
+          sheetMin: data.sheet_date_range.min,
+          sheetMax: data.sheet_date_range.max,
+          outsideCount,
+          pendingFormData: formData,
+          pendingSession: session.access_token,
+        });
+        // We still set the result so that if they proceed the data is ready
+        setResult(data);
+        setWarningsDismissed(false);
+        setActiveTab("matched");
+        // Don't move to step 3 yet — wait for user confirmation
+        setIsProcessing(false);
+        return;
+      }
+
       setResult(data);
       setWarningsDismissed(false);
       setActiveTab("matched");
@@ -539,6 +569,16 @@ export default function ReconciliationPage() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleConfirmProceedWithOutOfRange = () => {
+    setDateRangeWarning(null);
+    setStep(3);
+  };
+
+  const handleCancelOutOfRange = () => {
+    setDateRangeWarning(null);
+    setResult(null);
   };
 
   const handleDownloadReport = async () => {
@@ -611,11 +651,78 @@ export default function ReconciliationPage() {
           label: "Not in Software",
           count: result.summary.not_in_software,
         },
+        ...(result.summary.outside_range > 0
+          ? [
+              {
+                id: "outside_range" as ActiveTab,
+                label: "Outside Date Range",
+                count: result.summary.outside_range,
+              },
+            ]
+          : []),
       ]
     : [];
 
   return (
     <div className="mx-auto w-full">
+      {/* ── Date Range Warning Modal ── */}
+      {dateRangeWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-white shadow-2xl border border-amber-200 overflow-hidden">
+            {/* Header */}
+            <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100">
+                <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-amber-900">Sheet Date Range Mismatch</h3>
+                <p className="text-xs text-amber-600 mt-0.5">Entries found outside your selected range</p>
+              </div>
+            </div>
+            {/* Body */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500 font-medium">Your selected range:</span>
+                  <span className="font-semibold text-slate-800">
+                    {localFromDate} → {localToDate}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500 font-medium">Sheet date range:</span>
+                  <span className="font-semibold text-slate-800">
+                    {dateRangeWarning.sheetMin} → {dateRangeWarning.sheetMax}
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm text-slate-700">
+                <span className="font-semibold text-amber-700">{dateRangeWarning.outsideCount} portal entr{dateRangeWarning.outsideCount !== 1 ? "ies" : "y"}</span>{" "}
+                in the uploaded sheet {dateRangeWarning.outsideCount !== 1 ? "fall" : "falls"} outside your selected date range.
+              </p>
+              <p className="text-sm text-slate-500">
+                If you proceed, these entries will be excluded from matching and placed in a separate <span className="font-medium text-amber-700">&ldquo;Outside Date Range&rdquo;</span> tab in the results and Excel report.
+              </p>
+            </div>
+            {/* Footer */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex gap-3 justify-end">
+              <button
+                onClick={handleCancelOutOfRange}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel — Re-upload
+              </button>
+              <button
+                onClick={handleConfirmProceedWithOutOfRange}
+                className="rounded-lg bg-amber-500 px-5 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+              >
+                Proceed Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Page header */}
       <div className="mb-6 flex items-center justify-between">
         <div>
@@ -927,7 +1034,7 @@ export default function ReconciliationPage() {
           )}
 
           {/* Summary cards */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
             {[
               {
                 label: "Fully Matched",
@@ -983,6 +1090,22 @@ export default function ReconciliationPage() {
                 </dd>
               </button>
             ))}
+            {/* Outside Date Range card — only shown when there are out-of-range entries */}
+            {(result.summary.outside_range ?? 0) > 0 && (
+              <button
+                onClick={() => setActiveTab("outside_range")}
+                className={`text-left overflow-hidden rounded-2xl border border-amber-300 bg-amber-50 px-4 py-5 shadow-sm sm:p-6 transition-all ${
+                  activeTab === "outside_range" ? "ring-2 ring-amber-400 ring-offset-2" : ""
+                }`}
+              >
+                <dt className="truncate text-sm font-medium text-amber-700">
+                  Outside Date Range
+                </dt>
+                <dd className="mt-1 text-3xl font-semibold tracking-tight text-amber-900">
+                  {result.summary.outside_range}
+                </dd>
+              </button>
+            )}
           </div>
 
           {/* Tab bar + download */}
@@ -1003,7 +1126,9 @@ export default function ReconciliationPage() {
                     <span
                       className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
                         activeTab === id
-                          ? "bg-tally-100 text-tally-700"
+                          ? id === "outside_range"
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-tally-100 text-tally-700"
                           : "bg-slate-100 text-slate-600"
                       }`}
                     >
@@ -1059,6 +1184,14 @@ export default function ReconciliationPage() {
                   emptyMessage="No 'Not in Software' records found."
                   remarkColor="text-rose-600"
                   sourceTab="not_in_software"
+                />
+              )}
+              {activeTab === "outside_range" && (
+                <SimpleGroupedTable
+                  grouped={result.outside_range_grouped ?? {}}
+                  emptyMessage="No outside-range records."
+                  remarkColor="text-amber-700"
+                  sourceTab="not_at_site"
                 />
               )}
             </div>

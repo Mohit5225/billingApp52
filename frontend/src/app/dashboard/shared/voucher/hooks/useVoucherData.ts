@@ -49,7 +49,7 @@ export function useVoucherData(activeFirmId: string | null, supabase: SupabaseCl
     queryFn: async () => {
       const { data, error } = await supabase
         .from("firms")
-        .select("name, mailing_name, address_lane1, city, state, pincode, mobile, email, gstin, pan, bank_name, account_number, ifsc_code, branch_name")
+        .select("name, mailing_name, address_lane1, city, state, pincode, mobile, email, gstin, pan, bank_name, account_number, ifsc_code, branch_name, permanent_discount_toggle")
         .eq("id", activeFirmId)
         .single();
       if (error) throw error;
@@ -59,6 +59,7 @@ export function useVoucherData(activeFirmId: string | null, supabase: SupabaseCl
   });
 
   const firmState = firmQueryData?.state || "";
+  const permanentDiscountToggle = firmQueryData?.permanent_discount_toggle || false;
   const firmDetails = firmQueryData
     ? {
       name: firmQueryData.mailing_name || firmQueryData.name || "",
@@ -109,6 +110,7 @@ export function useVoucherData(activeFirmId: string | null, supabase: SupabaseCl
     items,
     firmDetails,
     firmState,
+    permanentDiscountToggle,
     depsReady,
     partyLedgers,
     cashBankLedgers,

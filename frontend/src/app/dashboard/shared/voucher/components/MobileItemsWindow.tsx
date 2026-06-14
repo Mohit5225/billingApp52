@@ -14,6 +14,7 @@ type MobileItemsWindowProps = {
   taxMode: TaxMode;
   readOnly: boolean;
   onClose: () => void;
+  showDiscount?: boolean;
 };
 
 export function MobileItemsWindow({
@@ -23,6 +24,7 @@ export function MobileItemsWindow({
   taxMode,
   readOnly,
   onClose,
+  showDiscount = false,
 }: MobileItemsWindowProps) {
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
@@ -259,23 +261,25 @@ export function MobileItemsWindow({
                   {!isEditing && <div className="absolute inset-0 cursor-pointer" onClick={() => toggleEditing(index)} />}
                 </div>
                 {/* DISCOUNT */}
-                <div className={`flex flex-col p-2.5 px-3 relative ${isEditing ? 'bg-white' : 'bg-white'}`}>
-                  <span className={`text-[11px] font-bold uppercase tracking-wider mb-1 text-slate-500`}>DISCOUNT (₹)</span>
-                  {isEditing ? (
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      className="w-full bg-transparent text-[14px] font-semibold text-slate-800 outline-none mono-num placeholder:text-slate-300"
-                      value={line.discount_amount || ""}
-                      onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
-                      placeholder="0.00"
-                      disabled={readOnly}
-                    />
-                  ) : (
-                    <span className={`text-[14px] font-semibold mono-num ${isEditing ? 'text-slate-800' : 'text-slate-700'}`}>{line.discount_amount || "0.00"}</span>
-                  )}
-                  {!isEditing && <div className="absolute inset-0 cursor-pointer" onClick={() => toggleEditing(index)} />}
-                </div>
+                {showDiscount && (
+                  <div className={`flex flex-col p-2.5 px-3 relative ${isEditing ? 'bg-white' : 'bg-white'}`}>
+                    <span className={`text-[11px] font-bold uppercase tracking-wider mb-1 text-slate-500`}>DISCOUNT (₹)</span>
+                    {isEditing ? (
+                      <input 
+                        type="number" 
+                        step="0.01"
+                        className="w-full bg-transparent text-[14px] font-semibold text-slate-800 outline-none mono-num placeholder:text-slate-300"
+                        value={line.discount_amount || ""}
+                        onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
+                        placeholder="0.00"
+                        disabled={readOnly}
+                      />
+                    ) : (
+                      <span className={`text-[14px] font-semibold mono-num ${isEditing ? 'text-slate-800' : 'text-slate-700'}`}>{line.discount_amount || "0.00"}</span>
+                    )}
+                    {!isEditing && <div className="absolute inset-0 cursor-pointer" onClick={() => toggleEditing(index)} />}
+                  </div>
+                )}
               </div>
             </div>
           );
