@@ -99,6 +99,7 @@ export function InvoicePreviewOverlay({
             max-width: none !important;
             min-height: auto !important;
             height: auto !important;
+            max-height: none !important;
           }
           .print-scroll-reset {
             display: block !important;
@@ -106,6 +107,9 @@ export function InvoicePreviewOverlay({
             overflow: visible !important;
             align-items: unset !important;
             flex-direction: unset !important;
+            height: auto !important;
+            max-height: none !important;
+            width: auto !important;
           }
           .page-gap {
             display: none !important;

@@ -215,6 +215,9 @@ textarea {
     print-color-adjust: exact;
     margin: 0;
     padding: 0;
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
   }
 
   /* Remove app background gradients */
