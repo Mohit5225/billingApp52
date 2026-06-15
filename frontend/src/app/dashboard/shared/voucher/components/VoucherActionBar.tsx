@@ -29,13 +29,14 @@ export function VoucherActionBar({
   return (
     <div className="shrink-0 flex items-center justify-between border-t border-slate-500 bg-white px-5 py-4 sm:px-7 sm:py-5">
       {/* Mobile cancel */}
-      <Link
-        href="/dashboard/create"
+      <button
+        type="button"
         data-skip-enter="true"
+        onClick={onCancel}
         className="text-sm font-medium text-slate-600 hover:text-slate-900 sm:hidden"
       >
         Cancel
-      </Link>
+      </button>
       <div className="hidden sm:block" />
       <div className="flex items-center gap-3">
         {onOpenNoteDetails && isEditing && (meta.category === "Debit Note" || meta.category === "Credit Note") && (
@@ -51,7 +52,7 @@ export function VoucherActionBar({
             <span className="sm:hidden">Orig. Inv.</span>
           </button>
         )}
-        {meta.family === "invoice" && meta.category !== "Purchase" && (
+        {meta.family === "invoice" && (
           <button
             data-entry-action="true"
             onClick={onPreview}

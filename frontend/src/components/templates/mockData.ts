@@ -62,7 +62,7 @@ export const MOCK_INVOICE_DATA: InvoiceData = {
 
   taxBreakdown: [
     {
-      hsnSac: "8302",
+      taxRate: "18%",
       taxableValue: 3805.0,
       igstRate: 18,
       igstAmount: 684.9,

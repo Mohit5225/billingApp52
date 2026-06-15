@@ -281,11 +281,18 @@ export function VoucherWorkbench({
         };
       });
 
-    // Build HSN-level tax breakdown
-    const hsnMap = new Map<string, { taxableValue: number; igstRate: number; igstAmount: number; cgstRate: number; cgstAmount: number; sgstRate: number; sgstAmount: number }>();
+    // Build Tax-rate level breakdown
+    const taxMap = new Map<string, { taxableValue: number; igstRate: number; igstAmount: number; cgstRate: number; cgstAmount: number; sgstRate: number; sgstAmount: number }>();
     for (const line of lineItems) {
-      const hsn = line.hsnSac || "—";
-      const existing = hsnMap.get(hsn) || { taxableValue: 0, igstRate: 0, igstAmount: 0, cgstRate: 0, cgstAmount: 0, sgstRate: 0, sgstAmount: 0 };
+      const igstR = line.igstRate || 0;
+      const cgstR = line.cgstRate || 0;
+      const sgstR = line.sgstRate || 0;
+      
+      let rateKey = "0%";
+      if (igstR > 0) rateKey = `${igstR}%`;
+      else if (cgstR + sgstR > 0) rateKey = `${cgstR + sgstR}%`;
+
+      const existing = taxMap.get(rateKey) || { taxableValue: 0, igstRate: 0, igstAmount: 0, cgstRate: 0, cgstAmount: 0, sgstRate: 0, sgstAmount: 0 };
       existing.taxableValue += line.taxableAmount;
       existing.igstRate = line.igstRate || existing.igstRate;
       existing.igstAmount += line.igstAmount || 0;
@@ -293,11 +300,11 @@ export function VoucherWorkbench({
       existing.cgstAmount += line.cgstAmount || 0;
       existing.sgstRate = line.sgstRate || existing.sgstRate;
       existing.sgstAmount += line.sgstAmount || 0;
-      hsnMap.set(hsn, existing);
+      taxMap.set(rateKey, existing);
     }
 
-    const taxBreakdown = Array.from(hsnMap.entries()).map(([hsn, data]) => ({
-      hsnSac: hsn,
+    const taxBreakdown = Array.from(taxMap.entries()).map(([rateKey, data]) => ({
+      taxRate: rateKey,
       taxableValue: data.taxableValue,
       igstRate: data.igstRate || undefined,
       igstAmount: data.igstAmount || undefined,
@@ -309,6 +316,45 @@ export function VoucherWorkbench({
     }));
 
     const partyLedger = ledgers.find((l) => l.id === form.party_ledger_id);
+    const isPurchase = meta.category === "Purchase" || meta.category === "Debit Note";
+
+    const firmAsCompany = {
+      name: firmDetails.name,
+      address: firmDetails.address,
+      phone: firmDetails.phone,
+      email: firmDetails.email,
+      gstin: firmDetails.gstin,
+      pan: firmDetails.pan,
+      state: firmDetails.state,
+    };
+
+    const partyAsCompany = {
+      name: partyLedger?.name || "—",
+      address: partyLedger?.party_details?.address || undefined,
+      phone: undefined,
+      email: undefined,
+      gstin: partyLedger?.party_details?.gstin || undefined,
+      pan: undefined,
+      state: partyLedger?.party_details?.state || undefined,
+    };
+
+    const firmAsParty = {
+      name: firmDetails.name,
+      address: firmDetails.address,
+      phone: firmDetails.phone,
+      gstin: firmDetails.gstin,
+      state: firmDetails.state,
+      placeOfSupply: firmDetails.state,
+    };
+
+    const partyAsParty = {
+      name: partyLedger?.name || "—",
+      address: partyLedger?.party_details?.address || undefined,
+      phone: undefined,
+      gstin: partyLedger?.party_details?.gstin || undefined,
+      state: partyLedger?.party_details?.state || undefined,
+      placeOfSupply: partyLedger?.party_details?.state || undefined,
+    };
 
     return {
       type: categoryToType[meta.category] || "TAX INVOICE",
@@ -316,23 +362,8 @@ export function VoucherWorkbench({
       invoiceDate: form.voucher_date
         ? new Date(form.voucher_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
         : "—",
-      company: {
-        name: firmDetails.name,
-        address: firmDetails.address,
-        phone: firmDetails.phone,
-        email: firmDetails.email,
-        gstin: firmDetails.gstin,
-        pan: firmDetails.pan,
-        state: firmDetails.state,
-      },
-      party: {
-        name: partyLedger?.name || "—",
-        address: partyLedger?.party_details?.address || undefined,
-        phone: undefined,
-        gstin: partyLedger?.party_details?.gstin || undefined,
-        state: partyLedger?.party_details?.state || undefined,
-        placeOfSupply: partyLedger?.party_details?.state || undefined,
-      },
+      company: isPurchase ? partyAsCompany : firmAsCompany,
+      party: isPurchase ? firmAsParty : partyAsParty,
       items: lineItems,
       taxBreakdown,
       subtotal: invoiceTotals.taxable,
@@ -341,7 +372,7 @@ export function VoucherWorkbench({
       sgstTotal: invoiceTotals.sgst || undefined,
       grandTotal: invoiceTotals.grandTotal + (form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0),
       totalInWords: numberToWords(invoiceTotals.grandTotal + (form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0)),
-      bankDetails: firmDetails.bankName
+      bankDetails: (!isPurchase && firmDetails.bankName)
         ? {
           bankName: firmDetails.bankName,
           branch: firmDetails.branchName || "",
@@ -457,6 +488,28 @@ export function VoucherWorkbench({
     }
   }
 
+  async function verifyInvoice(invoiceNo: string): Promise<boolean> {
+    if (!activeFirmId || !form.party_ledger_id) {
+      throw new Error("Please select a party first.");
+    }
+    const categoryToFetch = meta.category === "Debit Note" ? "Purchase" : "Sales";
+    const params = new URLSearchParams({
+      firm_id: activeFirmId,
+      category: categoryToFetch,
+      voucher_number: invoiceNo,
+    });
+    
+    const response = await apiRequest<any[]>(supabase, `/api/vouchers/?${params.toString()}`);
+    if (response && response.length > 0) {
+      const invoice = response[0];
+      if (invoice.party_ledger_id !== form.party_ledger_id) {
+        throw new Error("This invoice does not belong to the selected party.");
+      }
+      return true;
+    }
+    throw new Error("Original invoice not found. Please verify the number.");
+  }
+
   if (!depsReady || isLoading) {
     return (
       <div className="flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-2rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden p-6 space-y-6">
@@ -568,7 +621,13 @@ export function VoucherWorkbench({
         isSubmitting={isSubmitting}
         isLoading={isLoading}
         voucherId={voucherId}
-        onCancel={() => router.back()}
+        onCancel={() => {
+          if (isEditing) {
+            router.push(`/dashboard/vouchers/${voucherId}`);
+          } else {
+            router.push("/dashboard");
+          }
+        }}
         onSubmit={() => void submit()}
         onPreview={() => setShowPreview(true)}
         onOpenNoteDetails={() => setShowNoteDetailsModal(true)}
@@ -590,6 +649,7 @@ export function VoucherWorkbench({
           form={form}
           setForm={setForm}
           onAutoFill={handleAutoFill}
+          onVerifyInvoice={verifyInvoice}
           isCreditNote={meta.category === "Credit Note"}
         />
       )}

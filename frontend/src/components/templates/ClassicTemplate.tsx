@@ -652,9 +652,9 @@ function FooterSections({ data }: { data: PreparedInvoice["original"] }) {
         </tbody>
       </table>
 
-      {/* HSN Tax Breakdown */}
+      {/* Tax Breakdown */}
       {data.taxBreakdown.length > 0 && (
-        <HsnBreakdownTable data={data} />
+        <TaxBreakdownTable data={data} />
       )}
 
       {/* Tax in words */}
@@ -804,8 +804,8 @@ function FooterSections({ data }: { data: PreparedInvoice["original"] }) {
   );
 }
 
-/* ─── HSN Tax Breakdown Table ──────────────────── */
-function HsnBreakdownTable({ data }: { data: PreparedInvoice["original"] }) {
+/* ─── Tax Breakdown Table ──────────────────── */
+function TaxBreakdownTable({ data }: { data: PreparedInvoice["original"] }) {
   const hasIGST = data.igstTotal != null && data.igstTotal > 0;
   const hasCGST = data.cgstTotal != null && data.cgstTotal > 0;
   const hasSGST = data.sgstTotal != null && data.sgstTotal > 0;
@@ -823,7 +823,7 @@ function HsnBreakdownTable({ data }: { data: PreparedInvoice["original"] }) {
       <thead>
         <tr style={{ background: HEADER_BG }}>
           <th style={{ border: BORDER, padding: CELL_PAD, textAlign: "left", fontWeight: 700, fontSize: "10px" }}>
-            HSN / SAC
+            Tax Rate
           </th>
           <th style={{ border: BORDER, padding: CELL_PAD, textAlign: "right", fontWeight: 700, fontSize: "10px" }}>
             Taxable Value
@@ -854,7 +854,7 @@ function HsnBreakdownTable({ data }: { data: PreparedInvoice["original"] }) {
       <tbody>
         {data.taxBreakdown.map((row, idx) => (
           <tr key={idx}>
-            <td style={{ border: BORDER, padding: CELL_PAD }}>{row.hsnSac}</td>
+            <td style={{ border: BORDER, padding: CELL_PAD }}>{row.taxRate}</td>
             <td style={{ border: BORDER, padding: CELL_PAD, textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
               {formatCell(row.taxableValue, "currency")}
             </td>

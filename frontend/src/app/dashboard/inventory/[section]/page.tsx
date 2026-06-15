@@ -683,7 +683,14 @@ export default function InventorySectionPage() {
                         step="0.01"
                         placeholder="0"
                         value={itemForm.opening_quantity || ""}
-                        onChange={(e) => setItemForm((p) => ({ ...p, opening_quantity: Number(e.target.value) }))}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setItemForm((p) => ({ 
+                            ...p, 
+                            opening_quantity: val,
+                            opening_value: parseFloat((val * p.opening_rate).toFixed(2))
+                          }));
+                        }}
                       />
                     </div>
                     <div>
@@ -693,7 +700,14 @@ export default function InventorySectionPage() {
                         step="0.01"
                         placeholder="0.00"
                         value={itemForm.opening_rate || ""}
-                        onChange={(e) => setItemForm((p) => ({ ...p, opening_rate: Number(e.target.value) }))}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          setItemForm((p) => ({ 
+                            ...p, 
+                            opening_rate: val,
+                            opening_value: parseFloat((p.opening_quantity * val).toFixed(2))
+                          }));
+                        }}
                       />
                     </div>
                     <div>

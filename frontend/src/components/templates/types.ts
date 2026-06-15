@@ -55,7 +55,7 @@ export interface InvoiceBankDetails {
 }
 
 export interface InvoiceTaxBreakdownRow {
-  hsnSac: string;
+  taxRate: string;
   taxableValue: number;
   igstRate?: number;
   igstAmount?: number;
