@@ -330,7 +330,7 @@ export function VoucherWorkbench({
 
     const partyAsCompany = {
       name: partyLedger?.name || "—",
-      address: partyLedger?.party_details?.address || undefined,
+      address: partyLedger?.party_details?.address || "",
       phone: undefined,
       email: undefined,
       gstin: partyLedger?.party_details?.gstin || undefined,
