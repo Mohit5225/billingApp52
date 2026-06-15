@@ -41,12 +41,16 @@ export default function VoucherDetailsPage() {
     setMessage(null);
     
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("firms")
         .update({ permanent_discount_toggle: newValue })
-        .eq("id", activeFirmId);
+        .eq("id", activeFirmId)
+        .select();
         
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("No firm was updated. You may not have permission.");
+      }
       setMessage({ text: `Permanent discount ${newValue ? "enabled" : "disabled"}`, type: 'success' });
       setTimeout(() => setMessage(null), 3000);
     } catch (err) {

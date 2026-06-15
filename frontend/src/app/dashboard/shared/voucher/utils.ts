@@ -8,14 +8,14 @@ export function round2(value: number) {
 export function recalcLine(line: InvoiceLineState, item: ItemDetail | undefined, taxMode: TaxMode) {
   const quantity = Number(line.quantity || 0);
   const unitPrice = Number(line.unit_price || 0);
-  const discount = Number(line.discount_amount || 0);
-  const taxable = round2(Math.max(quantity * unitPrice - discount, 0));
+  const discountPercent = Number(line.discount_percent || 0);
+  const grossAmount = quantity * unitPrice;
+  const discountAmount = round2(grossAmount * (discountPercent / 100));
+  const taxable = round2(Math.max(grossAmount - discountAmount, 0));
 
   let igstRate = 0;
   let cgstRate = 0;
   let sgstRate = 0;
-  const cessPercent = item?.cess_percent || 0;
-  const cessAmountPerUnit = item?.cess_amount_per_unit || 0;
 
   if (item?.taxability === "Taxable") {
     if (taxMode === "inter") {
@@ -29,20 +29,17 @@ export function recalcLine(line: InvoiceLineState, item: ItemDetail | undefined,
   const igstAmount = round2((taxable * igstRate) / 100);
   const cgstAmount = round2((taxable * cgstRate) / 100);
   const sgstAmount = round2((taxable * sgstRate) / 100);
-  const cessAmount = round2((taxable * cessPercent) / 100 + quantity * cessAmountPerUnit);
 
   return {
     ...line,
+    discount_amount: discountAmount,
     taxable_amount: taxable,
     igst_rate: igstRate,
     cgst_rate: cgstRate,
     sgst_rate: sgstRate,
-    cess_percent: cessPercent,
-    cess_amount_per_unit: cessAmountPerUnit,
     igst_amount: igstAmount,
     cgst_amount: cgstAmount,
     sgst_amount: sgstAmount,
-    cess_amount: cessAmount,
   };
 }
 

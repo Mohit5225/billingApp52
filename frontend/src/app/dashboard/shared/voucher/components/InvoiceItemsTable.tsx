@@ -72,7 +72,7 @@ export function InvoiceItemsTable({
             <div>HSN/SAC</div>
             <div>Qty</div>
             <div>Rate (₹)</div>
-            {showDiscount && <div>Discount (₹)</div>}
+            {showDiscount && <div>Discount (%)</div>}
             <div className="text-right">Amount (₹)</div>
             <div className="w-10" />
           </div>
@@ -146,9 +146,9 @@ export function InvoiceItemsTable({
                         disabled={readOnly}
                         type="number"
                         step="0.01"
-                        value={line.discount_amount || ""}
-                        onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
-                        placeholder="0.00"
+                        value={line.discount_percent || ""}
+                        onChange={(e) => updateInvoiceLine(index, { discount_percent: Number(e.target.value) })}
+                        placeholder="0"
                         className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-semibold text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
                       />
                     </div>

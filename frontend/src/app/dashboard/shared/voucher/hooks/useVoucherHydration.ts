@@ -56,17 +56,15 @@ export function useVoucherHydration({
             item_id: line.item_id,
             quantity: line.quantity,
             unit_price: line.unit_price,
+            discount_percent: line.quantity * line.unit_price > 0 ? Number(((line.discount_amount / (line.quantity * line.unit_price)) * 100).toFixed(2)) : 0,
             discount_amount: line.discount_amount,
             taxable_amount: line.taxable_amount,
             igst_rate: line.igst_rate,
             cgst_rate: line.cgst_rate,
             sgst_rate: line.sgst_rate,
-            cess_percent: line.cess_percent,
-            cess_amount_per_unit: line.cess_amount_per_unit,
             igst_amount: line.igst_amount,
             cgst_amount: line.cgst_amount,
             sgst_amount: line.sgst_amount,
-            cess_amount: line.cess_amount,
           }));
           setInvoiceLines(lines.length > 0 ? lines : [{ ...EMPTY_INVOICE_LINE }]);
 

@@ -454,11 +454,18 @@ def _get_ledger_statement(ledger_id: str, from_date: Optional[date], to_date: Op
 
         particulars = ", ".join(counterparty_names) if counterparty_names else str(voucher.get("narration") or "Voucher entry")
 
+        category_label = voucher["category"]
+        if category_label == "Contra":
+            if debit_amount > credit_amount:
+                category_label = "Contra (Receipt)"
+            elif credit_amount > debit_amount:
+                category_label = "Contra (Payment)"
+
         rows.append({
             "voucher_id": voucher["id"],
             "voucher_number": voucher["voucher_number"],
             "voucher_date": voucher["voucher_date"],
-            "category": voucher["category"],
+            "category": category_label,
             "particulars": particulars,
             "narration": voucher.get("narration"),
             "debit_amount": float(debit_amount),

@@ -8,7 +8,6 @@ type InvoiceTotals = {
   igst: number;
   cgst: number;
   sgst: number;
-  cess: number;
   grandTotal: number;
 };
 
@@ -88,7 +87,6 @@ export function buildVoucherPayload({
         igst: ["igst", "inter", "integrated"],
         cgst: ["cgst", "central"],
         sgst: ["sgst", "state", "utgst"],
-        cess: ["cess"],
       };
       const searchTerms = aliases[type.toLowerCase()] || [type.toLowerCase()];
       const found = ledgers.find(
@@ -157,14 +155,6 @@ export function buildVoucherPayload({
           });
         }
       }
-      if (invoiceTotals.cess > 0) {
-        accountingLines.push({
-          ledger_id: getTaxLedgerId("cess"),
-          line_number: lineNumber++,
-          debit_amount: 0,
-          credit_amount: invoiceTotals.cess,
-        });
-      }
 
       if (form.additional_ledgers) {
         for (const al of form.additional_ledgers) {
@@ -211,14 +201,6 @@ export function buildVoucherPayload({
           });
         }
       }
-      if (invoiceTotals.cess > 0) {
-        accountingLines.push({
-          ledger_id: getTaxLedgerId("cess"),
-          line_number: lineNumber++,
-          debit_amount: invoiceTotals.cess,
-          credit_amount: 0,
-        });
-      }
 
       if (form.additional_ledgers) {
         for (const al of form.additional_ledgers) {
@@ -247,6 +229,8 @@ export function buildVoucherPayload({
       voucher_date: form.voucher_date,
       narration: form.narration || null,
       party_ledger_id: partyLedgerId,
+      original_invoice_number: form.original_invoice_number || null,
+      original_invoice_date: form.original_invoice_date || null,
       accounting_lines: accountingLines,
       inventory_lines: finalInvoiceLines.map((line, index) => ({
         ...line,

@@ -11,6 +11,7 @@ type VoucherActionBarProps = {
   onCancel: () => void;
   onSubmit: () => void;
   onPreview: () => void;
+  onOpenNoteDetails?: () => void;
 };
 
 export function VoucherActionBar({
@@ -23,6 +24,7 @@ export function VoucherActionBar({
   onCancel,
   onSubmit,
   onPreview,
+  onOpenNoteDetails,
 }: VoucherActionBarProps) {
   return (
     <div className="shrink-0 flex items-center justify-between border-t border-slate-500 bg-white px-5 py-4 sm:px-7 sm:py-5">
@@ -36,6 +38,19 @@ export function VoucherActionBar({
       </Link>
       <div className="hidden sm:block" />
       <div className="flex items-center gap-3">
+        {onOpenNoteDetails && isEditing && (meta.category === "Debit Note" || meta.category === "Credit Note") && (
+          <button
+            type="button"
+            onClick={onOpenNoteDetails}
+            className="flex items-center gap-2 rounded-lg border border-emerald-300 bg-emerald-50 px-3 sm:px-4 py-2.5 text-sm font-semibold text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 hover:shadow"
+          >
+            <svg className="h-4 w-4 shrink-0 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="hidden sm:inline">Edit Original Invoice Details</span>
+            <span className="sm:hidden">Orig. Inv.</span>
+          </button>
+        )}
         {meta.family === "invoice" && meta.category !== "Purchase" && (
           <button
             data-entry-action="true"

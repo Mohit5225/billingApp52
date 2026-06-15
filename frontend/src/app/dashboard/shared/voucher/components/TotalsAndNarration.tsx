@@ -14,7 +14,6 @@ type TotalsAndNarrationProps = {
     igst: number;
     cgst: number;
     sgst: number;
-    cess: number;
     grandTotal: number;
   };
   ledgers: LedgerDetail[];
@@ -201,22 +200,12 @@ export function TotalsAndNarration({
                   </div>
                 </>
               )}
-              {invoiceTotals.cess > 0 && (
-                <div className="flex items-center justify-between py-1">
-                  <span className="text-[15px] font-bold text-slate-600">Cess</span>
-                  <span className="mono-num text-[17px] font-bold text-slate-900">
-                    {formatCurrency(invoiceTotals.cess)}
-                  </span>
-                </div>
-              )}
-
               {invoiceTotals.igst === 0 &&
                 invoiceTotals.cgst === 0 &&
-                invoiceTotals.sgst === 0 &&
-                invoiceTotals.cess === 0 && (
-                  <div className="flex items-center justify-between py-1">
-                    <span className="text-[15px] font-bold text-slate-600">Total Tax (0%)</span>
-                    <span className="mono-num text-[17px] font-bold text-slate-900">₹0.00</span>
+                invoiceTotals.sgst === 0 && (
+                  <div className="flex justify-between items-center py-2 px-3 bg-slate-50/50 rounded-lg">
+                    <span className="text-[15px] font-bold text-slate-400 italic">No tax</span>
+                    <span className="text-[15px] font-bold text-slate-400 italic">--</span>
                   </div>
                 )}
 

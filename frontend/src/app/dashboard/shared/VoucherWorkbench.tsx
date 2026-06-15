@@ -15,6 +15,7 @@ import { useDateFilter } from "@/context/DateFilterContext";
 import { round2, numberToWords, recalcLine } from "./voucher/utils";
 import { InvoicePreviewOverlay } from "./voucher/components/InvoicePreviewOverlay";
 import { BillWiseDetailsModal } from "./voucher/components/BillWiseDetailsModal";
+import { DebitCreditNoteDetailsModal } from "./voucher/components/DebitCreditNoteDetailsModal";
 
 import {
   VoucherSlug,
@@ -73,6 +74,7 @@ export function VoucherWorkbench({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showBillWise, setShowBillWise] = useState(false);
+  const [showNoteDetailsModal, setShowNoteDetailsModal] = useState(false);
 
   const itemsScrollRef = useRef<HTMLDivElement>(null);
   const prevInvoiceLinesLength = useRef(invoiceLines.length);
@@ -172,14 +174,12 @@ export function VoucherWorkbench({
     const igst = round2(invoiceLines.reduce((sum, line) => sum + line.igst_amount, 0));
     const cgst = round2(invoiceLines.reduce((sum, line) => sum + line.cgst_amount, 0));
     const sgst = round2(invoiceLines.reduce((sum, line) => sum + line.sgst_amount, 0));
-    const cess = round2(invoiceLines.reduce((sum, line) => sum + line.cess_amount, 0));
     return {
       taxable,
       igst,
       cgst,
       sgst,
-      cess,
-      grandTotal: round2(taxable + igst + cgst + sgst + cess),
+      grandTotal: round2(taxable + igst + cgst + sgst),
     };
   }, [invoiceLines]);
 
@@ -278,7 +278,6 @@ export function VoucherWorkbench({
           igstAmount: line.igst_amount || undefined,
           cgstAmount: line.cgst_amount || undefined,
           sgstAmount: line.sgst_amount || undefined,
-          cessAmount: line.cess_amount || undefined,
         };
       });
 
@@ -340,7 +339,6 @@ export function VoucherWorkbench({
       igstTotal: invoiceTotals.igst || undefined,
       cgstTotal: invoiceTotals.cgst || undefined,
       sgstTotal: invoiceTotals.sgst || undefined,
-      cessTotal: invoiceTotals.cess || undefined,
       grandTotal: invoiceTotals.grandTotal + (form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0),
       totalInWords: numberToWords(invoiceTotals.grandTotal + (form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0)),
       bankDetails: firmDetails.bankName
@@ -410,6 +408,55 @@ export function VoucherWorkbench({
     }
   }
 
+  async function handleAutoFill(invoiceNo: string) {
+    if (!activeFirmId || !form.party_ledger_id) return;
+    try {
+      setIsLoading(true);
+      const categoryToFetch = meta.category === "Debit Note" ? "Purchase" : "Sales";
+      const params = new URLSearchParams({
+        firm_id: activeFirmId,
+        category: categoryToFetch,
+        voucher_number: invoiceNo,
+        party_ledger_id: form.party_ledger_id,
+      });
+
+      const response = await apiRequest<any[]>(supabase, `/api/vouchers/?${params.toString()}`);
+      if (response && response.length > 0) {
+        const originalInvoiceId = response[0].id;
+        const detail = await apiRequest<VoucherDetail>(supabase, `/api/vouchers/${originalInvoiceId}`);
+        
+        // Auto-fill form details
+        setForm((prev) => ({
+          ...prev,
+        }));
+
+        if (detail.inventory_lines && detail.inventory_lines.length > 0) {
+          setInvoiceLines(detail.inventory_lines.map(line => ({
+            ...EMPTY_INVOICE_LINE,
+            item_id: line.item_id,
+            quantity: line.quantity,
+            unit_price: line.unit_price,
+            discount_amount: line.discount_amount,
+            taxable_amount: line.taxable_amount,
+            igst_rate: line.igst_rate,
+            cgst_rate: line.cgst_rate,
+            sgst_rate: line.sgst_rate,
+            igst_amount: line.igst_amount,
+            cgst_amount: line.cgst_amount,
+            sgst_amount: line.sgst_amount,
+          })));
+        }
+        showToast("Auto-filled from original invoice successfully!", "success");
+      } else {
+        showToast("Original invoice not found. Please verify the number.", "error");
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Failed to fetch original invoice", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   if (!depsReady || isLoading) {
     return (
       <div className="flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-2rem)] lg:min-h-[800px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden p-6 space-y-6">
@@ -460,6 +507,7 @@ export function VoucherWorkbench({
         setForm={setForm}
         globalFromDate={globalFromDate}
         globalToDate={globalToDate}
+        onOpenNoteDetails={() => setShowNoteDetailsModal(true)}
       />
 
       {/* ── Zone B: Party / Ledger / Payment Table ── */}
@@ -475,6 +523,7 @@ export function VoucherWorkbench({
         taxMode={taxMode}
         readOnly={readOnly}
         onOpenBillWise={() => setShowBillWise(true)}
+        onPartySelected={() => setShowNoteDetailsModal(true)}
       />
 
       {/* ── Zone C: Items Table ── */}
@@ -522,6 +571,7 @@ export function VoucherWorkbench({
         onCancel={() => router.back()}
         onSubmit={() => void submit()}
         onPreview={() => setShowPreview(true)}
+        onOpenNoteDetails={() => setShowNoteDetailsModal(true)}
       />
 
       {/* ── Invoice Preview Overlay ── */}
@@ -529,6 +579,18 @@ export function VoucherWorkbench({
         <InvoicePreviewOverlay
           buildPreviewData={buildPreviewData}
           onClose={() => setShowPreview(false)}
+        />
+      )}
+
+      {/* ── Debit/Credit Note Details Modal ── */}
+      {(meta.category === "Debit Note" || meta.category === "Credit Note") && (
+        <DebitCreditNoteDetailsModal
+          open={showNoteDetailsModal}
+          onClose={() => setShowNoteDetailsModal(false)}
+          form={form}
+          setForm={setForm}
+          onAutoFill={handleAutoFill}
+          isCreditNote={meta.category === "Credit Note"}
         />
       )}
 

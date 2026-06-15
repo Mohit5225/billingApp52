@@ -576,26 +576,6 @@ function ItemsTable({
                 </td>
               </tr>
             )}
-            {data.cessTotal != null && data.cessTotal > 0 && (
-              <tr>
-                <td
-                  colSpan={columns.length - 1}
-                  style={{ border: BORDER, padding: CELL_PAD, textAlign: "right", fontWeight: 700 }}
-                >
-                  CESS
-                </td>
-                <td
-                  style={{
-                    border: BORDER,
-                    padding: CELL_PAD,
-                    textAlign: "right",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  {formatCell(data.cessTotal, "currency")}
-                </td>
-              </tr>
-            )}
 
             {/* Grand Total */}
             <tr style={{ background: "#e8f0e8", fontWeight: 800 }}>

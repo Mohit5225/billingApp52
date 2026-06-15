@@ -27,9 +27,7 @@ import type {
 
 /**
  * Scans invoice data to determine which optional columns are active.
- * Returns columns in the legally correct GST order:
- *   Sr | Description | HSN* | Qty | Rate | Discount* | Taxable Amt | GST% | CESS* | Amount
- *
+ *   Sr | Description | HSN* | Qty | Rate | Discount* | Taxable Amt | GST% | Amount
  * Uses parseFloat() for safety — form data may arrive as strings.
  */
 export function detectColumns(data: InvoiceData): ColumnDef[] {
@@ -41,11 +39,6 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
   );
   const hasDiscount = items.some(
     (i) => i.discount != null && parseFloat(String(i.discount)) > 0
-  );
-  const hasCess = items.some(
-    (i) =>
-      (i.cessAmount != null && parseFloat(String(i.cessAmount)) > 0) ||
-      (i.cessRate != null && parseFloat(String(i.cessRate)) > 0)
   );
 
   // Determine GST type: IGST (inter-state) vs CGST+SGST (intra-state)
@@ -139,17 +132,6 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
     },
   });
 
-  if (hasCess) {
-    columns.push({
-      key: "cessAmount",
-      label: "CESS",
-      width: "",
-      align: "right",
-      format: "currency",
-      bucket: "amount",
-    });
-  }
-
   // Final Amount = taxable + taxes
   columns.push({
     key: "lineTotal",
@@ -163,8 +145,7 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
       const igst = parseFloat(String(item.igstAmount || 0));
       const cgst = parseFloat(String(item.cgstAmount || 0));
       const sgst = parseFloat(String(item.sgstAmount || 0));
-      const cess = parseFloat(String(item.cessAmount || 0));
-      return taxable + igst + cgst + sgst + cess;
+      return taxable + igst + cgst + sgst;
     },
   });
 
@@ -175,8 +156,7 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
    2. THREE-BUCKET COLUMN WIDTH CALCULATION
    ═══════════════════════════════════════════════════
 
-   FIXED columns  → Small, hardcoded percentages (Sr, Qty, HSN, GST%)
-   AMOUNT columns → Medium, hardcoded minimums (Rate, Discount, Taxable, CESS, Amount)
+   AMOUNT columns → Medium, hardcoded minimums (Rate, Discount, Taxable, Amount)
    FLEX columns   → Description gets whatever remains
 
    This produces a reasonable table at any column count (4 to 10+).
@@ -193,7 +173,6 @@ const AMOUNT_WIDTHS: Record<string, number> = {
   rate: 10,
   discount: 8,
   taxableAmount: 11,
-  cessAmount: 7,
   lineTotal: 11,
 };
 

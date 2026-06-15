@@ -84,7 +84,7 @@ export function MobileItemsWindow({
 
   const validItemsCount = invoiceLines.filter(l => l.item_id).length;
   const totalAmount = invoiceLines.reduce((sum, line) => {
-    return sum + (line.taxable_amount || 0) + (line.igst_amount || 0) + (line.cgst_amount || 0) + (line.sgst_amount || 0) + (line.cess_amount || 0);
+    return sum + (line.taxable_amount || 0) + (line.igst_amount || 0) + (line.cgst_amount || 0) + (line.sgst_amount || 0);
   }, 0);
 
   return createPortal(
@@ -206,12 +206,6 @@ export function MobileItemsWindow({
                           </div>
                         </>
                       )}
-                      {(line.cess_amount > 0) && (
-                        <div className="flex flex-col mt-1">
-                          <span className={`text-[9px] font-bold uppercase ${isEditing ? 'text-[#5d957b]/80' : 'text-blue-500'}`}>CESS</span>
-                          <span className={`text-xs font-semibold mono-num ${isEditing ? 'text-slate-700' : 'text-blue-800'}`}>{formatCurrency(line.cess_amount)}</span>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -263,19 +257,19 @@ export function MobileItemsWindow({
                 {/* DISCOUNT */}
                 {showDiscount && (
                   <div className={`flex flex-col p-2.5 px-3 relative ${isEditing ? 'bg-white' : 'bg-white'}`}>
-                    <span className={`text-[11px] font-bold uppercase tracking-wider mb-1 text-slate-500`}>DISCOUNT (₹)</span>
+                    <span className={`text-[11px] font-bold uppercase tracking-wider mb-1 text-slate-500`}>DISCOUNT (%)</span>
                     {isEditing ? (
                       <input 
                         type="number" 
                         step="0.01"
                         className="w-full bg-transparent text-[14px] font-semibold text-slate-800 outline-none mono-num placeholder:text-slate-300"
-                        value={line.discount_amount || ""}
-                        onChange={(e) => updateInvoiceLine(index, { discount_amount: Number(e.target.value) })}
-                        placeholder="0.00"
+                        value={line.discount_percent || ""}
+                        onChange={(e) => updateInvoiceLine(index, { discount_percent: Number(e.target.value) })}
+                        placeholder="0"
                         disabled={readOnly}
                       />
                     ) : (
-                      <span className={`text-[14px] font-semibold mono-num ${isEditing ? 'text-slate-800' : 'text-slate-700'}`}>{line.discount_amount || "0.00"}</span>
+                      <span className={`text-[14px] font-semibold mono-num ${isEditing ? 'text-slate-800' : 'text-slate-700'}`}>{line.discount_percent || "0"}%</span>
                     )}
                     {!isEditing && <div className="absolute inset-0 cursor-pointer" onClick={() => toggleEditing(index)} />}
                   </div>

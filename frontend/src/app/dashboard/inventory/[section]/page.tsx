@@ -53,14 +53,10 @@ type ItemForm = {
   uom_id: string;
   default_price: number;
   is_gst_applicable: boolean;
-  is_rcm: boolean;
   taxability: "Taxable" | "Nil Rated" | "Exempt" | "Zero Rated" | "Non-GST";
   igst_rate: number;
   cgst_rate: number;
   sgst_rate: number;
-  cess_type: "none" | "ad_valorem" | "specific" | "compound";
-  cess_percent: number;
-  cess_amount_per_unit: number;
   opening_quantity: number;
   opening_rate: number;
   opening_value: number;
@@ -91,14 +87,10 @@ const EMPTY_ITEM: ItemForm = {
   uom_id: "",
   default_price: 0,
   is_gst_applicable: true,
-  is_rcm: false,
   taxability: "Taxable",
   igst_rate: 0,
   cgst_rate: 0,
   sgst_rate: 0,
-  cess_type: "none",
-  cess_percent: 0,
-  cess_amount_per_unit: 0,
   opening_quantity: 0,
   opening_rate: 0,
   opening_value: 0,
@@ -610,18 +602,6 @@ export default function InventorySectionPage() {
                           <option value="Non-GST">Non-GST</option>
                         </SelectInput>
                       </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cess type</label>
-                        <SelectInput
-                          value={itemForm.cess_type}
-                          onChange={(e) => setItemForm((p) => ({ ...p, cess_type: e.target.value as ItemForm["cess_type"] }))}
-                        >
-                          <option value="none">No cess</option>
-                          <option value="ad_valorem">Ad valorem (%)</option>
-                          <option value="specific">Specific (per unit)</option>
-                          <option value="compound">Compound</option>
-                        </SelectInput>
-                      </div>
                     </div>
 
                     {itemForm.taxability === "Taxable" && (
@@ -664,36 +644,6 @@ export default function InventorySectionPage() {
                       </div>
                     )}
 
-                    {itemForm.cess_type !== "none" && (
-                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cess %</label>
-                          <TextInput
-                            type="number"
-                            step="0.01"
-                            placeholder="0"
-                            value={itemForm.cess_percent || ""}
-                            onChange={(e) => setItemForm((p) => ({ ...p, cess_percent: Number(e.target.value) }))}
-                          />
-                        </div>
-                        <div>
-                          <label className="mb-1.5 block text-xs font-semibold text-slate-500">Cess per unit (₹)</label>
-                          <TextInput
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={itemForm.cess_amount_per_unit || ""}
-                            onChange={(e) => setItemForm((p) => ({ ...p, cess_amount_per_unit: Number(e.target.value) }))}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <Toggle
-                      checked={itemForm.is_rcm}
-                      label="Reverse charge applicable"
-                      onChange={(next) => setItemForm((p) => ({ ...p, is_rcm: next }))}
-                    />
                   </div>
                 )}
               </div>
@@ -827,14 +777,10 @@ export default function InventorySectionPage() {
                         uom_id: item.uom_id,
                         default_price: item.default_price,
                         is_gst_applicable: item.is_gst_applicable,
-                        is_rcm: item.is_rcm,
                         taxability: item.taxability,
                         igst_rate: item.igst_rate,
                         cgst_rate: item.cgst_rate,
                         sgst_rate: item.sgst_rate,
-                        cess_type: item.cess_type,
-                        cess_percent: item.cess_percent,
-                        cess_amount_per_unit: item.cess_amount_per_unit,
                         opening_quantity: item.opening_quantity,
                         opening_rate: item.opening_rate,
                         opening_value: item.opening_value,
@@ -934,9 +880,11 @@ export default function InventorySectionPage() {
         backHref="/dashboard/inventory"
       />
 
-      <SurfaceCard title="Find records" description="Search stays local to this working view so you can move quickly without jumping screens.">
-        <TextInput placeholder={`Search ${section.replace("-", " ")}`} value={search} onChange={(event) => setSearch(event.target.value)} />
-      </SurfaceCard>
+      {!(isFormOpen && (section === "items" || section === "uom")) && (
+        <SurfaceCard title="Find records" description="Search stays local to this working view so you can move quickly without jumping screens.">
+          <TextInput placeholder={`Search ${section.replace("-", " ")}`} value={search} onChange={(event) => setSearch(event.target.value)} />
+        </SurfaceCard>
+      )}
 
       {isFormOpen && (section === "items" || section === "uom") ? (
         editor

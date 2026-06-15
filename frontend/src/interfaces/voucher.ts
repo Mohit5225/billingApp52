@@ -52,17 +52,13 @@ export interface InventoryLine {
   igst_rate: number;
   cgst_rate: number;
   sgst_rate: number;
-  cess_percent: number;
-  cess_amount_per_unit: number;
   igst_amount: number;
   cgst_amount: number;
   sgst_amount: number;
-  cess_amount: number;
   item_name?: string;
   hsn_code?: string;
   uom?: string;
   taxability?: string;
-  is_rcm?: boolean;
 }
 
 export interface Voucher extends BaseEntity {
@@ -73,6 +69,8 @@ export interface Voucher extends BaseEntity {
   narration?: string | null;
   party_ledger_id?: string | null;
   is_cancelled: boolean;
+  original_invoice_number?: string | null;
+  original_invoice_date?: string | null;
 }
 
 export interface VoucherDetail extends Voucher {
@@ -88,6 +86,8 @@ export interface VoucherWritePayload {
   voucher_date: string;
   narration?: string | null;
   party_ledger_id?: string | null;
+  original_invoice_number?: string | null;
+  original_invoice_date?: string | null;
   accounting_lines: AccountingLine[];
   inventory_lines: InventoryLine[];
   bill_allocations?: BillAllocationCreate[];

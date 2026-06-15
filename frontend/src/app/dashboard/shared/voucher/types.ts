@@ -25,17 +25,15 @@ export type InvoiceLineState = {
   item_id: string;
   quantity: number;
   unit_price: number;
+  discount_percent: number;
   discount_amount: number;
   taxable_amount: number;
   igst_rate: number;
   cgst_rate: number;
   sgst_rate: number;
-  cess_percent: number;
-  cess_amount_per_unit: number;
   igst_amount: number;
   cgst_amount: number;
   sgst_amount: number;
-  cess_amount: number;
 };
 
 export type JournalLineState = {
@@ -71,6 +69,8 @@ export type FormState = {
   manual_tax_mode: TaxMode;
   additional_ledgers: AdditionalLedgerState[];
   bill_allocations: BillAllocationState[];
+  original_invoice_number: string;
+  original_invoice_date: string;
 };
 
 export const VOUCHER_META: Record<VoucherSlug, VoucherMeta> = {
@@ -144,23 +144,23 @@ export const getEmptyForm = (fromDate: string, toDate: string): FormState => ({
   manual_tax_mode: "intra",
   additional_ledgers: [],
   bill_allocations: [],
+  original_invoice_number: "",
+  original_invoice_date: "",
 });
 
 export const EMPTY_INVOICE_LINE: InvoiceLineState = {
   item_id: "",
   quantity: 0,
   unit_price: 0,
+  discount_percent: 0,
   discount_amount: 0,
   taxable_amount: 0,
   igst_rate: 0,
   cgst_rate: 0,
   sgst_rate: 0,
-  cess_percent: 0,
-  cess_amount_per_unit: 0,
   igst_amount: 0,
   cgst_amount: 0,
   sgst_amount: 0,
-  cess_amount: 0,
 };
 
 export const EMPTY_JOURNAL_LINE: JournalLineState = {

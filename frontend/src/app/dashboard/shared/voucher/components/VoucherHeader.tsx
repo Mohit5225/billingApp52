@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { Dispatch, SetStateAction } from "react";
-import { FormState } from "../types";
+import { FormState, VoucherMeta } from "../types";
 
 type VoucherHeaderProps = {
-  meta: { title: string };
+  meta: VoucherMeta;
   isEditing: boolean;
   readOnly: boolean;
   form: FormState;
   setForm: Dispatch<SetStateAction<FormState>>;
   globalFromDate: string;
   globalToDate: string;
+  onOpenNoteDetails?: () => void;
 };
 
 export function VoucherHeader({
@@ -20,6 +21,7 @@ export function VoucherHeader({
   setForm,
   globalFromDate,
   globalToDate,
+  onOpenNoteDetails,
 }: VoucherHeaderProps) {
   return (
     <div className="relative shrink-0 border-b border-slate-500 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-row flex-wrap items-center justify-between gap-y-4 md:flex-nowrap md:justify-start md:gap-x-8">
@@ -68,7 +70,9 @@ export function VoucherHeader({
       {/* Inputs */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto order-3 md:order-2 md:ml-12">
         <div className="flex flex-col gap-1 w-full sm:w-auto">
-          <label className="text-[14px] font-bold text-slate-700">Invoice No.</label>
+          <label className="text-[14px] font-bold text-slate-700">
+            {meta.category === "Debit Note" ? "Debit Note No." : meta.category === "Credit Note" ? "Credit Note No." : "Invoice No."}
+          </label>
           <input
             className="h-12 w-full sm:w-auto sm:min-w-[140px] sm:max-w-[300px] rounded-lg border border-slate-300 bg-white px-3.5 text-[17px] font-bold text-slate-900 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50"
             placeholder="e.g. 1"
@@ -80,7 +84,9 @@ export function VoucherHeader({
           />
         </div>
         <div className="flex flex-col gap-1 w-full sm:w-44">
-          <label className="text-[14px] font-bold text-slate-700">Invoice Date</label>
+          <label className="text-[14px] font-bold text-slate-700">
+            {meta.category === "Debit Note" ? "Debit Note Date" : meta.category === "Credit Note" ? "Credit Note Date" : "Invoice Date"}
+          </label>
           <input
             type="date"
             className="h-12 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-[17px] font-bold text-slate-900 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50"

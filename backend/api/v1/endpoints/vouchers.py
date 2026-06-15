@@ -130,7 +130,7 @@ def _build_inventory_line_payloads(
     item_ids = [str(line.item_id) for line in lines]
     items_resp = (
         supabase.table("items")
-        .select("id, firm_id, name, hsn_code, uom_id, taxability, is_rcm")
+        .select("id, firm_id, name, hsn_code, uom_id, taxability")
         .in_("id", item_ids)
         .execute()
     ).data or []
@@ -198,7 +198,6 @@ def _build_inventory_line_payloads(
             "hsn_code": hsn_code,
             "uom": uom_name,
             "taxability": item["taxability"],
-            "is_rcm": item["is_rcm"],
             "quantity": float(line.quantity),
             "unit_price": float(line.unit_price),
             "discount_amount": float(line.discount_amount),
@@ -206,12 +205,9 @@ def _build_inventory_line_payloads(
             "igst_rate": line.igst_rate,
             "cgst_rate": line.cgst_rate,
             "sgst_rate": line.sgst_rate,
-            "cess_percent": line.cess_percent,
-            "cess_amount_per_unit": line.cess_amount_per_unit,
             "igst_amount": line.igst_amount,
             "cgst_amount": line.cgst_amount,
             "sgst_amount": line.sgst_amount,
-            "cess_amount": line.cess_amount,
         })
 
     return payloads
@@ -223,6 +219,10 @@ def _build_header_payload(voucher_in: VoucherCreate, target_firm_id: str) -> dic
     payload["voucher_date"] = str(voucher_in.voucher_date)
     if voucher_in.party_ledger_id:
         payload["party_ledger_id"] = str(voucher_in.party_ledger_id)
+    if voucher_in.original_invoice_number:
+        payload["original_invoice_number"] = voucher_in.original_invoice_number
+    if voucher_in.original_invoice_date:
+        payload["original_invoice_date"] = str(voucher_in.original_invoice_date)
     return payload
 
 
@@ -424,6 +424,8 @@ def _auto_create_new_ref(
 async def list_vouchers(
     firm_id: Optional[str] = None,
     category: Optional[str] = None,
+    voucher_number: Optional[str] = None,
+    party_ledger_id: Optional[str] = None,
     from_date: Optional[date] = Query(default=None),
     to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
@@ -440,6 +442,10 @@ async def list_vouchers(
 
     if category:
         query = query.eq("category", category)
+    if voucher_number:
+        query = query.eq("voucher_number", voucher_number)
+    if party_ledger_id:
+        query = query.eq("party_ledger_id", party_ledger_id)
     if from_date:
         query = query.gte("voucher_date", str(from_date))
     if to_date:

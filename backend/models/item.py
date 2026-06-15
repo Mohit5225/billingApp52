@@ -15,13 +15,6 @@ class GstTaxability(str, Enum):
     NON_GST = "Non-GST"
 
 
-class CessType(str, Enum):
-    NONE = "none"
-    AD_VALOREM = "ad_valorem"
-    SPECIFIC = "specific"
-    COMPOUND = "compound"
-
-
 class ItemType(str, Enum):
     GOODS = "Goods"
     SERVICES = "Services"
@@ -55,16 +48,10 @@ class ItemBase(BaseSchema):
 
     # GST flags
     is_gst_applicable: bool = True
-    is_rcm: bool = False
     taxability: GstTaxability = GstTaxability.TAXABLE
-
-    # Tax rates
     igst_rate: float = 0.00
     cgst_rate: float = 0.00
     sgst_rate: float = 0.00
-    cess_type: CessType = CessType.NONE
-    cess_percent: float = 0.00
-    cess_amount_per_unit: float = 0.00
 
     # Opening balances (for Day-1 onboarding)
     opening_quantity: float = 0.00
@@ -103,14 +90,10 @@ class ItemUpdate(BaseSchema):
     type: Optional[ItemType] = None
     default_price: Optional[float] = None
     is_gst_applicable: Optional[bool] = None
-    is_rcm: Optional[bool] = None
     taxability: Optional[GstTaxability] = None
     igst_rate: Optional[float] = None
     cgst_rate: Optional[float] = None
     sgst_rate: Optional[float] = None
-    cess_type: Optional[CessType] = None
-    cess_percent: Optional[float] = None
-    cess_amount_per_unit: Optional[float] = None
     opening_quantity: Optional[float] = None
     opening_rate: Optional[float] = None
     opening_value: Optional[float] = None

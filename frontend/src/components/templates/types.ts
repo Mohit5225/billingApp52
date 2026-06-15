@@ -41,11 +41,9 @@ export interface InvoiceLineItem {
   igstRate?: number;
   cgstRate?: number;
   sgstRate?: number;
-  cessRate?: number;
   igstAmount?: number;
   cgstAmount?: number;
   sgstAmount?: number;
-  cessAmount?: number;
 }
 
 export interface InvoiceBankDetails {
@@ -100,7 +98,6 @@ export interface InvoiceData {
   igstTotal?: number;
   cgstTotal?: number;
   sgstTotal?: number;
-  cessTotal?: number;
   grandTotal: number;
   totalInWords: string;
   totalTaxInWords?: string;

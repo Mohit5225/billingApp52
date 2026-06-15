@@ -1,7 +1,6 @@
 import { BaseEntity } from "./base";
 
 export type GstTaxability = "Taxable" | "Nil Rated" | "Exempt" | "Zero Rated" | "Non-GST";
-export type CessType = "none" | "ad_valorem" | "specific" | "compound";
 export type ItemType = "Goods" | "Services";
 
 export interface Hsn extends BaseEntity {
@@ -29,14 +28,10 @@ export interface Item extends BaseEntity {
   type: ItemType;
   default_price: number;
   is_gst_applicable: boolean;
-  is_rcm: boolean;
   taxability: GstTaxability;
   igst_rate: number;
   cgst_rate: number;
   sgst_rate: number;
-  cess_type: CessType;
-  cess_percent: number;
-  cess_amount_per_unit: number;
   opening_quantity: number;
   opening_rate: number;
   opening_value: number;

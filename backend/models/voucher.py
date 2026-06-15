@@ -58,15 +58,10 @@ class InventoryLineCreate(BaseSchema):
     igst_rate: float = 0.00
     cgst_rate: float = 0.00
     sgst_rate: float = 0.00
-    cess_percent: float = 0.00
-    cess_amount_per_unit: float = 0.00
 
     igst_amount: float = 0.00
     cgst_amount: float = 0.00
     sgst_amount: float = 0.00
-    cess_amount: float = 0.00
-
-
 class InventoryLine(InventoryLineCreate):
     id: UUID4
     voucher_id: UUID4
@@ -77,7 +72,6 @@ class InventoryLine(InventoryLineCreate):
     hsn_code: str
     uom: str
     taxability: GstTaxability
-    is_rcm: bool
 
 
 # ── Voucher Header ────────────────────────────────────────────────────────────
@@ -89,6 +83,8 @@ class VoucherBase(BaseSchema):
     voucher_date: date
     narration: Optional[str] = None
     party_ledger_id: Optional[UUID4] = None
+    original_invoice_number: Optional[str] = None
+    original_invoice_date: Optional[date] = None
 
 
 # ── Bill Allocation ───────────────────────────────────────────────────────────

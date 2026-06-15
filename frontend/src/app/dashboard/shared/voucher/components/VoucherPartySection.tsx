@@ -16,6 +16,7 @@ type VoucherPartySectionProps = {
   taxMode: "intra" | "inter";
   readOnly: boolean;
   onOpenBillWise?: () => void;
+  onPartySelected?: () => void;
 };
 
 export function VoucherPartySection({
@@ -30,6 +31,7 @@ export function VoucherPartySection({
   taxMode,
   readOnly,
   onOpenBillWise,
+  onPartySelected,
 }: VoucherPartySectionProps) {
   const partyHasBillByBill = selectedPartyLedger?.party_details?.maintain_bill_by_bill === true;
   if (meta.family === "payment") {
@@ -180,7 +182,7 @@ export function VoucherPartySection({
         <div className="grid gap-3 md:grid-cols-2 lg:gap-4 max-w-7xl">
           {/* Card 1: Bill To / Party / Primary Ledger */}
           {(meta.family === "invoice" || meta.family === "contra") && (
-            <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+            <div className={`rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition-all hover:shadow-md ${meta.family === "contra" ? "" : "border-l-[4px] border-l-emerald-500"}`}>
               <h3 className="mb-3 flex items-center gap-2.5 text-[17px] font-extrabold uppercase tracking-wider text-slate-800">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                   {meta.family === "contra" ? (
@@ -198,10 +200,42 @@ export function VoucherPartySection({
 
               <div className="space-y-2.5">
                 {meta.family === "contra" ? (
-                  <>
-                    <ComboboxField compact inline label="Transfer From" value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Source Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
-                    <ComboboxField compact inline label="Transfer To" value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Destination Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
-                  </>
+                  <div className="relative flex flex-col gap-5 py-2">
+                    {/* Visual connecting line */}
+                    <div className="absolute left-[1.15rem] top-6 bottom-6 w-0.5 bg-slate-200" />
+
+                    {/* Source Account */}
+                    <div className="relative flex items-center gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-slate-100 shadow-sm z-10">
+                        <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15m0 0l6.75 6.75M4.5 12l6.75-6.75" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <label className="text-[13px] font-bold uppercase tracking-wide text-rose-600">Transfer From</label>
+                          <span className="text-[12px] text-slate-500 font-medium tracking-normal">(Payment / Credit)</span>
+                        </div>
+                        <ComboboxField inline={true} chevron={true} value={form.source_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, source_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Source Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
+                      </div>
+                    </div>
+
+                    {/* Destination Account */}
+                    <div className="relative flex items-center gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 border-white bg-emerald-100 shadow-sm z-10">
+                        <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 13.5L12 21m0 0l-7.5-7.5M12 21V3" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <label className="text-[13px] font-bold uppercase tracking-wide text-emerald-600">Transfer To</label>
+                          <span className="text-[12px] text-slate-500 font-medium tracking-normal">(Receipt / Debit)</span>
+                        </div>
+                        <ComboboxField inline={true} chevron={true} value={form.destination_ledger_id} onChange={(value) => setForm((prev) => ({ ...prev, destination_ledger_id: value }))} options={cashBankLedgers} placeholder="Select Destination Account…" createHref="/dashboard/create/ledger" disabled={readOnly} />
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   <>
                     <div className="flex flex-col gap-1">
@@ -211,7 +245,14 @@ export function VoucherPartySection({
                         compact={true}
                         chevron={true}
                         value={form.party_ledger_id}
-                        onChange={(value) => setForm((prev) => ({ ...prev, party_ledger_id: value }))}
+                        onChange={(value) => {
+                          setForm((prev) => ({ ...prev, party_ledger_id: value }));
+                          if (value && (meta.category === "Debit Note" || meta.category === "Credit Note")) {
+                             if (onPartySelected) {
+                                onPartySelected();
+                             }
+                          }
+                        }}
                         options={partyLedgers}
                         placeholder="Select Party…"
                         createHref="/dashboard/create/ledger"
@@ -274,7 +315,7 @@ export function VoucherPartySection({
 
           {/* Card 2: Additional Details / Cash-Bank / Amount */}
           {(meta.family === "invoice" || meta.family === "contra") && (
-            <div className="rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+            <div className={`rounded-xl border border-slate-300 bg-white p-4 shadow-sm transition-all hover:shadow-md ${meta.family === "contra" ? "" : "border-l-[4px] border-l-orange-500"}`}>
               <h3 className="mb-3 flex items-center gap-2.5 text-[17px] font-extrabold uppercase tracking-wider text-orange-600">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-orange-600">
                   {meta.family === "invoice" ? (
