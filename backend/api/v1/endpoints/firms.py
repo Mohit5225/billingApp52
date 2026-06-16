@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from typing import Any
 # pyrefly: ignore [missing-import]
 from postgrest.exceptions import APIError
@@ -10,6 +10,8 @@ import uuid
 
 import httpx
 from core.config import settings
+from core.limiter import limiter
+from core.rate_limits import LIMIT_RAPID_API
 
 router = APIRouter()
 
@@ -50,7 +52,8 @@ async def list_my_firms(jwt: str = Depends(get_verified_jwt)) -> Any:
     ).data or []
 
 @router.get("/gst/fetch")
-async def fetch_gst_details(gstin: str, jwt: str = Depends(get_verified_jwt)) -> Any:
+@limiter.limit(LIMIT_RAPID_API)
+async def fetch_gst_details(request: Request, gstin: str, jwt: str = Depends(get_verified_jwt)) -> Any:
     """
     Fetch GST details using RapidAPI.
     """

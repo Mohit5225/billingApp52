@@ -2,7 +2,7 @@ from collections import defaultdict
 from datetime import date
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response, Request
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
@@ -10,6 +10,8 @@ from core.supabase import supabase
 from .ledgers import _build_xlsx, _safe_filename_component
 from models.voucher import VoucherCategory
 from models.workspace import DashboardOverview, RegisterRow, StockPositionRow
+from core.limiter import limiter
+from core.rate_limits import LIMIT_EXPORTS, LIMIT_AGGREGATIONS
 
 router = APIRouter()
 
@@ -510,7 +512,9 @@ def _build_tally_export_rows(
 
 
 @router.get("/overview", response_model=DashboardOverview)
+@limiter.limit(LIMIT_AGGREGATIONS)
 async def get_overview(
+    request: Request,
     firm_id: Optional[str] = None,
     from_date: Optional[date] = Query(default=None),
     to_date: Optional[date] = Query(default=None),
@@ -575,7 +579,9 @@ async def get_overview(
 
 
 @router.get("/books/{book_slug}", response_model=list[RegisterRow])
+@limiter.limit(LIMIT_AGGREGATIONS)
 async def get_book(
+    request: Request,
     book_slug: str,
     firm_id: Optional[str] = None,
     from_date: Optional[date] = Query(default=None),
@@ -646,7 +652,9 @@ async def get_book(
 
 
 @router.get("/books/{book_slug}/export")
+@limiter.limit(LIMIT_EXPORTS)
 async def export_book(
+    request: Request,
     book_slug: str,
     firm_id: Optional[str] = None,
     from_date: Optional[date] = Query(default=None),
@@ -730,7 +738,9 @@ async def export_book(
 
 
 @router.get("/stock-position", response_model=list[StockPositionRow])
+@limiter.limit(LIMIT_AGGREGATIONS)
 async def get_stock_position(
+    request: Request,
     firm_id: Optional[str] = None,
     search: Optional[str] = None,
     jwt: str = Depends(get_verified_jwt),

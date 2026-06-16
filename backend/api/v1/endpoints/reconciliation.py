@@ -1,7 +1,7 @@
 import io
 import zipfile
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from typing import Optional, List
@@ -12,6 +12,8 @@ from core.supabase import supabase
 from core.gstr2a_helpers import parse_gstr2a_excel, reconcile, build_software_rows, build_result_excel, COLUMNS, normalize_key_str
 import openpyxl
 from openpyxl.styles import Font
+from core.limiter import limiter
+from core.rate_limits import LIMIT_FILE_UPLOADS, LIMIT_EXPORTS, MAX_UPLOAD_SIZE_BYTES
 
 router = APIRouter()
 
@@ -155,7 +157,9 @@ def _fetch_purchase_vouchers(target_firm_id: str, from_date: date, to_date: date
 
 
 @router.get("/export-software-data")
+@limiter.limit(LIMIT_EXPORTS)
 async def export_software_data(
+    request: Request,
     firm_id: str = Query(...),
     from_date: date = Query(...),
     to_date: date = Query(...),
@@ -202,7 +206,9 @@ async def export_software_data(
 
 
 @router.post("/gstr2a")
+@limiter.limit(LIMIT_FILE_UPLOADS)
 async def reconcile_gstr2a(
+    request: Request,
     firm_id: str = Form(...),
     from_date: date = Form(...),
     to_date: date = Form(...),
@@ -218,6 +224,9 @@ async def reconcile_gstr2a(
         raise HTTPException(status_code=400, detail="Invalid file type. Only Excel files are supported.")
 
     file_bytes = await file.read()
+    if len(file_bytes) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE_BYTES / (1024 * 1024)} MB.")
+
     try:
         gstr2a_rows = parse_gstr2a_excel(file_bytes, file.filename)
     except zipfile.BadZipFile:
@@ -250,7 +259,9 @@ async def reconcile_gstr2a(
 
 
 @router.post("/gstr2a/download")
+@limiter.limit(LIMIT_FILE_UPLOADS)
 async def download_reconciliation_report(
+    request: Request,
     firm_id: str = Form(...),
     from_date: date = Form(...),
     to_date: date = Form(...),
@@ -263,6 +274,8 @@ async def download_reconciliation_report(
     target_firm_id = resolve_target_firm_id(profile, firm_id)
 
     file_bytes = await file.read()
+    if len(file_bytes) > MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE_BYTES / (1024 * 1024)} MB.")
     try:
         gstr2a_rows = parse_gstr2a_excel(file_bytes, file.filename)
     except zipfile.BadZipFile:

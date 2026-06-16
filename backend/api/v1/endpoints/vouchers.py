@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import re
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
@@ -19,6 +19,9 @@ from models.voucher import (
     VoucherDetail,
     VoucherUpdate,
 )
+
+from core.limiter import limiter
+from core.rate_limits import LIMIT_VOUCHER_WRITES
 
 router = APIRouter()
 
@@ -455,7 +458,9 @@ async def list_vouchers(
 
 
 @router.post("/", response_model=VoucherDetail, status_code=status.HTTP_201_CREATED)
+@limiter.limit(LIMIT_VOUCHER_WRITES)
 async def create_voucher(
+    request: Request,
     voucher_in: VoucherCreate,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
@@ -699,7 +704,9 @@ async def get_voucher(
 
 
 @router.put("/{voucher_id}", response_model=VoucherDetail)
+@limiter.limit(LIMIT_VOUCHER_WRITES)
 async def replace_voucher(
+    request: Request,
     voucher_id: str,
     voucher_in: VoucherCreate,
     jwt: str = Depends(get_verified_jwt),
@@ -823,7 +830,9 @@ def _replace_voucher_lines(
 
 
 @router.patch("/{voucher_id}", response_model=Voucher)
+@limiter.limit(LIMIT_VOUCHER_WRITES)
 async def update_voucher(
+    request: Request,
     voucher_id: str,
     voucher_in: VoucherUpdate,
     jwt: str = Depends(get_verified_jwt),

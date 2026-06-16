@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends
 from core.security import get_verified_jwt
 from core.supabase import supabase
+from core.limiter import limiter
 
 router = APIRouter()
 
 @router.get("/status")
+@limiter.exempt
 async def get_status(jwt: str = Depends(get_verified_jwt)):
     return {
         "status": "connected",
@@ -14,6 +16,7 @@ async def get_status(jwt: str = Depends(get_verified_jwt)):
     }
 
 @router.get("/db-check")
+@limiter.exempt
 async def check_db(jwt: str = Depends(get_verified_jwt)):
     try:
         # Perform a lightweight query to verify the connection and RLS.

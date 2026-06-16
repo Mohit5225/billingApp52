@@ -10,8 +10,26 @@ from api.v1.router import api_router
 from fastapi.responses import JSONResponse
 from postgrest.exceptions import APIError
 import re
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+from core.limiter import limiter
 
 app = FastAPI(title="Billing App API")
+app.state.limiter = limiter
+
+# SlowAPIMiddleware MUST be added for default_limits to fire on undecorated routes.
+# Without this, only explicitly-decorated @limiter.limit(...) endpoints are protected.
+app.add_middleware(SlowAPIMiddleware)
+
+# Custom 429 handler — returns a generic message to avoid leaking limit details to attackers.
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Too many requests. Please try again later."},
+        headers={"Retry-After": str(getattr(exc, "retry_after", 60))},
+    )
 
 allowed_origins = [
     origin.strip()
@@ -32,11 +50,13 @@ app.add_middleware(
 )
 
 @app.get("/")
+@limiter.exempt
 async def root():
     return {"message": "Hello from FastAPI Backend"}
 
 
 @app.get("/healthz")
+@limiter.exempt
 async def healthz():
     return {"status": "ok"}
 

@@ -7,7 +7,7 @@ from typing import Any, Optional
 from xml.sax.saxutils import escape
 from zipfile import ZIP_DEFLATED, ZipFile
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status, Request
 
 from postgrest.exceptions import APIError
 
@@ -23,6 +23,8 @@ from models.ledger import (
     LedgerStatementRow,
     LedgerUpdate,
 )
+from core.limiter import limiter
+from core.rate_limits import LIMIT_EXPORTS
 
 router = APIRouter()
 
@@ -571,7 +573,9 @@ async def get_ledger_statement(
 
 
 @router.get("/{ledger_id}/statement/export")
+@limiter.limit(LIMIT_EXPORTS)
 async def export_ledger_statement(
+    request: Request,
     ledger_id: str,
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
