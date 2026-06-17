@@ -1,0 +1,256 @@
+\documentclass[10pt, letterpaper]{article}
+
+% Packages:
+\usepackage[
+    ignoreheadfoot, 
+    top=0.5 cm, 
+    bottom=0.5 cm, 
+    left=1.0 cm, 
+    right=1.0 cm, 
+    footskip=1.0 cm, 
+]{geometry} 
+
+\usepackage{titlesec} 
+\usepackage{tabularx} 
+\usepackage{array} 
+\usepackage[dvipsnames]{xcolor} 
+\definecolor{primaryColor}{RGB}{0, 0, 0} 
+\usepackage{enumitem} 
+\usepackage{fontawesome5} 
+\usepackage{amsmath} 
+\usepackage[
+    pdftitle={Mohit Murjani's CV},
+    pdfauthor={Mohit Murjani},
+    pdfcreator={LaTeX with RenderCV},
+    colorlinks=true,
+    linkcolor=primaryColor,
+    citecolor=primaryColor,
+    filecolor=primaryColor,
+    urlcolor=blue
+]{hyperref} 
+\usepackage[pscoord]{eso-pic} 
+\usepackage{calc} 
+\usepackage{bookmark} 
+\usepackage{lastpage} 
+\usepackage{changepage} 
+\usepackage{paracol} 
+\usepackage{ifthen} 
+\usepackage{needspace} 
+\usepackage{iftex} 
+
+% Ensure that generate pdf is machine readable/ATS parsable:
+\ifPDFTeX
+    \input{glyphtounicode}
+    \pdfgentounicode=1
+    \usepackage[T1]{fontenc}
+    \usepackage[utf8]{inputenc}
+    \usepackage{lmodern}
+\fi
+
+\usepackage{charter}
+
+% Some settings:
+\raggedright
+\AtBeginEnvironment{adjustwidth}{\partopsep0pt} 
+\pagestyle{empty} 
+\setcounter{secnumdepth}{0} 
+\setlength{\parindent}{0pt} 
+\setlength{\topskip}{0pt} 
+\setlength{\columnsep}{0.15cm} 
+\pagenumbering{gobble} 
+
+% TIGHTER SECTION SPACING
+\titleformat{\section}{\needspace{4\baselineskip}\bfseries\large}{}{0pt}{}[\vspace{1pt}\titlerule]
+\titlespacing{\section}{-1pt}{0.1 cm}{0.1 cm} 
+
+% Replace bullet points with double dash
+\renewcommand\labelitemi{--}
+
+% TIGHTER LIST ENVIRONMENTS
+\newenvironment{highlights}{
+    \begin{itemize}[
+        topsep=0.00cm,
+        parsep=0.02 cm, 
+        partopsep=0pt,
+        itemsep=0pt,
+        leftmargin=0 cm + 10pt
+    ]
+}{
+    \end{itemize}
+}
+
+\newenvironment{highlightsforbulletentries}{
+    \begin{itemize}[
+        topsep=0.02 cm,
+        parsep=0.02 cm,
+        partopsep=0pt,
+        itemsep=0pt,
+        leftmargin=10pt
+    ]
+}{
+    \end{itemize}
+}
+
+\newenvironment{onecolentry}{
+    \begin{adjustwidth}{0 cm + 0.00001 cm}{0 cm + 0.00001 cm}
+}{
+    \end{adjustwidth}
+}
+
+\newenvironment{twocolentry}[2][]{
+    \onecolentry
+    \def\secondColumn{#2}
+    \setcolumnwidth{\fill, 4.5 cm}
+    \begin{paracol}{2}
+}{
+    \switchcolumn \raggedleft \secondColumn
+    \end{paracol}
+    \endonecolentry
+}
+
+\newenvironment{header}{
+    \setlength{\topsep}{0pt}\par\kern\topsep\centering\linespread{1.5}
+}{
+    \par\kern\topsep
+}
+
+\let\hrefWithoutArrow\href
+
+\begin{document}
+    \newcommand{\AND}{\unskip \cleaders\copy\ANDbox\hskip\wd\ANDbox\ignorespaces}
+    \newsavebox\ANDbox
+    \sbox\ANDbox{$|$}
+
+    \begin{header}
+        \fontsize{20 pt}{20 pt}\selectfont MOHIT MURJANI
+
+        \vspace{2 pt} 
+
+        \normalsize
+        \mbox{Ahmedabad}%
+        \kern 5.0 pt% 
+        \AND% 
+        \kern 5.0 pt%
+        \begingroup
+            \hypersetup{urlcolor=primaryColor}
+            \mbox{\hrefWithoutArrow{mailto:mohitmurjani100@gmail.com}{mohitmurjani100@gmail.com}}% 
+            \kern 3.5 pt%
+            \AND% 
+            \kern 3.5 pt%
+            \mbox{\hrefWithoutArrow{tel:+91-8469043310}{+91 84690 43310}}%
+        \endgroup
+        \kern 5.0 pt%
+        \AND% 
+        \kern 5.0 pt%
+        \mbox{\hrefWithoutArrow{https://linkedin.com/in/mohit-murjani}{linkedin.com/in/mohit-murjani}}%  
+        \kern 5.0 pt%
+        \AND% 
+        \kern 5.0 pt%
+        \mbox{\hrefWithoutArrow{https://github.com/Mohit5225}{github.com/Mohit5225}}%
+    \end{header}
+
+    \vspace{4 pt - 0.3 cm}
+
+    \section{Education}
+
+    \begin{twocolentry}{
+        July 2023 -- June 2026
+    }
+        \textbf{Silver Oak University }
+    \end{twocolentry}
+
+    \vspace{0.05 cm}
+    \begin{onecolentry}
+        \begin{highlights}
+            \item CPI: 8.65     (\href{https://drive.google.com/file/d/1y6BEabFyFFep12a3d_9glv6pncRIrAGO/view?usp=drive_link}{View-here})
+           \item Coursework: Bachelor of Computer Applications
+        \end{highlights}
+    \end{onecolentry}
+
+    \section{Experience}
+
+    \begin{twocolentry}{
+        Dec 2025
+    }
+        \textbf{Edutor | Applied AI Intern}
+    \end{twocolentry}
+    \vspace{0.05 cm}
+    \begin{onecolentry}
+        \begin{highlights}
+            \item \textbf{Multimodal Hybrid Architecture:} Engineered a Dual-Vector RAG system on Qdrant combining \textbf{Jina v4 Late Chunking} (Dense) with \textbf{FastEmbed} (Sparse/BM25) to preserve semantic context across chunk boundaries for multi-modal text and relevant image retrieval  from doc.
+            \item \textbf{Parallel Execution Engine:} Optimized retrieval latency by implementing asynchronous image judging; orchestrated \textbf{Gemini 2.5 Flash} via \textbf{Python ThreadPoolExecutor} to evaluate 3+ concurrent image candidates per query for sub-250ms visual context resolution.
+            \item \textbf{Advanced Reranking Pipeline:} Integrated a \textbf{Cross-Encoder (MS MARCO)} reranking stage to re-score top-k results; built a robust ingestion pipeline using Unstructured and Tesseract OCR to extract and index ground-truth diagrams alongside text from PDF corpora.
+        \end{highlights}
+    \end{onecolentry}
+\begin{twocolentry}{
+    2024 -- 2025
+}
+    \textbf{Freelance | Full-Stack Engineer}
+\end{twocolentry}
+\vspace{0.05 cm}
+\begin{onecolentry}
+    \begin{highlights}
+        \item \textbf{Core Financial Engine:} Architected a Tally-alternative ERP with double-entry accounting, automated GST/e-way billing, and complex bill-by-bill reference tracking with robust data caching.
+        \item \textbf{Secure Multi-Tenant Architecture:} Implemented \textbf{Supabase RLS} for financial data security, OAuth/RBAC, and seamless \textbf{TDL exports} for CA integration across multiple firms.
+    \end{highlights}
+\end{onecolentry}
+    \section{AWARDS}
+
+    \begin{onecolentry}
+        \begin{highlightsforbulletentries}
+            \item \textbf{1st Prize at BrahmaCode Hackathon | SKIPS University | 2025} — 
+            \href{https://drive.google.com/file/d/1xz6iTX_Gp-GbZg5xt0l-kdL28a4d7IL0/view?usp=drive_link}{\textit{View Certificate}}
+
+            \vspace{2pt}
+
+            For Interview.AI — (Hackathon Project)  
+           an AI platform simulating interviews with live code execution (Judge0) and real-time expression tracking (Face-api.js). 
+        \end{highlightsforbulletentries}
+    \end{onecolentry}
+
+    \section{Technologies}
+
+
+        
+        \begin{highlights}
+            \item \textbf{Active Stack:} Python, FastAPI, LangChain, LangGraph, MongoDB, 
+            \item \textbf{Development Tools:} Git, GitHub, VS Code, Postman
+            \item \textbf{Infrastructure \& Deployment:} Docker, AWS,   GitHub Actions for CI/CD
+            \item \textbf{Familiarity with:}  PyTorch,  scikit‑learn, NumPy,  pandas, ml libraries, MySQL, neon-db, React, Nextjs, JS/TS , Transformers, Attention and other deep learning  architectures
+        \end{highlights}
+ 
+    \end{onecolentry}
+
+\section{Projects}
+
+\begin{onecolentry}
+  \textbf{Adaptive Multi-Modal Learning Platform} \hfill \href{https://github.com/Mohit5225/adaptive_multimodel_learning_companion}{\texttt{GitHub Repo}} \\
+  \textbf{Tech Stack:} Python, Next.js, FastAPI, Qdrant, MongoDB, RAG, Video Gen(FFmpeg/TTS)
+  \begin{highlights}
+    \item \textbf{Intelligent Intent \& Context Switching:} 
+    \item \textbf{Autonomous Video Synthesis (Manim):} Built an end-to-end Text-to-Video engine that compiles abstract math concepts into executable \textbf{Manim} code; orchestrated \textbf{Cartesia TTS} and \textbf{FFmpeg} to render 1080p animations with precise word-level audio synchronization, cutting production time by 95\% while supporting multi-language audio output.
+    \item \textbf{Hybrid RAG Architecture:} Implemented a Dual-Vector retrieval system (Dense + Sparse) on Qdrant with \textbf{Jina embeddings}, strictly grounding answers in PyMuPDF-extracted context from source documents.
+  \end{highlights}
+\end{onecolentry}
+
+\vspace{0.15cm}
+\begin{onecolentry}
+  \textbf{Vertex-Swarm  — VS Code Coding Extension   }  \hfill \href{https://github.com/Mohit5225/Vertex-swarm}{\texttt{GitHub Repo}} \\
+  \textbf{Tech Stack:} Python, FastAPI, Neon db ,TypeScript, React ,Docker 
+  \begin{highlights}
+    \item \textbf{Overview:}  agent with 20+ tools incuding workspace based agent navigation , terminal execution, web search and upcoming MCP integrations.
+    \item \textbf{Asynchronous Telemetry \& State:} Orchestrated a hybrid communication relay (SSE + JSON-RPC) to stream decoupled text tokens, reasoning traces, and tool dispatch events instantly, while managing high-speed execution memory in Redis and immutable session persistence in Postgres.
+    \item \textbf{Long-Running Execution Loop:}  ReAct-style loop for objective-driven looping that injects chat history, IDE context, and prior tool results back into each next round enabling agent to work autonomously for multi-step tasks for long running objectives 
+  \end{highlights}
+\end{onecolentry}
+
+\vspace{0.15cm}
+\begin{onecolentry}
+\textbf{ Fine-tuned Qwen 2.5 Coder 1.5b } \hfill \href{https://github.com/Mohit5225/qwen2.5-coder-1.5b-instruct-finetuned/blob/main/fineTuningbyQWEN3b_cleaned.ipynb}{\texttt{Colab Notebook}} \\
+  \textbf{Tech Stack:} Python, LoRA, HuggingFace, Colab, BitsAndBytes
+  \begin{highlights}
+    \item \textbf{CoT Data Engineering:} Engineered a \textbf{Self-Curated Chain-of-Thought (CoT)} dataset (500k tokens) to fine-tune Qwen 2.5, utilizing \textbf{4-bit quantization} and \textbf{LoRA adapters} for memory-efficient training enabling it to \textbf{explain, optimize, and debug} logic
+  \end{highlights}
+\end{onecolentry}
+
+\end{document}

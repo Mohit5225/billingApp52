@@ -75,6 +75,42 @@ export function VoucherWorkbench({
   const [showPreview, setShowPreview] = useState(false);
   const [showBillWise, setShowBillWise] = useState(false);
   const [showNoteDetailsModal, setShowNoteDetailsModal] = useState(false);
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false);
+
+  // ── Draft Management ──
+  useEffect(() => {
+    if (isEditing) {
+      setIsDraftLoaded(true);
+      return;
+    }
+    if (!activeFirmId) return;
+    
+    if (!isDraftLoaded) {
+      try {
+        const draftStr = sessionStorage.getItem(`draft-voucher-${activeFirmId}-${slug}`);
+        if (draftStr) {
+          const parsed = JSON.parse(draftStr);
+          if (parsed.form) setForm(parsed.form);
+          if (parsed.invoiceLines) setInvoiceLines(parsed.invoiceLines);
+          if (parsed.journalLines) setJournalLines(parsed.journalLines);
+        }
+      } catch(e) {}
+      setIsDraftLoaded(true);
+    }
+  }, [isEditing, activeFirmId, slug, isDraftLoaded]);
+
+  useEffect(() => {
+    if (!isEditing && activeFirmId && isDraftLoaded) {
+      const timeoutId = setTimeout(() => {
+        sessionStorage.setItem(`draft-voucher-${activeFirmId}-${slug}`, JSON.stringify({
+          form,
+          invoiceLines,
+          journalLines
+        }));
+      }, 500);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [form, invoiceLines, journalLines, isEditing, activeFirmId, slug, isDraftLoaded]);
 
   const itemsScrollRef = useRef<HTMLDivElement>(null);
   const prevInvoiceLinesLength = useRef(invoiceLines.length);
@@ -418,6 +454,7 @@ export function VoucherWorkbench({
       if (isEditing) {
         router.push(`/dashboard/vouchers/${result.id}`);
       } else {
+        sessionStorage.removeItem(`draft-voucher-${activeFirmId}-${slug}`);
         setForm((prev) => ({
           ...getEmptyForm(globalFromDate, globalToDate),
           voucher_date: prev.voucher_date,
@@ -622,6 +659,9 @@ export function VoucherWorkbench({
         isLoading={isLoading}
         voucherId={voucherId}
         onCancel={() => {
+          if (!isEditing && activeFirmId) {
+            sessionStorage.removeItem(`draft-voucher-${activeFirmId}-${slug}`);
+          }
           if (isEditing) {
             router.push(`/dashboard/vouchers/${voucherId}`);
           } else {

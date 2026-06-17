@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -182,10 +182,11 @@ function TogglePill({
   );
 }
 
-
 export default function InventorySectionPage() {
   const params = useParams<{ section: string }>();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
   const section = (params.section || "items") as SectionKey;
   const { activeFirmId, supabase } = useFirmScope();
   const { showToast } = useToast();
@@ -319,6 +320,15 @@ export default function InventorySectionPage() {
     setIsFormOpen(false);
   }
 
+  function handleReturn() {
+    const returnTo = searchParams?.get("returnTo");
+    if (returnTo) {
+      router.push(returnTo);
+    } else {
+      resetForms();
+    }
+  }
+
   useEffect(() => {
     resetForms();
     setSearch("");
@@ -356,7 +366,7 @@ export default function InventorySectionPage() {
         await apiRequest<Uom>(supabase, "/api/uom/", { method: "POST", body });
         showToast("UOM created successfully!", "success");
       }
-      resetForms();
+      handleReturn();
       void queryClient.invalidateQueries({ queryKey: ["uom"] });
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to save UOM", "error");
@@ -383,7 +393,7 @@ export default function InventorySectionPage() {
         await apiRequest<ItemDetail>(supabase, "/api/items/", { method: "POST", body });
         showToast("Item created successfully!", "success");
       }
-      resetForms();
+      handleReturn();
       void queryClient.invalidateQueries({ queryKey: ["items"] });
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to save item", "error");
@@ -458,7 +468,7 @@ export default function InventorySectionPage() {
             <button onClick={() => void saveUom()} className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white">
               {editingId ? "Save changes" : "Create UOM"}
             </button>
-            <button onClick={resetForms} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600">
+            <button onClick={handleReturn} className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-600">
               Cancel
             </button>
           </div>
@@ -543,7 +553,10 @@ export default function InventorySectionPage() {
                       <label className="text-xs font-semibold text-slate-500">
                         Unit of Measure <span className="text-rose-400">*</span>
                       </label>
-                      <Link href="/dashboard/inventory/uom" className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700">
+                      <Link 
+                        href={`/dashboard/inventory/uom?firm_id=${activeFirmId}&returnTo=${encodeURIComponent(pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : ""))}`}
+                        className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700"
+                      >
                         + Add new
                       </Link>
                     </div>
@@ -741,7 +754,7 @@ export default function InventorySectionPage() {
                     {editingId ? "Save item" : "Create item"}
                   </button>
                   <button
-                    onClick={resetForms}
+                    onClick={handleReturn}
                     className="rounded-2xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
                   >
                     Cancel

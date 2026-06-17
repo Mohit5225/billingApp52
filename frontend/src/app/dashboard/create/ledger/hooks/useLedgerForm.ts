@@ -256,7 +256,12 @@ export function useLedgerForm() {
         });
       }
 
-      router.push("/dashboard/books/ledger");
+      const returnTo = searchParams.get("returnTo");
+      if (returnTo) {
+        router.push(returnTo);
+      } else {
+        router.push("/dashboard/books/ledger");
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Unable to save ledger", "error");
     } finally {
@@ -282,5 +287,6 @@ export function useLedgerForm() {
     // Actions
     handleFetchGstDetails,
     submit,
+    returnTo: searchParams.get("returnTo"),
   };
 }

@@ -25,22 +25,22 @@ import {
 const CLASSIC_CHUNK_OPTIONS: ChunkOptions = {
   ...DEFAULT_CHUNK_OPTIONS,
   // Safely reduced to account for Chrome's default print margins (~0.4 inches)
-  page1Budget: 620,
-  pageNBudget: 860,
+  page1Budget: 740,
+  pageNBudget: 740, // Uniform budget since the letterhead is on all pages
   lastPageReserve: 505,
   rowHeight: (item) => {
     const nameLen = (item.name || "").length;
-    if (nameLen > 150) return 85;
-    if (nameLen > 90) return 68;
-    if (nameLen > 45) return 48;
-    return 33;
+    if (nameLen > 120) return 105;
+    if (nameLen > 60) return 85;
+    if (nameLen > 20) return 65; // 'KEYPAD AS PER DRAWING' wraps at 21 chars
+    return 50;
   },
 };
 
 /* ─── Style constants ─────────────────────────────── */
 const BORDER = "1px solid #333";
-const CELL_PAD = "6px 8px";
-const FONT_SIZE = "12.5px";
+const CELL_PAD = "10px 8px";
+const FONT_SIZE = "14.5px";
 const HEADER_BG = "#f0f4f8";
 const FONT_FAMILY = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 
@@ -68,15 +68,25 @@ export default function ClassicTemplate({ data }: TemplateProps) {
               position: "relative",
             }}
           >
-            {/* ═══ HEADER ═══ */}
-            {page.isFirstPage ? (
-              <FullHeader data={prepared.original} />
-            ) : (
-              <CompactHeader data={prepared.original} pageLabel={page.pageLabel} />
-            )}
+            {/* ═══ PAGE NUMBER ═══ */}
+            <div
+              style={{
+                position: "absolute",
+                top: "6mm",
+                right: "10mm",
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "#555",
+              }}
+            >
+              {page.pageLabel}
+            </div>
 
-            {/* ═══ CUSTOMER + META (page 1 only) ═══ */}
-            {page.isFirstPage && <CustomerMetaBlock data={prepared.original} />}
+            {/* ═══ HEADER (ALL PAGES) ═══ */}
+            <FullHeader data={prepared.original} />
+
+            {/* ═══ CUSTOMER + META (ALL PAGES) ═══ */}
+            <CustomerMetaBlock data={prepared.original} />
 
             {/* ═══ LINE ITEMS TABLE ═══ */}
             <ItemsTable
@@ -85,6 +95,22 @@ export default function ClassicTemplate({ data }: TemplateProps) {
               data={prepared.original}
               isLastPage={page.isLastPage}
             />
+
+            {/* ═══ CONTINUATION LABEL (non-last pages) ═══ */}
+            {!page.isLastPage && (
+              <div
+                style={{
+                  textAlign: "right",
+                  paddingTop: "12px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  fontStyle: "italic",
+                  color: "#333",
+                }}
+              >
+                Continued on next page...
+              </div>
+            )}
 
             {/* ═══ FOOTER SECTIONS (last page only) ═══ */}
             {page.isLastPage && <FooterSections data={prepared.original} />}
@@ -108,58 +134,33 @@ export default function ClassicTemplate({ data }: TemplateProps) {
 function FullHeader({ data }: { data: PreparedInvoice["original"] }) {
   return (
     <div style={{ marginBottom: 0 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div style={{ flex: 1 }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "22px",
-              fontWeight: 900,
-              letterSpacing: "0.5px",
-              color: "#111",
-              fontFamily: "'Georgia', 'Times New Roman', serif",
-            }}
-          >
-            {data.company.name.toUpperCase()}
-          </h1>
-          {data.company.tagline && (
-            <div
-              style={{
-                display: "inline-block",
-                marginTop: "4px",
-                padding: "3px 10px",
-                background: "#173728",
-                color: "#fff",
-                fontSize: "9px",
-                fontWeight: 600,
-                letterSpacing: "0.3px",
-              }}
-            >
-              {data.company.tagline}
-            </div>
-          )}
-        </div>
-        {data.company.logoUrl ? (
-          <img
-            src={data.company.logoUrl}
-            alt="Company Logo"
-            style={{ maxHeight: "55px", maxWidth: "120px", objectFit: "contain" }}
-          />
-        ) : (
+      <div style={{ textAlign: "center", marginBottom: "8px" }}>
+        <h1
+          style={{
+            margin: 0,
+            fontSize: "22px",
+            fontWeight: 900,
+            letterSpacing: "0.5px",
+            color: "#111",
+            fontFamily: "'Georgia', 'Times New Roman', serif",
+          }}
+        >
+          {data.company.name.toUpperCase()}
+        </h1>
+        {data.company.tagline && (
           <div
             style={{
-              width: "90px",
-              height: "50px",
-              border: "1px dashed #bbb",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "8px",
-              color: "#999",
-              borderRadius: "4px",
+              display: "inline-block",
+              marginTop: "4px",
+              padding: "3px 10px",
+              background: "#173728",
+              color: "#fff",
+              fontSize: "9px",
+              fontWeight: 600,
+              letterSpacing: "0.3px",
             }}
           >
-            LOGO
+            {data.company.tagline}
           </div>
         )}
       </div>
@@ -172,7 +173,21 @@ function FullHeader({ data }: { data: PreparedInvoice["original"] }) {
           color: "#444",
         }}
       >
-        <div style={{ whiteSpace: "pre-line", lineHeight: 1.5 }}>{data.company.address}</div>
+        <div
+          style={{
+            whiteSpace: "pre-line",
+            lineHeight: 1.5,
+            maxWidth: "65%",
+            display: "-webkit-box",
+            WebkitLineClamp: 4,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            fontSize: "11.5px",
+          }}
+        >
+          {data.company.address}
+        </div>
         <div style={{ textAlign: "right", lineHeight: 1.5 }}>
           {data.company.phone && <div>Tel : {data.company.phone}</div>}
           {data.company.website && <div>Web : {data.company.website}</div>}
@@ -207,20 +222,10 @@ function CompactHeader({
             style={{
               border: BORDER,
               padding: CELL_PAD,
-              fontWeight: 800,
-              fontSize: "13px",
-              width: "40%",
-            }}
-          >
-            {data.company.name.toUpperCase()}
-          </td>
-          <td
-            style={{
-              border: BORDER,
-              padding: CELL_PAD,
               textAlign: "center",
               fontWeight: 700,
-              fontSize: "12px",
+              fontSize: "14px",
+              wordBreak: "break-word",
             }}
           >
             {data.type} — #{data.invoiceNumber}
@@ -230,9 +235,10 @@ function CompactHeader({
               border: BORDER,
               padding: CELL_PAD,
               textAlign: "right",
-              fontSize: "10px",
+              fontSize: "12px",
               fontWeight: 600,
               color: "#555",
+              wordBreak: "break-word",
             }}
           >
             {pageLabel}
@@ -253,22 +259,31 @@ function CustomerMetaBlock({ data }: { data: PreparedInvoice["original"] }) {
         border: BORDER,
         marginTop: "8px",
         tableLayout: "fixed",
+        wordBreak: "break-word",
       }}
     >
+      <colgroup>
+        <col style={{ width: "16.66%" }} />
+        <col style={{ width: "16.66%" }} />
+        <col style={{ width: "16.66%" }} />
+        <col style={{ width: "16.66%" }} />
+        <col style={{ width: "16.66%" }} />
+        <col style={{ width: "16.66%" }} />
+      </colgroup>
       <tbody>
         {/* PAN + TYPE + COPY LABEL */}
         <tr>
-          <td style={{ border: BORDER, padding: CELL_PAD, width: "33%", fontWeight: 700 }}>
+          <td colSpan={2} style={{ border: BORDER, padding: CELL_PAD, fontWeight: 700 }}>
             <span style={{ fontWeight: 700 }}>PAN : </span>
             {data.company.pan}
           </td>
           <td
+            colSpan={2}
             style={{
               border: BORDER,
               padding: CELL_PAD,
-              width: "34%",
               textAlign: "center",
-              fontSize: "15px",
+              fontSize: "17px",
               fontWeight: 800,
               letterSpacing: "0.5px",
             }}
@@ -276,12 +291,12 @@ function CustomerMetaBlock({ data }: { data: PreparedInvoice["original"] }) {
             {data.type}
           </td>
           <td
+            colSpan={2}
             style={{
               border: BORDER,
               padding: CELL_PAD,
-              width: "33%",
               textAlign: "right",
-              fontSize: "9px",
+              fontSize: "11px",
               fontWeight: 700,
               color: "#555",
               letterSpacing: "0.3px",
@@ -293,10 +308,10 @@ function CustomerMetaBlock({ data }: { data: PreparedInvoice["original"] }) {
 
         {/* CUSTOMER + INVOICE META */}
         <tr>
-          <td style={{ border: BORDER, padding: CELL_PAD, verticalAlign: "top" }}>
+          <td colSpan={3} style={{ border: BORDER, padding: CELL_PAD, verticalAlign: "top" }}>
             <div
               style={{
-                fontSize: "9px",
+                fontSize: "11px",
                 fontWeight: 700,
                 color: "#666",
                 marginBottom: "4px",
@@ -305,33 +320,33 @@ function CustomerMetaBlock({ data }: { data: PreparedInvoice["original"] }) {
             >
               Customer Detail
             </div>
-            <table style={{ width: "100%", fontSize: "10px" }}>
+            <table style={{ width: "100%", fontSize: "12px" }}>
               <tbody>
                 <tr>
-                  <td style={{ padding: "2px 0", fontWeight: 700, width: "85px", verticalAlign: "top" }}>M/S</td>
+                  <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, verticalAlign: "top", whiteSpace: "nowrap" }}>M/S</td>
                   <td style={{ padding: "2px 0" }}>{data.party.name}</td>
                 </tr>
                 {data.party.address && (
                   <tr>
-                    <td style={{ padding: "2px 0", fontWeight: 700, verticalAlign: "top" }}>Address</td>
+                    <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, verticalAlign: "top", whiteSpace: "nowrap" }}>Address</td>
                     <td style={{ padding: "2px 0" }}>{data.party.address}</td>
                   </tr>
                 )}
                 {data.party.phone && (
                   <tr>
-                    <td style={{ padding: "2px 0", fontWeight: 700 }}>Phone</td>
+                    <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>Phone</td>
                     <td style={{ padding: "2px 0" }}>{data.party.phone}</td>
                   </tr>
                 )}
                 {data.party.gstin && (
                   <tr>
-                    <td style={{ padding: "2px 0", fontWeight: 700 }}>GSTIN</td>
+                    <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>GSTIN</td>
                     <td style={{ padding: "2px 0" }}>{data.party.gstin}</td>
                   </tr>
                 )}
                 {data.party.placeOfSupply && (
                   <tr>
-                    <td style={{ padding: "2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>Place of Supply</td>
+                    <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>Place of Supply</td>
                     <td style={{ padding: "2px 0" }}>{data.party.placeOfSupply}</td>
                   </tr>
                 )}
@@ -339,38 +354,38 @@ function CustomerMetaBlock({ data }: { data: PreparedInvoice["original"] }) {
             </table>
           </td>
 
-          <td colSpan={2} style={{ border: BORDER, padding: CELL_PAD, verticalAlign: "top" }}>
-            <table style={{ width: "100%", fontSize: "10px" }}>
+          <td colSpan={3} style={{ border: BORDER, padding: CELL_PAD, verticalAlign: "top" }}>
+            <table style={{ width: "100%", fontSize: "12px" }}>
               <tbody>
                 <tr>
-                  <td style={{ padding: "2px 4px", fontWeight: 700, width: "35%" }}>Invoice No.</td>
-                  <td style={{ padding: "2px 4px", width: "30%" }}>{data.invoiceNumber}</td>
-                  <td style={{ padding: "2px 4px", fontWeight: 700, width: "15%" }}>Invoice Date</td>
+                  <td style={{ padding: "2px 8px 2px 4px", fontWeight: 700, whiteSpace: "nowrap" }}>Invoice No.</td>
+                  <td style={{ padding: "2px 4px" }}>{data.invoiceNumber}</td>
+                  <td style={{ padding: "2px 8px 2px 4px", fontWeight: 700, whiteSpace: "nowrap" }}>Invoice Date</td>
                   <td style={{ padding: "2px 4px" }}>{data.invoiceDate}</td>
                 </tr>
                 {data.challanNumber && (
                   <tr>
-                    <td style={{ padding: "2px 4px", fontWeight: 700 }}>Challan No</td>
+                    <td style={{ padding: "2px 8px 2px 4px", fontWeight: 700, whiteSpace: "nowrap" }}>Challan No</td>
                     <td style={{ padding: "2px 4px" }}>{data.challanNumber}</td>
-                    <td style={{ padding: "2px 4px", fontWeight: 700 }}>Challan Date</td>
+                    <td style={{ padding: "2px 8px 2px 4px", fontWeight: 700, whiteSpace: "nowrap" }}>Challan Date</td>
                     <td style={{ padding: "2px 4px" }}>{data.challanDate}</td>
                   </tr>
                 )}
                 {data.eWayBillNo && (
                   <tr>
-                    <td style={{ padding: "2px 4px", fontWeight: 700 }}>E-Way Bill No.</td>
+                    <td style={{ padding: "2px 8px 2px 4px", fontWeight: 700, whiteSpace: "nowrap" }}>E-Way Bill No.</td>
                     <td colSpan={3} style={{ padding: "2px 4px" }}>{data.eWayBillNo}</td>
                   </tr>
                 )}
                 {data.transportName && (
                   <tr>
-                    <td style={{ padding: "2px 4px", fontWeight: 700 }}>Transport</td>
+                    <td style={{ padding: "2px 8px 2px 4px", fontWeight: 700, whiteSpace: "nowrap" }}>Transport</td>
                     <td colSpan={3} style={{ padding: "2px 4px" }}>{data.transportName}</td>
                   </tr>
                 )}
                 {data.transportId && (
                   <tr>
-                    <td style={{ padding: "2px 4px", fontWeight: 700 }}>Transport ID</td>
+                    <td style={{ padding: "2px 8px 2px 4px", fontWeight: 700, whiteSpace: "nowrap" }}>Transport ID</td>
                     <td colSpan={3} style={{ padding: "2px 4px" }}>{data.transportId}</td>
                   </tr>
                 )}
@@ -404,6 +419,7 @@ function ItemsTable({
         borderTop: page.isFirstPage ? "none" : undefined,
         tableLayout: "fixed",
         marginTop: page.isFirstPage ? "0" : "0",
+        wordBreak: "break-word",
       }}
     >
       {/* Dynamic column headers */}
@@ -418,7 +434,8 @@ function ItemsTable({
                 width: col.width,
                 textAlign: col.align,
                 fontWeight: 700,
-                fontSize: "10px",
+                fontSize: "12px",
+                whiteSpace: col.bucket === "flex" ? "normal" : "nowrap",
               }}
             >
               {col.label}
@@ -430,7 +447,7 @@ function ItemsTable({
       <tbody>
         {/* Dynamic data rows */}
         {page.items.map((item, idx) => (
-          <tr key={idx}>
+          <tr key={idx} style={{ height: (item as any)._adaptiveHeight ? `${(item as any)._adaptiveHeight + 4}px` : undefined }}>
             {columns.map((col) => {
               const raw = getCellValue(item, col);
               const display = formatCell(raw, col.format);
@@ -446,6 +463,7 @@ function ItemsTable({
                       col.format === "currency" || col.format === "decimal"
                         ? "tabular-nums"
                         : undefined,
+                    whiteSpace: col.bucket === "flex" ? "normal" : "nowrap",
                   }}
                 >
                   {display}
@@ -455,19 +473,7 @@ function ItemsTable({
           </tr>
         ))}
 
-        {/* Spacer rows for short invoices (page 1 only, single-page only) */}
-        {page.isFirstPage &&
-          page.isLastPage &&
-          page.items.length < 8 &&
-          Array.from({ length: Math.max(0, 3 - page.items.length) }).map((_, i) => (
-            <tr key={`spacer-${i}`}>
-              {columns.map((col) => (
-                <td key={col.key} style={{ border: BORDER, padding: CELL_PAD }}>
-                  {col.key === "srNo" ? "\u00A0" : ""}
-                </td>
-              ))}
-            </tr>
-          ))}
+        {/* Spacer rows intentionally removed to allow natural item growth */}
 
         {/* ─── Subtotal + Tax rows (last page only) ─── */}
         {isLastPage && (
@@ -507,6 +513,7 @@ function ItemsTable({
                       textAlign: colSpan > 1 ? "right" : col.align,
                       fontWeight: 700,
                       fontVariantNumeric: "tabular-nums",
+                      whiteSpace: colSpan > 1 ? "nowrap" : (col.bucket === "flex" ? "normal" : "nowrap"),
                     }}
                   >
                     {content}
@@ -530,6 +537,7 @@ function ItemsTable({
                     padding: CELL_PAD,
                     textAlign: "right",
                     fontVariantNumeric: "tabular-nums",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {formatCell(data.igstTotal, "currency")}
@@ -550,6 +558,7 @@ function ItemsTable({
                     padding: CELL_PAD,
                     textAlign: "right",
                     fontVariantNumeric: "tabular-nums",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {formatCell(data.cgstTotal, "currency")}
@@ -570,6 +579,7 @@ function ItemsTable({
                     padding: CELL_PAD,
                     textAlign: "right",
                     fontVariantNumeric: "tabular-nums",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {formatCell(data.sgstTotal, "currency")}
@@ -600,8 +610,9 @@ function ItemsTable({
                   border: BORDER,
                   padding: CELL_PAD,
                   textAlign: "right",
-                  fontSize: "13px",
+                  fontSize: "15px",
                   fontVariantNumeric: "tabular-nums",
+                  whiteSpace: "nowrap",
                 }}
               >
                 ₹ {formatCell(data.grandTotal, "currency")}
@@ -693,24 +704,24 @@ function FooterSections({ data }: { data: PreparedInvoice["original"] }) {
                 <table style={{ width: "100%", fontSize: "10px" }}>
                   <tbody>
                     <tr>
-                      <td style={{ padding: "2px 0", fontWeight: 700, width: "90px" }}>Name</td>
+                      <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>Name</td>
                       <td style={{ padding: "2px 0" }}>{data.bankDetails.bankName}</td>
                     </tr>
                     <tr>
-                      <td style={{ padding: "2px 0", fontWeight: 700 }}>Branch</td>
+                      <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>Branch</td>
                       <td style={{ padding: "2px 0" }}>{data.bankDetails.branch}</td>
                     </tr>
                     <tr>
-                      <td style={{ padding: "2px 0", fontWeight: 700 }}>Acc. Number</td>
+                      <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>Acc. Number</td>
                       <td style={{ padding: "2px 0" }}>{data.bankDetails.accountNumber}</td>
                     </tr>
                     <tr>
-                      <td style={{ padding: "2px 0", fontWeight: 700 }}>IFSC</td>
+                      <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>IFSC</td>
                       <td style={{ padding: "2px 0" }}>{data.bankDetails.ifsc}</td>
                     </tr>
                     {data.bankDetails.upiId && (
                       <tr>
-                        <td style={{ padding: "2px 0", fontWeight: 700 }}>UPI ID</td>
+                        <td style={{ padding: "2px 8px 2px 0", fontWeight: 700, whiteSpace: "nowrap" }}>UPI ID</td>
                         <td style={{ padding: "2px 0" }}>{data.bankDetails.upiId}</td>
                       </tr>
                     )}

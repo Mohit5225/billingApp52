@@ -24,7 +24,10 @@ export default function LedgerCreatePage() {
     ledgerId,
     handleFetchGstDetails,
     submit,
+    returnTo,
   } = useLedgerForm();
+
+  const cancelHref = returnTo || "/dashboard";
 
   return (
     <div className="space-y-6 pb-20">
@@ -34,13 +37,13 @@ export default function LedgerCreatePage() {
         description="Create or update the account master, then return to the dashboard when you're done."
       >
         <Link
-          href="/dashboard"
+          href={cancelHref}
           className="inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/15"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          <span>Back to dashboard</span>
+          <span>{returnTo ? "Back" : "Back to dashboard"}</span>
         </Link>
       </PageHero>
 
@@ -82,7 +85,7 @@ export default function LedgerCreatePage() {
         </div>
         <div className="flex w-full sm:w-auto gap-3">
           <Link
-            href="/dashboard"
+            href={cancelHref}
             className="flex flex-1 sm:flex-none items-center justify-center rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             Cancel

@@ -43,7 +43,7 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
 
   // Determine GST type: IGST (inter-state) vs CGST+SGST (intra-state)
   const isInterState = data.party?.state && data.company?.state && data.party.state.toLowerCase() !== data.company.state.toLowerCase();
-  const hasIGST = (data.igstTotal != null && parseFloat(String(data.igstTotal)) > 0) || isInterState;
+  const hasIGST = (data.igstTotal != null && parseFloat(String(data.igstTotal)) > 0) || items.some(i => i.igstRate != null && parseFloat(String(i.igstRate)) > 0);
 
   // Build columns in canonical order
   const columns: ColumnDef[] = [
@@ -83,7 +83,7 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
     align: "center",
     format: "text",
     bucket: "fixed",
-    getValue: (item) => `${item.quantity} ${item.uom || ""}`.trim(),
+    getValue: (item) => (item as any).isEmptyRow ? "" : `${item.quantity !== undefined ? item.quantity : ""} ${item.uom || ""}`.trim(),
   });
 
   columns.push({
@@ -124,6 +124,7 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
     format: "percent",
     bucket: "fixed",
     getValue: (item) => {
+      if ((item as any).isEmptyRow) return undefined;
       if (hasIGST) return item.igstRate;
       // For CGST+SGST, show combined rate
       const cgst = parseFloat(String(item.cgstRate || 0));
@@ -141,6 +142,7 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
     format: "currency",
     bucket: "amount",
     getValue: (item) => {
+      if ((item as any).isEmptyRow) return undefined;
       const taxable = item.taxableAmount || 0;
       const igst = parseFloat(String(item.igstAmount || 0));
       const cgst = parseFloat(String(item.cgstAmount || 0));
@@ -178,31 +180,31 @@ const AMOUNT_WIDTHS: Record<string, number> = {
 
 export function calcWidths(columns: ColumnDef[], data?: InvoiceData): ColumnDef[] {
   const maxLenMap: Record<string, number> = {};
-  
+
   if (data) {
     for (const col of columns) {
-      let maxLen = col.label.length; 
+      let maxLen = col.label.length;
       for (const item of data.items) {
         const val = getCellValue(item, col);
         const str = formatCell(val, col.format);
         if (str.length > maxLen) maxLen = str.length;
       }
-      
+
       // Check totals for specific columns
       if (col.key === "taxableAmount" && data.subtotal != null) {
-         const str = formatCell(data.subtotal, "currency");
-         if (str.length > maxLen) maxLen = str.length;
+        const str = formatCell(data.subtotal, "currency");
+        if (str.length > maxLen) maxLen = str.length;
       }
       if (col.key === "lineTotal" && data.grandTotal != null) {
-         const str = formatCell(data.grandTotal, "currency");
-         if (str.length + 3 > maxLen) maxLen = str.length + 3; // +3 for "₹ " and space
+        const str = formatCell(data.grandTotal, "currency");
+        if (str.length + 3 > maxLen) maxLen = str.length + 3; // +3 for "₹ " and space
       }
       if (col.key === "quantity" && data.items.length > 0) {
-         const totalQty = data.items.reduce((s, i) => s + (i.quantity || 0), 0);
-         const str = `${totalQty} ${data.items[0]?.uom || ""}`.trim();
-         if (str.length > maxLen) maxLen = str.length;
+        const totalQty = data.items.reduce((s, i) => s + (i.quantity || 0), 0);
+        const str = `${totalQty} ${data.items[0]?.uom || ""}`.trim();
+        if (str.length > maxLen) maxLen = str.length;
       }
-  
+
       maxLenMap[col.key] = maxLen;
     }
   }
@@ -210,7 +212,7 @@ export function calcWidths(columns: ColumnDef[], data?: InvoiceData): ColumnDef[
   let fixedTotal = 0;
   let amountTotal = 0;
   let flexCount = 0;
-  
+
   const resolvedWidths: Record<string, number> = {};
 
   for (const col of columns) {
@@ -219,9 +221,9 @@ export function calcWidths(columns: ColumnDef[], data?: InvoiceData): ColumnDef[
       continue;
     }
 
-    // Estimate width: ~1.1% per char + ~2.5% for padding
+    // Estimate width: ~1.1% per char + ~3.5% for padding
     const chars = maxLenMap[col.key] || 5;
-    const dynamicWidth = data ? (chars * 1.1 + 2.5) : 0;
+    const dynamicWidth = data ? (chars * 1.1 + 3.5) : 0;
 
     let w = 10;
     if (col.bucket === "fixed" && FIXED_WIDTHS[col.key]) {
@@ -240,9 +242,9 @@ export function calcWidths(columns: ColumnDef[], data?: InvoiceData): ColumnDef[
   }
 
   // Ensure we leave at least 15% for the flex column (Name of Product)
-  const maxAllowedNonFlex = 85; 
+  const maxAllowedNonFlex = 85;
   let totalNonFlex = fixedTotal + amountTotal;
-  
+
   // If non-flex columns exceed the max allowed, scale them down proportionally
   if (totalNonFlex > maxAllowedNonFlex) {
     const scale = maxAllowedNonFlex / totalNonFlex;
@@ -297,20 +299,11 @@ export function chunkPages(
   options: ChunkOptions = DEFAULT_CHUNK_OPTIONS
 ): PageChunk[] {
   const items = data.items;
-  if (items.length === 0) {
-    return [
-      {
-        items: [],
-        pageNumber: 1,
-        totalPages: 1,
-        isFirstPage: true,
-        isLastPage: true,
-        pageLabel: "Page 1 of 1",
-      },
-    ];
-  }
-
   const chunks: InvoiceLineItem[][] = [];
+
+  if (items.length === 0) {
+    chunks.push([]);
+  }
   let currentChunk: InvoiceLineItem[] = [];
   let currentHeight = 0;
   let isFirstPage = true;
@@ -318,6 +311,8 @@ export function chunkPages(
   for (let i = 0; i < items.length; i++) {
     const rowH = options.rowHeight(items[i]);
     const budget = isFirstPage ? options.page1Budget : options.pageNBudget;
+
+    const continuationReserve = options.rowHeight({ name: "" } as unknown as InvoiceLineItem) || 30;
 
     // Check if remaining items might be the last page — reserve footer space
     const remainingItems = items.slice(i);
@@ -332,7 +327,7 @@ export function chunkPages(
     // if this could be the last page), start a new page
     const effectiveBudget = isLikelyLastPage
       ? budget - options.lastPageReserve
-      : budget;
+      : budget - continuationReserve;
 
     if (currentHeight + rowH > effectiveBudget && currentChunk.length > 0) {
       chunks.push(currentChunk);
@@ -379,6 +374,35 @@ export function chunkPages(
       chunks[lastChunkIdx] = kept;
       if (overflow.length > 0) {
         chunks.push(overflow);
+      }
+    }
+  }
+
+  // --- ADAPTIVE EMPTY ROWS LOGIC ---
+  const finalChunkIdx = chunks.length - 1;
+  if (finalChunkIdx >= 0) {
+    const finalBudget = (chunks.length === 1 ? options.page1Budget : options.pageNBudget) - options.lastPageReserve;
+    const finalItems = chunks[finalChunkIdx];
+
+    let finalHeight = finalItems.reduce((sum, item) => sum + options.rowHeight(item), 0);
+    const remainingHeight = finalBudget - finalHeight;
+
+    if (remainingHeight > 0) {
+      // Inherit adaptive space from calculated items
+      let adaptiveRowHeight = finalItems.length > 0
+        ? finalHeight / finalItems.length
+        : options.rowHeight({ name: "" } as unknown as InvoiceLineItem);
+
+      if (adaptiveRowHeight > 0) {
+        const numEmptyRows = Math.floor(remainingHeight / adaptiveRowHeight);
+
+        for (let i = 0; i < numEmptyRows; i++) {
+          finalItems.push({
+            isEmptyRow: true,
+            name: "",
+            _adaptiveHeight: adaptiveRowHeight
+          } as unknown as InvoiceLineItem);
+        }
       }
     }
   }

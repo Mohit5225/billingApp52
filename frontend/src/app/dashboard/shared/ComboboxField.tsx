@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useActiveFirm } from "./FirmProvider";
 
 export type ComboboxOption = {
@@ -206,10 +207,16 @@ export function ComboboxField({ label, value, onChange, options, placeholder = "
   if (leftIcon) inputClasses += " pl-9";
   if (chevron) inputClasses += " pr-9";
 
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const getHrefWithFirm = (href: string) => {
     if (!href || !activeFirmId) return href;
     const separator = href.includes("?") ? "&" : "?";
-    return `${href}${separator}firm_id=${activeFirmId}`;
+    const searchStr = searchParams ? searchParams.toString() : "";
+    const currentUrl = pathname + (searchStr ? `?${searchStr}` : "");
+    const returnTo = `&returnTo=${encodeURIComponent(currentUrl)}`;
+    return `${href}${separator}firm_id=${activeFirmId}${returnTo}`;
   };
 
   const renderCreateBtn = () => {
