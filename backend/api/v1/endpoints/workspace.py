@@ -480,6 +480,14 @@ def _build_tally_export_rows(
             cgst_amt = _as_float(inv.get("cgst_amount"))
             sgst_amt = _as_float(inv.get("sgst_amount"))
             
+            if tax_type.lower() == "exempt":
+                tax_type = ""
+            elif tax_type.lower() == "taxable":
+                if cgst_amt > 0 or sgst_amt > 0:
+                    tax_type = "LOC"
+                elif igst_amt > 0:
+                    tax_type = "CEN"
+            
             tax_pct = 0.0
             
             if igst_amt > 0:
