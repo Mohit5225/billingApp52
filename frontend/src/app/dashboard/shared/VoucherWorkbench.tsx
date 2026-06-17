@@ -406,6 +406,10 @@ export function VoucherWorkbench({
       igstTotal: invoiceTotals.igst || undefined,
       cgstTotal: invoiceTotals.cgst || undefined,
       sgstTotal: invoiceTotals.sgst || undefined,
+      additionalLedgers: form.additional_ledgers?.map(l => ({
+        name: ledgers.find(led => led.id === l.ledger_id)?.name || "Additional Ledger",
+        amount: Number(l.amount) || 0,
+      })) || [],
       grandTotal: invoiceTotals.grandTotal + (form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0),
       totalInWords: numberToWords(invoiceTotals.grandTotal + (form.additional_ledgers?.reduce((sum, l) => sum + (Number(l.amount) || 0), 0) || 0)),
       bankDetails: (!isPurchase && firmDetails.bankName)

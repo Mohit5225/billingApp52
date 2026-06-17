@@ -587,6 +587,29 @@ function ItemsTable({
               </tr>
             )}
 
+            {/* Additional Ledgers */}
+            {data.additionalLedgers && data.additionalLedgers.map((ledger, idx) => (
+              <tr key={idx}>
+                <td
+                  colSpan={columns.length - 1}
+                  style={{ border: BORDER, padding: CELL_PAD, textAlign: "right", fontWeight: 700 }}
+                >
+                  {ledger.name}
+                </td>
+                <td
+                  style={{
+                    border: BORDER,
+                    padding: CELL_PAD,
+                    textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatCell(ledger.amount, "currency")}
+                </td>
+              </tr>
+            ))}
+
             {/* Grand Total */}
             <tr style={{ background: "#e8f0e8", fontWeight: 800 }}>
               <td

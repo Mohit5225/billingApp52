@@ -98,6 +98,7 @@ export interface InvoiceData {
   igstTotal?: number;
   cgstTotal?: number;
   sgstTotal?: number;
+  additionalLedgers?: { name: string; amount: number }[];
   grandTotal: number;
   totalInWords: string;
   totalTaxInWords?: string;
