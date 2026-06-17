@@ -119,7 +119,7 @@ def _fetch_ledgers(ledger_ids: list[str]) -> dict[str, dict[str, Any]]:
         return {}
     rows = (
         supabase.table("ledgers")
-        .select("id, name, party_details:ledger_party_details(gstin, gst_registration_type)")
+        .select("id, name, party_details:ledger_party_details(gstin, gst_registration_type, address, state, pincode)")
         .in_("id", ledger_ids)
         .execute()
     ).data or []
@@ -363,10 +363,11 @@ def _build_tally_export_rows(
 ) -> list[list[Any]]:
     
     export_rows: list[list[Any]] = [
-        ["Bill No", "Bill Date", "Sales Ledger", "Unit", "Item Description", "HSN Code", 
-         "Accepted Qty", "Rate", "Amount", "Other Charges", "Tax Type", 
-         "Sub Tax Type(IGST/SGST or CGST)", "Tax %", "Tax Amount", "Tax Amount 2", 
-         "Round off", "Net Amount", "Party Name", "Registration Type", "GST No", "Narration"]
+        ["Vch No.", "Vch Type", "Date", "Code", "Name", "Address1", "Address2", "State", 
+         "Pin Code", "Regn Type", "GST No.", "Place Of Supply/party Type", 
+         "use ledger as common party/Ecommerce", "Item Name", "Godown Name", "Unit", 
+         "Qty", "Rate", "Amt", "Tax Type", "TaxRate", "IGST", "CGST", "SGST", 
+         "Round-Off", "Other Charges", "tax unit"]
     ]
 
     for voucher in vouchers:
@@ -377,15 +378,19 @@ def _build_tally_export_rows(
         
         party_name = ledgers_by_id.get(party_id, {}).get("name", "") if party_id else ""
         
-        # Registration type and GST No
         reg_type = ""
         gst_no = ""
+        address = ""
+        state = ""
+        pincode = ""
         if party_id and ledgers_by_id.get(party_id):
             party_details = ledgers_by_id[party_id].get("party_details") or {}
             reg_type = party_details.get("gst_registration_type") or ""
             gst_no = party_details.get("gstin") or ""
+            address = party_details.get("address") or ""
+            state = party_details.get("state") or ""
+            pincode = party_details.get("pincode") or ""
 
-        # Primary Ledger (Sales Ledger)
         primary_ledger_name = ""
         other_charges = 0.0
         round_off = 0.0
@@ -440,26 +445,32 @@ def _build_tally_export_rows(
             # Output single line for accounting only voucher
             export_rows.append([
                 voucher["voucher_number"],
+                voucher["category"], # Vch Type
                 vdate,
-                primary_ledger_name,
-                "", # Unit
-                "", # Item Description
-                "", # HSN
-                "", # Qty
-                "", # Rate
-                "", # Amount
-                round(other_charges, 2) or "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                round(round_off, 2) or "",
-                net_amount,
+                "", # Code
                 party_name,
+                address, # Address1
+                "", # Address2
+                state, # State
+                pincode, # Pin Code
                 reg_type,
                 gst_no,
-                voucher.get("narration") or "",
+                state, # Place Of Supply/party Type
+                "", # use ledger as common party/Ecommerce
+                "", # Item Name
+                "", # Godown Name
+                "", # Unit
+                "", # Qty
+                "", # Rate
+                "", # Amt
+                "", # Tax Type
+                "", # TaxRate
+                "", # IGST
+                "", # CGST
+                "", # SGST
+                round(round_off, 2) or "",
+                round(other_charges, 2) or "",
+                "", # tax unit
             ])
             continue
             
@@ -469,43 +480,41 @@ def _build_tally_export_rows(
             cgst_amt = _as_float(inv.get("cgst_amount"))
             sgst_amt = _as_float(inv.get("sgst_amount"))
             
-            sub_tax_type = ""
             tax_pct = 0.0
-            tax_amt_1 = ""
-            tax_amt_2 = ""
             
             if igst_amt > 0:
-                sub_tax_type = "IGST"
                 tax_pct = _as_float(inv.get("igst_rate"))
-                tax_amt_1 = igst_amt
             elif cgst_amt > 0 or sgst_amt > 0:
-                sub_tax_type = "CGST/SGST"
                 tax_pct = _as_float(inv.get("cgst_rate")) + _as_float(inv.get("sgst_rate"))
-                tax_amt_1 = cgst_amt
-                tax_amt_2 = sgst_amt
                 
             export_rows.append([
                 voucher["voucher_number"],
+                voucher["category"],
                 vdate,
-                primary_ledger_name,
-                inv.get("uom") or "",
+                "",
+                party_name,
+                address,
+                "",
+                state,
+                pincode,
+                reg_type,
+                gst_no,
+                state,
+                "",
                 inv.get("item_name") or "",
-                inv.get("hsn_code") or "",
+                "",
+                inv.get("uom") or "",
                 inv.get("quantity") or 0,
                 inv.get("unit_price") or 0,
                 inv.get("taxable_amount") or 0,
-                round(other_charges, 2) if i == 0 else "",
                 tax_type,
-                sub_tax_type,
                 tax_pct or "",
-                tax_amt_1,
-                tax_amt_2,
+                igst_amt or "",
+                cgst_amt or "",
+                sgst_amt or "",
                 round(round_off, 2) if i == 0 else "",
-                net_amount if i == 0 else "",
-                party_name,
-                reg_type,
-                gst_no,
-                voucher.get("narration") or "",
+                round(other_charges, 2) if i == 0 else "",
+                "", # tax unit
             ])
 
     return export_rows

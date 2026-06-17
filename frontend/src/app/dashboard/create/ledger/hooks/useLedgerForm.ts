@@ -135,10 +135,9 @@ export function useLedgerForm() {
       const data = await apiRequest<any>(supabase, `/api/firms/gst/fetch?gstin=${gstin}`);
       setForm((prev) => ({
         ...prev,
-        name: prev.name.trim() ? prev.name : data.name || prev.name,
+        name: data.name || prev.name,
         party_details: {
           ...prev.party_details,
-          mailing_name: data.name || prev.party_details.mailing_name,
           address: data.address_lane1
             ? `${data.address_lane1}${data.city ? `, ${data.city}` : ""}`
             : prev.party_details.address,

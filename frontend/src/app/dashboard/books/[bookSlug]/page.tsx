@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { LedgerDetail } from "@/interfaces/ledger";
@@ -71,6 +71,7 @@ export default function BookDetailPage() {
   const { showToast } = useToast();
   const [exportingLedgerId, setExportingLedgerId] = useState<string | null>(null);
   const [isExportingBook, setIsExportingBook] = useState(false);
+  const [search, setSearch] = useState("");
 
   const copy = BOOK_LABELS[bookSlug] || BOOK_LABELS["day-book"];
 
@@ -93,6 +94,25 @@ export default function BookDetailPage() {
   });
 
   const isLoading = ledgersLoading || rowsLoading;
+
+  const filteredLedgers = useMemo(() => {
+    if (!search.trim()) return ledgers;
+    const lower = search.toLowerCase();
+    return ledgers.filter((l) => 
+      l.name.toLowerCase().includes(lower) || 
+      (l.group_name && l.group_name.toLowerCase().includes(lower))
+    );
+  }, [ledgers, search]);
+
+  const filteredRows = useMemo(() => {
+    if (!search.trim()) return rows;
+    const lower = search.toLowerCase();
+    return rows.filter((r) => 
+      (r.voucher_number && r.voucher_number.toLowerCase().includes(lower)) ||
+      (r.party_name && r.party_name.toLowerCase().includes(lower)) ||
+      (r.primary_ledger_name && r.primary_ledger_name.toLowerCase().includes(lower))
+    );
+  }, [rows, search]);
 
   async function downloadXlsx(url: string, downloadName: string) {
     const {
@@ -186,6 +206,17 @@ export default function BookDetailPage() {
         </div>
       ) : null}
 
+      {!isLoading && (bookSlug === "ledger" ? ledgers.length > 0 : rows.length > 0) && (
+        <SurfaceCard title="Find records" description="Search stays local to this working view so you can move quickly without jumping screens.">
+          <input
+            type="text"
+            placeholder={`Search ${copy.title.toLowerCase()}...`}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/85 px-4 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
+          />
+        </SurfaceCard>
+      )}
 
       <SurfaceCard title={copy.title} description="Live rows from the operational backend.">
         {isLoading ? (
@@ -210,11 +241,11 @@ export default function BookDetailPage() {
             ))}
           </div>
         ) : bookSlug === "ledger" ? (
-          ledgers.length === 0 ? (
-            <EmptyState title="No ledgers yet" description="Create ledgers first so books and voucher selectors have something real to work with." />
+          filteredLedgers.length === 0 ? (
+            <EmptyState title={search ? "No matches found" : "No ledgers yet"} description={search ? "Try adjusting your search terms." : "Create ledgers first so books and voucher selectors have something real to work with."} />
           ) : (
             <div className="space-y-3">
-              {ledgers.map((ledger) => (
+              {filteredLedgers.map((ledger) => (
                 <div
                   key={ledger.id}
                   className="rounded-3xl border border-slate-100 bg-white/92 p-5 shadow-sm transition hover:border-emerald-200"
@@ -259,11 +290,11 @@ export default function BookDetailPage() {
               ))}
             </div>
           )
-        ) : rows.length === 0 ? (
-          <EmptyState title="No entries yet" description="Once vouchers are created, this book will start filling with live rows." />
+        ) : filteredRows.length === 0 ? (
+          <EmptyState title={search ? "No matches found" : "No entries yet"} description={search ? "Try adjusting your search terms." : "Once vouchers are created, this book will start filling with live rows."} />
         ) : (
           <div className="space-y-3">
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <Link
                 key={row.id}
                 href={`/dashboard/vouchers/${row.id}`}
