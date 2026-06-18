@@ -69,6 +69,7 @@ export default function StockItemMonthlyPage() {
       </div>
 
       <PageHero
+        eyebrow="Stock Summary"
         title={itemData?.name || "Item Monthly Summary"}
         description="Month-wise inward, outward, and closing balances for this item."
       />
