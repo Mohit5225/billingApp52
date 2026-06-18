@@ -7,8 +7,10 @@ import { LedgerCoreSection } from "./components/LedgerCoreSection";
 import { LedgerPartySection } from "./components/LedgerPartySection";
 import { LedgerBankSection } from "./components/LedgerBankSection";
 import { LedgerTaxSection } from "./components/LedgerTaxSection";
+import { useDashboardChrome } from "@/context/DashboardChromeContext";
 
 export default function LedgerCreatePage() {
+  const { isSidebarCollapsed } = useDashboardChrome();
   const {
     form,
     setForm,
@@ -79,7 +81,7 @@ export default function LedgerCreatePage() {
       )}
 
       {/* Sticky footer */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 border-t border-slate-200 bg-white/80 p-4 sm:px-6 shadow-[0_-4px_24px_rgba(15,23,42,0.04)] backdrop-blur-md lg:left-[320px]">
+      <div className={`fixed bottom-0 left-0 right-0 z-50 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 border-t border-slate-200 bg-white/80 p-4 sm:px-6 shadow-[0_-4px_24px_rgba(15,23,42,0.04)] backdrop-blur-md transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isSidebarCollapsed ? "lg:left-[104px]" : "lg:left-[320px]"}`}>
         <div className="hidden sm:block">
           <p className="text-sm font-semibold text-slate-900">Ready to save this ledger?</p>
         </div>
