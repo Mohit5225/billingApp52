@@ -81,7 +81,7 @@ export default function DashboardPage() {
         
         <div className="relative z-10 flex flex-row items-center justify-between gap-3 sm:gap-8 pr-2 sm:pr-6">
           <div className="flex-1 min-w-0">
-            <h2 className="text-[19px] sm:text-3xl md:text-4xl lg:text-5xl xl:text-[52px] font-semibold tracking-tight leading-[1.2] sm:leading-[1.15] xl:leading-[1.1]">
+            <h2 className="text-[19px] sm:text-3xl md:text-4xl lg:text-5xl xl:text-[52px] font-semibold tracking-tight leading-[1.2] sm:leading-[1.15] xl:leading-[1.1] text-balance">
               Day-to-day billing, inventory, and books in one real workspace.
             </h2>
           </div>
