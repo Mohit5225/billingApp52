@@ -224,8 +224,8 @@ export default function DashboardPage() {
               <p className="text-sm sm:text-[14px] font-semibold uppercase tracking-[0.24em] text-slate-500">Inventory</p>
               <h3 className="mt-1.5 text-3xl sm:text-4xl font-semibold tracking-tight text-slate-950">Stock at a glance</h3>
             </div>
-            <Link href="/dashboard/inventory/stock-position" className="text-sm sm:text-base font-semibold text-tally-700 hover:text-tally-800">
-              Open stock position
+            <Link href="/dashboard/inventory/stock-summary" className="text-sm sm:text-base font-semibold text-tally-700 hover:text-tally-800">
+              Open stock summary
             </Link>
           </div>
           <div className="grid gap-4 sm:gap-5 grid-cols-2">

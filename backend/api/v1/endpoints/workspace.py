@@ -9,7 +9,7 @@ from core.security import get_verified_jwt
 from core.supabase import supabase
 from .ledgers import _build_xlsx, _safe_filename_component
 from models.voucher import VoucherCategory
-from models.workspace import DashboardOverview, RegisterRow, StockPositionRow
+from models.workspace import DashboardOverview, RegisterRow, StockSummaryRow, StockMonthlyRow, StockVoucherRow
 from core.limiter import limiter
 from core.rate_limits import LIMIT_EXPORTS, LIMIT_AGGREGATIONS
 
@@ -220,37 +220,23 @@ def _build_register_rows(
     return rows
 
 
-def _build_stock_rows(target_firm_id: str, search: Optional[str] = None) -> list[dict[str, Any]]:
+def _build_stock_summary_rows(
+    target_firm_id: str,
+    search: Optional[str] = None,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    active_only_filter: bool = True,
+) -> list[dict[str, Any]]:
     items_query = supabase.table("items").select("*").eq("firm_id", target_firm_id)
     if search:
         items_query = items_query.or_(f"name.ilike.%{search}%,alias.ilike.%{search}%")
     items = items_query.order("name").execute().data or []
 
-    item_ids = [str(item["id"]) for item in items]
     if not items:
         return []
 
-    inventory_lines = (
-        supabase.table("voucher_inventory_lines")
-        .select("voucher_id, item_id, quantity, taxable_amount")
-        .in_("item_id", item_ids)
-        .eq("firm_id", target_firm_id)
-        .execute()
-    ).data or []
-
-    voucher_ids = list({str(line["voucher_id"]) for line in inventory_lines})
-    vouchers_by_id = {
-        str(row["id"]): row
-        for row in (
-            supabase.table("vouchers")
-            .select("id, category, is_cancelled")
-            .in_("id", voucher_ids or ["00000000-0000-0000-0000-000000000000"])
-            .execute()
-        ).data or []
-    }
-
+    item_ids = [str(item["id"]) for item in items]
     uom_ids = list({str(item["uom_id"]) for item in items if item.get("uom_id")})
-
     uom_map = {
         str(row["id"]): row["name"]
         for row in (
@@ -258,49 +244,117 @@ def _build_stock_rows(target_firm_id: str, search: Optional[str] = None) -> list
         ).data or []
     }
 
+    # Fetch all vouchers to know their dates
+    vouchers = (
+        supabase.table("vouchers")
+        .select("id, category, is_cancelled, voucher_date")
+        .eq("firm_id", target_firm_id)
+        .eq("is_cancelled", False)
+        .execute()
+    ).data or []
+    vouchers_by_id = {str(v["id"]): v for v in vouchers}
+    voucher_ids = list(vouchers_by_id.keys())
+
+    inventory_lines = (
+        supabase.table("voucher_inventory_lines")
+        .select("voucher_id, item_id, quantity, taxable_amount")
+        .in_("item_id", item_ids)
+        .in_("voucher_id", voucher_ids or ["00000000-0000-0000-0000-000000000000"])
+        .execute()
+    ).data or []
+
     movements: dict[str, dict[str, float]] = defaultdict(lambda: {
-        "inward_quantity": 0.0,
-        "outward_quantity": 0.0,
-        "inward_value": 0.0,
-        "outward_value": 0.0,
+        "opening_inward_qty": 0.0,
+        "opening_inward_val": 0.0,
+        "opening_outward_qty": 0.0,
+        "opening_outward_val": 0.0,
+        "period_inward_qty": 0.0,
+        "period_inward_val": 0.0,
+        "period_outward_qty": 0.0,
+        "period_outward_val": 0.0,
     })
 
     for line in inventory_lines:
         voucher = vouchers_by_id.get(str(line["voucher_id"]))
-        if not voucher or voucher.get("is_cancelled"):
+        if not voucher:
             continue
-
+        
         sign = INVENTORY_MOVEMENT_SIGNS.get(voucher["category"])
         if sign is None:
+            continue
+
+        v_date = voucher["voucher_date"]
+        is_before_from = from_date is not None and v_date < str(from_date)
+        is_after_to = to_date is not None and v_date > str(to_date)
+        
+        if is_after_to:
             continue
 
         item_movement = movements[str(line["item_id"])]
         quantity = _as_float(line["quantity"])
         taxable_value = _as_float(line["taxable_amount"])
-        if sign > 0:
-            item_movement["inward_quantity"] += quantity
-            item_movement["inward_value"] += taxable_value
+
+        if is_before_from:
+            if sign > 0:
+                item_movement["opening_inward_qty"] += quantity
+                item_movement["opening_inward_val"] += taxable_value
+            else:
+                item_movement["opening_outward_qty"] += quantity
+                item_movement["opening_outward_val"] += taxable_value
         else:
-            item_movement["outward_quantity"] += quantity
-            item_movement["outward_value"] += taxable_value
+            if sign > 0:
+                item_movement["period_inward_qty"] += quantity
+                item_movement["period_inward_val"] += taxable_value
+            else:
+                item_movement["period_outward_qty"] += quantity
+                item_movement["period_outward_val"] += taxable_value
 
     rows: list[dict[str, Any]] = []
     for item in items:
         movement = movements[str(item["id"])]
-        opening_quantity = _as_float(item["opening_quantity"])
-        opening_value = _as_float(item["opening_value"])
-        total_inward_qty = opening_quantity + movement["inward_quantity"]
-        total_inward_value = opening_value + movement["inward_value"]
         
-        if total_inward_qty > 0:
-            avg_cost = total_inward_value / total_inward_qty
+        # Item master opening balances
+        master_opening_qty = _as_float(item["opening_quantity"])
+        master_opening_val = _as_float(item["opening_value"])
+        
+        # Calculate opening balance at from_date
+        total_open_inward_qty = master_opening_qty + movement["opening_inward_qty"]
+        total_open_inward_val = master_opening_val + movement["opening_inward_val"]
+        
+        if total_open_inward_qty > 0:
+            avg_open_cost = total_open_inward_val / total_open_inward_qty
         else:
-            avg_cost = _as_float(item.get("default_price"))
-            if avg_cost == 0 and movement["outward_quantity"] > 0:
-                avg_cost = movement["outward_value"] / movement["outward_quantity"]
+            avg_open_cost = _as_float(item.get("default_price"))
+            if avg_open_cost == 0 and movement["opening_outward_qty"] > 0:
+                avg_open_cost = movement["opening_outward_val"] / movement["opening_outward_qty"]
+                
+        opening_quantity = total_open_inward_qty - movement["opening_outward_qty"]
+        opening_value = opening_quantity * avg_open_cost
 
-        closing_quantity = total_inward_qty - movement["outward_quantity"]
-        closing_value = closing_quantity * avg_cost
+        # Calculate closing balance at to_date
+        total_closing_inward_qty = total_open_inward_qty + movement["period_inward_qty"]
+        total_closing_inward_val = total_open_inward_val + movement["period_inward_val"]
+        
+        if total_closing_inward_qty > 0:
+            avg_closing_cost = total_closing_inward_val / total_closing_inward_qty
+        else:
+            avg_closing_cost = _as_float(item.get("default_price"))
+            if avg_closing_cost == 0 and (movement["opening_outward_qty"] + movement["period_outward_qty"]) > 0:
+                avg_closing_cost = (movement["opening_outward_val"] + movement["period_outward_val"]) / (movement["opening_outward_qty"] + movement["period_outward_qty"])
+        
+        total_outward_qty = movement["opening_outward_qty"] + movement["period_outward_qty"]
+        closing_quantity = total_closing_inward_qty - total_outward_qty
+        closing_value = closing_quantity * avg_closing_cost
+        
+        has_period_movement = movement["period_inward_qty"] > 0 or movement["period_outward_qty"] > 0
+        has_closing_balance = round(closing_quantity, 2) != 0 or round(closing_value, 2) != 0
+        is_active = bool(item["is_active"])
+        
+        if active_only_filter:
+            # Active items are returned if they are active, OR if they have closing balance/movement.
+            if not is_active and not has_period_movement and not has_closing_balance:
+                continue
+
         rows.append({
             "item_id": item["id"],
             "item_name": item["name"],
@@ -309,12 +363,12 @@ def _build_stock_rows(target_firm_id: str, search: Optional[str] = None) -> list
             "uom_name": uom_map.get(str(item["uom_id"])),
             "opening_quantity": round(opening_quantity, 2),
             "opening_value": round(opening_value, 2),
-            "inward_quantity": round(movement["inward_quantity"], 2),
-            "outward_quantity": round(movement["outward_quantity"], 2),
+            "inward_quantity": round(movement["period_inward_qty"], 2),
+            "outward_quantity": round(movement["period_outward_qty"], 2),
             "closing_quantity": round(closing_quantity, 2),
             "closing_value": round(closing_value, 2),
             "default_price": round(_as_float(item["default_price"]), 2),
-            "is_active": bool(item["is_active"]),
+            "is_active": is_active,
         })
 
     return rows
@@ -559,7 +613,7 @@ async def get_overview(
             ), 2),
         }
 
-    stock_rows = _build_stock_rows(target_firm_id)
+    stock_rows = _build_stock_summary_rows(target_firm_id, from_date=from_date, to_date=to_date)
     recent_vouchers = [
         {
             "id": voucher["id"],
@@ -754,14 +808,334 @@ async def export_book(
     )
 
 
-@router.get("/stock-position", response_model=list[StockPositionRow])
+@router.get("/stock-summary", response_model=list[StockSummaryRow])
 @limiter.limit(LIMIT_AGGREGATIONS)
-async def get_stock_position(
+async def get_stock_summary(
     request: Request,
     firm_id: Optional[str] = None,
     search: Optional[str] = None,
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     profile = get_profile_context(jwt)
     target_firm_id = resolve_target_firm_id(profile, firm_id)
-    return _build_stock_rows(target_firm_id, search=search)
+    return _build_stock_summary_rows(target_firm_id, search=search, from_date=from_date, to_date=to_date)
+
+@router.get("/stock-summary/{item_id}/monthly", response_model=list[StockMonthlyRow])
+@limiter.limit(LIMIT_AGGREGATIONS)
+async def get_stock_item_monthly_summary(
+    request: Request,
+    item_id: str,
+    firm_id: Optional[str] = None,
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    
+    item = supabase.table("items").select("*").eq("id", item_id).eq("firm_id", target_firm_id).single().execute().data
+    if not item:
+        return []
+
+    vouchers = (
+        supabase.table("vouchers")
+        .select("id, category, is_cancelled, voucher_date")
+        .eq("firm_id", target_firm_id)
+        .eq("is_cancelled", False)
+        .execute()
+    ).data or []
+    vouchers_by_id = {str(v["id"]): v for v in vouchers}
+    voucher_ids = list(vouchers_by_id.keys())
+
+    inventory_lines = (
+        supabase.table("voucher_inventory_lines")
+        .select("voucher_id, quantity, taxable_amount")
+        .eq("item_id", item_id)
+        .in_("voucher_id", voucher_ids or ["00000000-0000-0000-0000-000000000000"])
+        .execute()
+    ).data or []
+
+    from collections import defaultdict
+    from datetime import datetime
+    import calendar
+    
+    monthly_data = defaultdict(lambda: {
+        "inward_qty": 0.0,
+        "inward_val": 0.0,
+        "outward_qty": 0.0,
+        "outward_val": 0.0,
+    })
+
+    opening_inward_qty = 0.0
+    opening_inward_val = 0.0
+    opening_outward_qty = 0.0
+    opening_outward_val = 0.0
+
+    for line in inventory_lines:
+        voucher = vouchers_by_id.get(str(line["voucher_id"]))
+        if not voucher: continue
+        sign = INVENTORY_MOVEMENT_SIGNS.get(voucher["category"])
+        if sign is None: continue
+
+        v_date_str = voucher["voucher_date"]
+        v_date_obj = datetime.strptime(v_date_str, "%Y-%m-%d").date()
+        
+        is_before_from = from_date is not None and v_date_obj < from_date
+        is_after_to = to_date is not None and v_date_obj > to_date
+        if is_after_to: continue
+
+        quantity = _as_float(line["quantity"])
+        taxable_value = _as_float(line["taxable_amount"])
+
+        if is_before_from:
+            if sign > 0:
+                opening_inward_qty += quantity
+                opening_inward_val += taxable_value
+            else:
+                opening_outward_qty += quantity
+                opening_outward_val += taxable_value
+        else:
+            month_key = v_date_obj.strftime("%Y-%m")
+            month_dict = monthly_data[month_key]
+            if sign > 0:
+                month_dict["inward_qty"] += quantity
+                month_dict["inward_val"] += taxable_value
+            else:
+                month_dict["outward_qty"] += quantity
+                month_dict["outward_val"] += taxable_value
+
+    start_date = from_date
+    end_date = to_date
+    if not start_date or not end_date:
+        if monthly_data:
+            keys = sorted(monthly_data.keys())
+            start_date = datetime.strptime(keys[0] + "-01", "%Y-%m-%d").date()
+            end_date = datetime.strptime(keys[-1] + "-01", "%Y-%m-%d").date()
+        else:
+            start_date = date.today().replace(month=4, day=1)
+            if start_date > date.today():
+                start_date = start_date.replace(year=start_date.year - 1)
+            end_date = start_date.replace(year=start_date.year + 1, month=3, day=31)
+
+    months_list = []
+    curr = start_date.replace(day=1)
+    while curr <= end_date:
+        months_list.append(curr.strftime("%Y-%m"))
+        if curr.month == 12:
+            curr = curr.replace(year=curr.year + 1, month=1)
+        else:
+            curr = curr.replace(month=curr.month + 1)
+
+    master_opening_qty = _as_float(item["opening_quantity"])
+    master_opening_val = _as_float(item["opening_value"])
+    
+    current_inward_qty = master_opening_qty + opening_inward_qty
+    current_inward_val = master_opening_val + opening_inward_val
+    current_outward_qty = opening_outward_qty
+    current_outward_val = opening_outward_val
+
+    results = []
+    for m_key in months_list:
+        year, month = map(int, m_key.split("-"))
+        m_data = monthly_data.get(m_key, {"inward_qty": 0.0, "inward_val": 0.0, "outward_qty": 0.0, "outward_val": 0.0})
+        
+        if current_inward_qty > 0:
+            avg_open_cost = current_inward_val / current_inward_qty
+        else:
+            avg_open_cost = _as_float(item.get("default_price"))
+            if avg_open_cost == 0 and current_outward_qty > 0:
+                avg_open_cost = current_outward_val / current_outward_qty
+                
+        open_qty = current_inward_qty - current_outward_qty
+        open_val = open_qty * avg_open_cost
+
+        current_inward_qty += m_data["inward_qty"]
+        current_inward_val += m_data["inward_val"]
+        current_outward_qty += m_data["outward_qty"]
+        current_outward_val += m_data["outward_val"]
+
+        if current_inward_qty > 0:
+            avg_close_cost = current_inward_val / current_inward_qty
+        else:
+            avg_close_cost = _as_float(item.get("default_price"))
+            if avg_close_cost == 0 and current_outward_qty > 0:
+                avg_close_cost = current_outward_val / current_outward_qty
+
+        close_qty = current_inward_qty - current_outward_qty
+        close_val = close_qty * avg_close_cost
+
+        results.append({
+            "month": calendar.month_name[month],
+            "year": year,
+            "month_index": month if month >= 4 else month + 12,
+            "opening_quantity": round(open_qty, 2),
+            "opening_value": round(open_val, 2),
+            "inward_quantity": round(m_data["inward_qty"], 2),
+            "inward_value": round(m_data["inward_val"], 2),
+            "outward_quantity": round(m_data["outward_qty"], 2),
+            "outward_value": round(m_data["outward_val"], 2),
+            "closing_quantity": round(close_qty, 2),
+            "closing_value": round(close_val, 2),
+        })
+
+    return results
+
+@router.get("/stock-summary/{item_id}/vouchers", response_model=list[StockVoucherRow])
+@limiter.limit(LIMIT_AGGREGATIONS)
+async def get_stock_item_vouchers(
+    request: Request,
+    item_id: str,
+    firm_id: Optional[str] = None,
+    from_date: Optional[date] = Query(default=None),
+    to_date: Optional[date] = Query(default=None),
+    jwt: str = Depends(get_verified_jwt),
+) -> Any:
+    profile = get_profile_context(jwt)
+    target_firm_id = resolve_target_firm_id(profile, firm_id)
+
+    item = supabase.table("items").select("*").eq("id", item_id).eq("firm_id", target_firm_id).single().execute().data
+    if not item:
+        return []
+
+    vouchers_query = (
+        supabase.table("vouchers")
+        .select("id, category, is_cancelled, voucher_date, voucher_number, party_ledger_id")
+        .eq("firm_id", target_firm_id)
+        .eq("is_cancelled", False)
+    )
+    if from_date:
+        vouchers_query = vouchers_query.gte("voucher_date", str(from_date))
+    if to_date:
+        vouchers_query = vouchers_query.lte("voucher_date", str(to_date))
+
+    vouchers = vouchers_query.order("voucher_date").execute().data or []
+    if not vouchers:
+        return []
+        
+    vouchers_by_id = {str(v["id"]): v for v in vouchers}
+    voucher_ids = list(vouchers_by_id.keys())
+
+    party_ledger_ids = list({str(v["party_ledger_id"]) for v in vouchers if v.get("party_ledger_id")})
+    ledger_name_map = _fetch_ledger_name_map(party_ledger_ids)
+
+    inventory_lines = (
+        supabase.table("voucher_inventory_lines")
+        .select("voucher_id, quantity, taxable_amount")
+        .eq("item_id", item_id)
+        .in_("voucher_id", voucher_ids)
+        .execute()
+    ).data or []
+
+    lines_by_voucher = defaultdict(list)
+    for line in inventory_lines:
+        lines_by_voucher[str(line["voucher_id"])].append(line)
+
+    opening_inward_qty = 0.0
+    opening_inward_val = 0.0
+    opening_outward_qty = 0.0
+    opening_outward_val = 0.0
+    
+    if from_date:
+        past_vouchers = (
+            supabase.table("vouchers")
+            .select("id, category")
+            .eq("firm_id", target_firm_id)
+            .eq("is_cancelled", False)
+            .lt("voucher_date", str(from_date))
+            .execute()
+        ).data or []
+        past_voucher_ids = [str(v["id"]) for v in past_vouchers]
+        past_vouchers_by_id = {str(v["id"]): v for v in past_vouchers}
+        
+        if past_voucher_ids:
+            past_lines = (
+                supabase.table("voucher_inventory_lines")
+                .select("voucher_id, quantity, taxable_amount")
+                .eq("item_id", item_id)
+                .in_("voucher_id", past_voucher_ids)
+                .execute()
+            ).data or []
+            
+            for line in past_lines:
+                pv = past_vouchers_by_id.get(str(line["voucher_id"]))
+                if not pv: continue
+                sign = INVENTORY_MOVEMENT_SIGNS.get(pv["category"])
+                if sign is None: continue
+                
+                if sign > 0:
+                    opening_inward_qty += _as_float(line["quantity"])
+                    opening_inward_val += _as_float(line["taxable_amount"])
+                else:
+                    opening_outward_qty += _as_float(line["quantity"])
+                    opening_outward_val += _as_float(line["taxable_amount"])
+
+    master_opening_qty = _as_float(item["opening_quantity"])
+    master_opening_val = _as_float(item["opening_value"])
+    
+    current_inward_qty = master_opening_qty + opening_inward_qty
+    current_inward_val = master_opening_val + opening_inward_val
+    current_outward_qty = opening_outward_qty
+    current_outward_val = opening_outward_val
+
+    results = []
+    
+    for v in vouchers:
+        v_id = str(v["id"])
+        v_lines = lines_by_voucher.get(v_id)
+        if not v_lines:
+            continue
+            
+        sign = INVENTORY_MOVEMENT_SIGNS.get(v["category"])
+        if sign is None:
+            continue
+            
+        party_name = ledger_name_map.get(str(v.get("party_ledger_id"))) or "Cash"
+            
+        in_qty = 0.0
+        in_val = 0.0
+        out_qty = 0.0
+        out_val = 0.0
+        
+        for line in v_lines:
+            qty = _as_float(line["quantity"])
+            val = _as_float(line["taxable_amount"])
+            if sign > 0:
+                in_qty += qty
+                in_val += val
+            else:
+                out_qty += qty
+                out_val += val
+                
+        current_inward_qty += in_qty
+        current_inward_val += in_val
+        current_outward_qty += out_qty
+        current_outward_val += out_val
+        
+        if current_inward_qty > 0:
+            avg_close_cost = current_inward_val / current_inward_qty
+        else:
+            avg_close_cost = _as_float(item.get("default_price"))
+            if avg_close_cost == 0 and current_outward_qty > 0:
+                avg_close_cost = current_outward_val / current_outward_qty
+
+        close_qty = current_inward_qty - current_outward_qty
+        close_val = close_qty * avg_close_cost
+        
+        results.append({
+            "voucher_id": v_id,
+            "voucher_date": v["voucher_date"],
+            "particulars": party_name,
+            "voucher_type": v["category"],
+            "voucher_number": v["voucher_number"],
+            "inward_quantity": round(in_qty, 2),
+            "inward_value": round(in_val, 2),
+            "outward_quantity": round(out_qty, 2),
+            "outward_value": round(out_val, 2),
+            "closing_quantity": round(close_qty, 2),
+            "closing_value": round(close_val, 2),
+        })
+
+    return results
+

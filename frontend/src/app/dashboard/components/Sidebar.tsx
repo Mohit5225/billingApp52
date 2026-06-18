@@ -56,7 +56,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Inventory Hub", href: "/dashboard/inventory" },
       { label: "Items", href: "/dashboard/inventory/items" },
       { label: "UOM", href: "/dashboard/inventory/uom" },
-      { label: "Stock Position", href: "/dashboard/inventory/stock-position" },
+      { label: "Stock Summary", href: "/dashboard/inventory/stock-summary" },
     ],
   },
   {

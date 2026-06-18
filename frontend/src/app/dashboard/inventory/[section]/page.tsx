@@ -13,7 +13,7 @@ import { useToast } from "@/context/ToastContext";
 import { EmptyState, PageHero, SurfaceCard, ConfirmModal } from "../../shared/WorkspaceUi";
 import { useFirmScope } from "../../shared/useFirmScope";
 
-type SectionKey = "items" | "hsn" | "uom" | "stock-position";
+type SectionKey = "items" | "hsn" | "uom";
 
 
 
@@ -106,10 +106,6 @@ const SECTION_COPY: Record<SectionKey, { title: string; description: string }> =
   uom: {
     title: "Units of measure",
     description: "Define quantity units once and reuse them cleanly across vouchers and stock views.",
-  },
-  "stock-position": {
-    title: "Stock position",
-    description: "Read live inward, outward, and closing stock computed from the backend.",
   },
   hsn: {
     title: "HSN codes",
@@ -215,15 +211,6 @@ export default function InventorySectionPage() {
     enabled: !!activeFirmId && (section === "items" || section === "uom"),
   });
 
-  const { data: stockData, isLoading: stockLoading } = useQuery({
-    queryKey: ["stock-position", activeFirmId],
-    queryFn: () =>
-      apiRequest<StockPositionRow[]>(supabase, "/api/workspace/stock-position", {
-        query: { firm_id: activeFirmId },
-      }),
-    enabled: !!activeFirmId && (section === "items" || section === "stock-position"),
-  });
-
   const { data: hsnData, isLoading: hsnLoading } = useQuery({
     queryKey: ["hsn", activeFirmId],
     queryFn: async () => {
@@ -239,7 +226,6 @@ export default function InventorySectionPage() {
 
   const rawItems = itemData || [];
   const rawUom = uomData || [];
-  const rawStockRows = stockData || [];
   const rawHsn = hsnData || [];
 
   const items = useMemo(() => 
@@ -250,10 +236,6 @@ export default function InventorySectionPage() {
     rawUom.filter(u => u.name.toLowerCase().includes(search.toLowerCase())), 
   [rawUom, search]);
 
-  const stockRows = useMemo(() => 
-    rawStockRows.filter(row => row.item_name.toLowerCase().includes(search.toLowerCase())), 
-  [rawStockRows, search]);
-
   const hsn = useMemo(() => 
     rawHsn.filter(h => 
       h.hsn_code.toLowerCase().includes(search.toLowerCase()) || 
@@ -261,7 +243,7 @@ export default function InventorySectionPage() {
     ), 
   [rawHsn, search]);
 
-  const isLoading = itemsLoading || uomLoading || stockLoading || hsnLoading;
+  const isLoading = itemsLoading || uomLoading || hsnLoading;
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -286,23 +268,15 @@ export default function InventorySectionPage() {
     }
   }
 
-  const copy = SECTION_COPY[section];
-
-  const stockByItemId = useMemo(
-    () => Object.fromEntries(stockRows.map((row) => [row.item_id, row])),
-    [stockRows],
-  );
+  const copy = SECTION_COPY[section] || { title: "Inventory", description: "" };
 
   const deleteTargetInUse = useMemo(() => {
     if (!deleteTarget) return false;
-    if (section === "items") {
-      const stock = stockByItemId[deleteTarget.id];
-      return stock ? (stock.inward_quantity > 0 || stock.outward_quantity > 0) : false;
-    } else if (section === "uom") {
+    if (section === "uom") {
       return items.some((item) => item.uom_id === deleteTarget.id);
     }
     return false;
-  }, [deleteTarget, section, stockByItemId, items]);
+  }, [deleteTarget, section, items]);
 
   const referencingItems = useMemo(() => {
     if (!deleteTarget || section !== "uom") return [];
@@ -773,7 +747,6 @@ export default function InventorySectionPage() {
         {items.length === 0 ? (
           <EmptyState title="No items yet" description="Create the first item so vouchers can pick inventory lines from a real master." />
         ) : items.map((item) => {
-          const stock = stockByItemId[item.id];
           return (
             <div key={item.id} className="rounded-[26px] border border-slate-100 bg-white/92 p-5 shadow-sm">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -788,8 +761,6 @@ export default function InventorySectionPage() {
                   <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
                     <span>Default price: {formatCurrency(item.default_price)}</span>
                     <span>Taxability: {item.taxability}</span>
-                    <span>Stock: {formatNumber(stock?.closing_quantity ?? 0)}</span>
-                    <span>Stock value: {formatCurrency(stock?.closing_value ?? 0)}</span>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -876,34 +847,14 @@ export default function InventorySectionPage() {
             ))}
           </div>
         )
-        : (
-          <div className="space-y-3">
-            {stockRows.length === 0 ? <EmptyState title="No stock movements yet" description="Opening balances and inventory vouchers will start populating this register." /> : stockRows.map((row) => (
-              <div key={row.item_id} className="rounded-[24px] border border-slate-100 bg-white/92 p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-lg font-semibold text-slate-950">{row.item_name}</p>
-                    <p className="mt-2 text-sm text-slate-500">{row.hsn_code || "No HSN"} • {row.uom_name || "No UOM"}</p>
-                  </div>
-                  <div className="grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-5">
-                    <span>Opening: {formatNumber(row.opening_quantity)}</span>
-                    <span>Inward: {formatNumber(row.inward_quantity)}</span>
-                    <span>Outward: {formatNumber(row.outward_quantity)}</span>
-                    <span>Closing: {formatNumber(row.closing_quantity)}</span>
-                    <span>Value: {formatCurrency(row.closing_value)}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        );
+        : null;
 
   return (
     <div className="space-y-6">
       <PageHero
         eyebrow="Inventory Detail"
-        title={copy.title}
-        description={copy.description}
+        title={copy?.title || "Inventory"}
+        description={copy?.description || "Manage your inventory"}
         backHref="/dashboard/inventory"
       />
 
@@ -917,7 +868,7 @@ export default function InventorySectionPage() {
         editor
       ) : (
         <SurfaceCard
-          title={copy.title}
+          title={copy?.title || "Inventory"}
           description="Live records from the backend."
         >
           {(section === "items" || section === "uom") && !isLoading && (

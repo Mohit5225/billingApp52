@@ -42,8 +42,8 @@ const LINKS = [
     icon: <ScaleIcon />
   },
   {
-    title: "Stock Position",
-    href: "/dashboard/inventory/stock-position",
+    title: "Stock Summary",
+    href: "/dashboard/inventory/stock-summary",
     description: "Live inward, outward, and closing balances",
     icon: <ChartIcon />
   },

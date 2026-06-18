@@ -52,7 +52,7 @@ class RegisterRow(BaseSchema):
     amount: float
 
 
-class StockPositionRow(BaseSchema):
+class StockSummaryRow(BaseSchema):
     item_id: UUID4
     item_name: str
     alias: Optional[str] = None
@@ -66,3 +66,31 @@ class StockPositionRow(BaseSchema):
     closing_value: float
     default_price: float
     is_active: bool
+
+
+class StockMonthlyRow(BaseSchema):
+    month: str  # e.g. "April", "May"
+    year: int
+    month_index: int  # For sorting: 1 for April, ..., 12 for March
+    opening_quantity: float
+    opening_value: float
+    inward_quantity: float
+    inward_value: float
+    outward_quantity: float
+    outward_value: float
+    closing_quantity: float
+    closing_value: float
+
+
+class StockVoucherRow(BaseSchema):
+    voucher_id: UUID4
+    voucher_date: date
+    particulars: str
+    voucher_type: str
+    voucher_number: str
+    inward_quantity: float
+    inward_value: float
+    outward_quantity: float
+    outward_value: float
+    closing_quantity: float
+    closing_value: float

@@ -43,7 +43,7 @@ export interface ItemDetail extends Item {
   uom_name?: string | null;
 }
 
-export interface StockPositionRow {
+export interface StockSummaryRow {
   item_id: string;
   item_name: string;
   alias?: string | null;
@@ -57,4 +57,32 @@ export interface StockPositionRow {
   closing_value: number;
   default_price: number;
   is_active: boolean;
+}
+
+export interface StockMonthlyRow {
+  month: string;
+  year: number;
+  month_index: number;
+  opening_quantity: number;
+  opening_value: number;
+  inward_quantity: number;
+  inward_value: number;
+  outward_quantity: number;
+  outward_value: number;
+  closing_quantity: number;
+  closing_value: number;
+}
+
+export interface StockVoucherRow {
+  voucher_id: string;
+  voucher_date: string;
+  particulars: string;
+  voucher_type: string;
+  voucher_number: string;
+  inward_quantity: number;
+  inward_value: number;
+  outward_quantity: number;
+  outward_value: number;
+  closing_quantity: number;
+  closing_value: number;
 }
