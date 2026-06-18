@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter, usePathname } from "next/navigat
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Hsn, ItemDetail, StockPositionRow, Uom } from "@/interfaces/inventory";
+import { Hsn, ItemDetail, Uom } from "@/interfaces/inventory";
 import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { useToast } from "@/context/ToastContext";
