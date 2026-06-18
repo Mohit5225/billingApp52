@@ -41,6 +41,7 @@ export default function StockSummaryPage() {
   return (
     <div className="mx-auto w-full space-y-6 lg:space-y-8">
       <PageHero
+        eyebrow="Inventory"
         title="Stock Summary"
         description="View inward, outward, and closing balances for all items."
       />

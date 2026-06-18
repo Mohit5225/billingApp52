@@ -72,6 +72,7 @@ export default function StockItemVouchersPage() {
       </div>
 
       <PageHero
+        eyebrow="Stock Summary"
         title={`Item Vouchers: ${itemData?.name || ""}`}
         description="Detailed inward and outward transactions for this item."
       />
