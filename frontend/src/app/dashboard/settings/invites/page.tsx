@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/context/ProfileContext";
 import { useToast } from "@/context/ToastContext";
 import { useRouter } from "next/navigation";
+import { apiRequest } from "@/lib/http";
 
 interface InvitedUser {
   id: string;
@@ -91,7 +92,7 @@ export default function InvitesPage() {
   return (
     <div className="flex h-full flex-col p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Team Invites</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">Firm Invites</h1>
         <p className="mt-1 text-sm text-slate-500">
           Manage the whitelist of emails allowed to sign up. Users must be on this list to access the application.
         </p>

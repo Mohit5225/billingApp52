@@ -13,6 +13,7 @@ interface ProfileContextType {
   isCAAdmin: boolean;
   isCAEmployee: boolean;
   isMerchant: boolean;
+  isPaused: boolean;
   supabase: ReturnType<typeof createClient>;
 }
 
@@ -87,6 +88,7 @@ export const ProfileProvider = ({ children }: { children: ReactNode }) => {
     isCAAdmin: profile?.role === UserRole.CA_ADMIN,
     isCAEmployee: profile?.role === UserRole.CA_EMPLOYEE,
     isMerchant: profile?.role === UserRole.MERCHANT,
+    isPaused: profile?.is_paused ?? false,
     supabase,
   };
 

@@ -15,6 +15,7 @@ class ProfileBase(BaseSchema):
     role: RoleEnum
     full_name: str
     email: str
+    is_paused: bool = False
 
 class ProfileUpdate(BaseSchema):
     """Schema for updating a User Profile."""

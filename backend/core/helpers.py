@@ -17,7 +17,7 @@ def get_profile_context(jwt: str) -> dict[str, Any]:
 
     profile_resp = (
         supabase.table("profiles")
-        .select("id, firm_id, role")
+        .select("id, firm_id, role, is_paused")
         .eq("id", user.id)
         .single()
         .execute()
@@ -28,6 +28,12 @@ def get_profile_context(jwt: str) -> dict[str, Any]:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Profile not found",
+        )
+
+    if profile.get("is_paused"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your access has been paused.",
         )
 
     return profile

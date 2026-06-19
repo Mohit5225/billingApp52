@@ -6,6 +6,7 @@ import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 
 import { ProfileProvider } from "@/context/ProfileContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { GlobalAccessCheck } from "@/components/AccessPausedOverlay";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -63,7 +64,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <ProfileProvider>
-          {children}
+          <GlobalAccessCheck>
+            {children}
+          </GlobalAccessCheck>
         </ProfileProvider>
       </ToastProvider>
       <ReactQueryDevtools initialIsOpen={false} />

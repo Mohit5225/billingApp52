@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useProfile } from "@/context/ProfileContext";
 
 interface NavChild {
   label: string;
@@ -103,7 +104,8 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Configure a bill template", href: "/dashboard/settings/bill-template" },
       { label: "Configure Voucher Details", href: "/dashboard/settings/voucher-details" },
       { label: "Firm Details", href: "/dashboard/settings/firm-details" },
-      { label: "Team Invites", href: "/dashboard/settings/invites" },
+      { label: "Firm Invites", href: "/dashboard/settings/invites" },
+      { label: "Paused Access", href: "/dashboard/settings/paused-access" },
     ],
   },
 ];
@@ -114,6 +116,22 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
   const { isSidebarCollapsed, setIsSidebarCollapsed } = useDashboardChrome();
+  const { isCAAdmin, isCAEmployee } = useProfile();
+
+  const filteredNavItems = NAV_ITEMS.map((item) => {
+    if (item.label === "Settings" && item.children) {
+      return {
+        ...item,
+        children: item.children.filter((child) => {
+          if (child.label === "Firm Invites" || child.label === "Paused Access") {
+            return isCAAdmin || isCAEmployee;
+          }
+          return true;
+        }),
+      };
+    }
+    return item;
+  });
 
   const toggleSection = (label: string) => {
     setExpandedSections((prev) => ({
@@ -196,7 +214,7 @@ export default function Sidebar() {
         </div>
 
         <nav className={`mt-3 flex-1 overflow-y-auto pb-5 custom-scrollbar overflow-x-hidden transition-all duration-300 ${isSidebarCollapsed ? 'px-0 flex flex-col justify-center space-y-6' : 'px-1 space-y-1'}`}>
-          {NAV_ITEMS.map((item) => {
+          {filteredNavItems.map((item) => {
             const hasChildren = item.children && item.children.length > 0;
             const childIsActive = item.children?.some((child) => pathname.startsWith(child.href)) ?? false;
             const isOpen = expandedSections[item.label] ?? childIsActive;

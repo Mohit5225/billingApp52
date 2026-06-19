@@ -12,7 +12,7 @@ import { FirmProvider } from "./shared/FirmProvider";
 import { GlobalSearchProvider } from "@/context/GlobalSearchContext";
 
 function DashboardShell({ children }: { children: React.ReactNode }) {
-  const { profile, isLoading, refreshProfile, supabase } = useProfile();
+  const { profile, isLoading, refreshProfile, supabase, isPaused } = useProfile();
   const router = useRouter();
   const pathname = usePathname();
   const hasRetriedProfile = useRef(false);
