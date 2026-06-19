@@ -111,7 +111,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-canvas">
       <Sidebar />
 
-      <div className={`min-h-screen transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isSidebarCollapsed ? "lg:pl-[104px]" : "lg:pl-[320px]"}`}>
+      <div className={`min-h-screen transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isSidebarCollapsed ? "lg:pl-[var(--sidebar-space-collapsed)]" : "lg:pl-[var(--sidebar-space-expanded)]"}`}>
         {!isVoucherScreen && (
           <Suspense
             fallback={<div className="h-[88px] border-b border-white/60 bg-white/70 backdrop-blur-xl" />}

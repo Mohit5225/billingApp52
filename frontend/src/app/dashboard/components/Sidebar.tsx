@@ -103,6 +103,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Configure a bill template", href: "/dashboard/settings/bill-template" },
       { label: "Configure Voucher Details", href: "/dashboard/settings/voucher-details" },
       { label: "Firm Details", href: "/dashboard/settings/firm-details" },
+      { label: "Team Invites", href: "/dashboard/settings/invites" },
     ],
   },
 ];
@@ -135,7 +136,7 @@ export default function Sidebar() {
   const isActive = (href?: string) => Boolean(href && (pathname === href || pathname.startsWith(`${href}/`)));
 
   return (
-    <aside className={`fixed z-40 hidden bg-[#163324] text-white lg:flex transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isSidebarCollapsed ? 'top-5 bottom-5 left-5 w-[80px] rounded-[28px] border border-white/[0.06] shadow-[0_20px_60px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)]' : 'top-0 bottom-0 left-0 w-[320px] rounded-none border-r border-white/[0.03] shadow-[10px_0_40px_rgba(0,0,0,0.2)]'}`}>
+    <aside className={`fixed z-40 hidden bg-[#163324] text-white lg:flex transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isSidebarCollapsed ? 'top-5 bottom-5 left-5 w-[80px] rounded-[28px] border border-white/[0.06] shadow-[0_20px_60px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.1)]' : 'top-0 bottom-0 left-0 w-[320px] rounded-none border-r border-white/[0.03] shadow-[10px_0_40px_rgba(0,0,0,0.2)]'}`} style={{ zoom: "var(--scale-sidebar-relative)" } as React.CSSProperties}>
       {/* Collapse Toggle Button */}
       <div className="absolute -right-3.5 top-1/2 -translate-y-1/2 z-50 group/toggle">
         <button 

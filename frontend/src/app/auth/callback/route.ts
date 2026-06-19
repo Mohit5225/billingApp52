@@ -25,6 +25,14 @@ export async function GET(request: Request) {
     }
   }
 
-  // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  // if there's an error in the searchParams, redirect back to login to display it
+  const error = searchParams.get('error');
+  const errorDescription = searchParams.get('error_description');
+  
+  if (error || errorDescription) {
+    return NextResponse.redirect(`${origin}/auth/login?error=${error}&error_description=${errorDescription}`);
+  }
+
+  // fallback return
+  return NextResponse.redirect(`${origin}/auth/login?error=unknown_error`);
 }

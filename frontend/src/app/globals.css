@@ -37,6 +37,27 @@
   --shadow-float: 0 30px 80px rgba(15, 23, 42, 0.12);
   --bottom-nav-height: 80px;
   --header-height: 88px;
+
+  /* Default Mobile-First Scaling (100%) */
+  --scale-base: 1;
+  --scale-sidebar-relative: 1;
+  --scale-voucher-relative: 1;
+  
+  --scale-voucher-absolute: calc(var(--scale-base) * var(--scale-voucher-relative));
+
+  --sidebar-width-expanded: 320px;
+  --sidebar-width-collapsed: 104px;
+
+  --sidebar-space-expanded: calc(var(--sidebar-width-expanded) * var(--scale-sidebar-relative));
+  --sidebar-space-collapsed: calc(var(--sidebar-width-collapsed) * var(--scale-sidebar-relative));
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --scale-base: 0.75;
+    --scale-sidebar-relative: 1.2;
+    --scale-voucher-relative: 1.0667;
+  }
 }
 
 /* ── Voucher workbench zone tokens ── */

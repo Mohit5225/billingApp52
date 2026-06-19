@@ -591,7 +591,7 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div ref={containerRef} onKeyDown={handleKeyDown} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh-2rem)] lg:min-h-[800px] rounded-xl border border-slate-300 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]">
+    <div ref={containerRef} onKeyDown={handleKeyDown} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh/var(--scale-voucher-absolute)-2rem)] lg:min-h-[800px] rounded-xl border border-slate-300 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]" style={{ zoom: "var(--scale-voucher-relative)" } as React.CSSProperties}>
       {/* ── Voucher Command Ribbon ── */}
       <VoucherHeader
         meta={meta}

@@ -48,7 +48,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-screen bg-canvas text-slate-900 antialiased`}>
+      <body className={`${inter.className} min-h-screen bg-canvas text-slate-900 antialiased`} style={{ zoom: "var(--scale-base)" } as React.CSSProperties}>
         <Providers>{children}</Providers>
       </body>
     </html>

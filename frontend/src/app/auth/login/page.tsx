@@ -1,6 +1,19 @@
 import GoogleSignInButton from "@/app/auth/login/GoogleSignInButton";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const errorDesc = params.error_description || params.error;
+  
+  // Supabase GoTrue masks the raw Postgres exception (INVITE_ONLY_ERROR) and returns "Database error saving new user"
+  const isInviteError = typeof errorDesc === 'string' && 
+    (errorDesc.includes('INVITE_ONLY_ERROR') || errorDesc.includes('Database error saving new user'));
+    
+  const genericError = typeof errorDesc === 'string' && !isInviteError ? errorDesc : null;
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[linear-gradient(180deg,#f8f4ed_0%,#eef7f0_100%)] px-6 py-10 text-slate-900">
       <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-emerald-200/40 blur-3xl" />
@@ -54,7 +67,26 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="mt-8">
+          <div className="mt-8 space-y-4">
+            {isInviteError && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 shadow-sm">
+                <p className="font-semibold mb-1 flex items-center gap-2">
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Access Denied
+                </p>
+                <p>Access is denied. You need an official invite to sign up for this workspace.</p>
+              </div>
+            )}
+
+            {genericError && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 shadow-sm">
+                <p className="font-semibold mb-1">Authentication Error</p>
+                <p>{genericError}</p>
+              </div>
+            )}
+
             <GoogleSignInButton />
           </div>
 
