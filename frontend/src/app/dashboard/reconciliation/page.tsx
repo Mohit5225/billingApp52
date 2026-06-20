@@ -440,8 +440,7 @@ export default function ReconciliationPage() {
     pendingSession: string;
   } | null>(null);
 
-  const [tolerance, setTolerance] = useState<number>(1.0);
-  const [invoiceTolerance, setInvoiceTolerance] = useState<number>(0);
+  const [taxableTolerance, setTaxableTolerance] = useState<number>(1.0);
 
   const [localFromDate, setLocalFromDate] = useState(fromDate);
   const [localToDate, setLocalToDate] = useState(toDate);
@@ -515,8 +514,7 @@ export default function ReconciliationPage() {
       formData.append("from_date", localFromDate);
       formData.append("to_date", localToDate);
       formData.append("match_type", matchType);
-      formData.append("tolerance", tolerance.toString());
-      formData.append("invoice_tolerance", invoiceTolerance.toString());
+      formData.append("taxable_tolerance", taxableTolerance.toString());
       formData.append("file", selectedFile);
 
       const {
@@ -594,8 +592,7 @@ export default function ReconciliationPage() {
       formData.append("from_date", localFromDate);
       formData.append("to_date", localToDate);
       formData.append("match_type", matchType);
-      formData.append("tolerance", tolerance.toString());
-      formData.append("invoice_tolerance", invoiceTolerance.toString());
+      formData.append("taxable_tolerance", taxableTolerance.toString());
       formData.append("file", selectedFile);
 
       const {
@@ -930,24 +927,13 @@ export default function ReconciliationPage() {
 
           <div className="mt-8 flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">Match Tolerance (₹)</label>
+              <label className="text-sm font-medium text-slate-700">Taxable Value Tolerance (₹)</label>
               <input
                 type="number"
                 step="0.01"
                 min="0"
-                value={tolerance}
-                onChange={(e) => setTolerance(parseFloat(e.target.value) || 0)}
-                className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-tally-500 focus:outline-none focus:ring-1 focus:ring-tally-500"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-slate-700">Invoice Value Tolerance (₹)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={invoiceTolerance}
-                onChange={(e) => setInvoiceTolerance(parseFloat(e.target.value) || 0)}
+                value={taxableTolerance}
+                onChange={(e) => setTaxableTolerance(parseFloat(e.target.value) || 0)}
                 className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-tally-500 focus:outline-none focus:ring-1 focus:ring-tally-500"
               />
             </div>

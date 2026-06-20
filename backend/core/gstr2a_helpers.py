@@ -85,6 +85,41 @@ def normalize_key_str(s: str | None) -> str:
         return ""
     return re.sub(r"[^A-Z0-9]", "", str(s).upper())
 
+def fuzzy_invoice_match(inv1: str, inv2: str) -> bool:
+    """
+    Checks if two invoice strings are essentially the same.
+    Used to pair invoices that have minor prefix differences but matching amounts.
+    """
+    if not inv1 or not inv2:
+        return False
+    
+    inv1_str = str(inv1).strip()
+    inv2_str = str(inv2).strip()
+    
+    # 1. Exact match after normalization
+    n1 = normalize_key_str(inv1_str)
+    n2 = normalize_key_str(inv2_str)
+    if n1 == n2:
+        return True
+        
+    # Extract digit sequences
+    d1_list = re.findall(r'\d+', inv1_str)
+    d2_list = re.findall(r'\d+', inv2_str)
+    
+    if d1_list and d2_list:
+        # 2. Extracted numeric digits are identical (ignores all letters and special chars)
+        if "".join(d1_list) == "".join(d2_list):
+            return True
+            
+        # 3. Last numeric sequence matches exactly (as integers to ignore leading zeros)
+        try:
+            if int(d1_list[-1]) == int(d2_list[-1]):
+                return True
+        except ValueError:
+            pass
+
+    return False
+
 GST_STATE_MAP = {
     "01": "JAMMUANDKASHMIR",
     "02": "HIMACHALPRADESH",
@@ -365,8 +400,7 @@ def parse_gstr2a_excel(file_bytes: bytes, filename: str) -> list[dict[str, Any]]
 def reconcile(
     software_rows: list[dict[str, Any]], 
     gstr2a_rows: list[dict[str, Any]],
-    tolerance: float = 1.0,
-    invoice_tolerance: float = 0.0,
+    taxable_tolerance: float = 1.0,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
 ) -> dict[str, Any]:
@@ -377,29 +411,39 @@ def reconcile(
         """Compare two matched rows and return list of field names that deviate."""
         devs = []
 
-        # Invoice Num: keys matched (normalized), but display strings may differ (e.g. INV/001 vs INV001)
-        if s_row["Invoice Num"].strip() != g_row["Invoice Num"].strip():
+        # We no longer flag Invoice Num as a deviation if they are a fuzzy match.
+        if not fuzzy_invoice_match(s_row["Invoice Num"], g_row["Invoice Num"]):
             devs.append("Invoice Num")
 
-        if invoice_tolerance > 0 and abs(s_row["Invoice Value"] - g_row["Invoice Value"]) <= invoice_tolerance:
-            pass # ignore numeric fields differences
-        else:
-            # Numeric fields (tolerance for rounding)
-            for col in ["Invoice Value", "Taxable Value", "IGST", "CGST", "SGST"]:
-                if abs(s_row[col] - g_row[col]) > tolerance:
-                    devs.append(col)
+        if abs(s_row["Taxable Value"] - g_row["Taxable Value"]) > taxable_tolerance:
+            devs.append("Taxable Value")
 
-            # Tax type swap: one side IGST, other side CGST+SGST, but total is same
-            s_igst, s_cgst, s_sgst = s_row["IGST"], s_row["CGST"], s_row["SGST"]
-            g_igst, g_cgst, g_sgst = g_row["IGST"], g_row["CGST"], g_row["SGST"]
-            
-            if s_igst > 0 and g_igst == 0 and abs(s_igst - (g_cgst + g_sgst)) <= tolerance:
-                pass # Ignore deviation
-            elif g_igst > 0 and s_igst == 0 and abs(g_igst - (s_cgst + s_sgst)) <= tolerance:
-                pass # Ignore deviation
-            elif s_igst > 0 and g_igst == 0 and abs(s_igst - (g_cgst + g_sgst)) > tolerance:
+        tax_tolerance = 2.0
+        for col in ["IGST", "CGST", "SGST"]:
+            if abs(s_row[col] - g_row[col]) > tax_tolerance:
+                devs.append(col)
+
+        # Invoice Value difference bounded by max possible legitimate sub-deviations
+        if abs(s_row["Invoice Value"] - g_row["Invoice Value"]) > (taxable_tolerance + tax_tolerance):
+            devs.append("Invoice Value")
+
+        # Tax type swap: one side IGST, other side CGST+SGST, but total is same
+        s_igst, s_cgst, s_sgst = s_row["IGST"], s_row["CGST"], s_row["SGST"]
+        g_igst, g_cgst, g_sgst = g_row["IGST"], g_row["CGST"], g_row["SGST"]
+        
+        if s_igst > 0 and g_igst == 0:
+            if abs(s_igst - (g_cgst + g_sgst)) <= tax_tolerance:
+                if "IGST" in devs: devs.remove("IGST")
+                if "CGST" in devs: devs.remove("CGST")
+                if "SGST" in devs: devs.remove("SGST")
+            elif "Tax Type (IGST vs CGST+SGST)" not in devs:
                 devs.append("Tax Type (IGST vs CGST+SGST)")
-            elif g_igst > 0 and s_igst == 0 and abs(g_igst - (s_cgst + s_sgst)) > tolerance:
+        elif g_igst > 0 and s_igst == 0:
+            if abs(g_igst - (s_cgst + s_sgst)) <= tax_tolerance:
+                if "IGST" in devs: devs.remove("IGST")
+                if "CGST" in devs: devs.remove("CGST")
+                if "SGST" in devs: devs.remove("SGST")
+            elif "Tax Type (IGST vs CGST+SGST)" not in devs:
                 devs.append("Tax Type (IGST vs CGST+SGST)")
 
         # Date
@@ -484,6 +528,17 @@ def reconcile(
 
     all_gstins = set(software_by_gstin.keys()) | set(gstr2a_by_gstin.keys())
 
+    def _amounts_match(s_r: dict, g_r: dict) -> bool:
+        if abs(s_r["Taxable Value"] - g_r["Taxable Value"]) > taxable_tolerance:
+            return False
+        tax_tol = 2.0
+        for col in ["IGST", "CGST", "SGST"]:
+            if abs(s_r[col] - g_r[col]) > tax_tol:
+                return False
+        if abs(s_r["Invoice Value"] - g_r["Invoice Value"]) > (taxable_tolerance + tax_tol):
+            return False
+        return True
+
     for gstin in all_gstins:
         s_rows   = software_by_gstin.get(gstin, [])
         g_inv_map = gstr2a_by_gstin.get(gstin, {})
@@ -502,6 +557,7 @@ def reconcile(
         matched_s: set[str] = set()
         matched_g: set[str] = set()
 
+        # Pass 1: Exact normalized match
         for inv_key, g_row in g_inv_map.items():
             if inv_key in s_inv_map:
                 s_row = s_inv_map[inv_key]
@@ -510,6 +566,39 @@ def reconcile(
 
                 deviations = _check_deviations(s_row, g_row)
 
+                if not deviations:
+                    matched_grouped.setdefault(gstin, []).append(s_row)
+                else:
+                    partial_grouped.setdefault(gstin, []).append({
+                        "software_row": s_row,
+                        "portal_row":   g_row,
+                        "deviations":   deviations,
+                    })
+
+        # Pass 2: Fuzzy match for remaining unmatched
+        unmatched_s_keys = [k for k in s_inv_map.keys() if k not in matched_s]
+        unmatched_g_keys = [k for k in g_inv_map.keys() if k not in matched_g]
+        
+        for g_key in unmatched_g_keys:
+            g_row = g_inv_map[g_key]
+            best_s_key = None
+            
+            for s_key in unmatched_s_keys:
+                if s_key in matched_s:
+                    continue
+                s_row = s_inv_map[s_key]
+                
+                # Check if fuzzy invoice match and amounts match
+                if fuzzy_invoice_match(s_row["Invoice Num"], g_row["Invoice Num"]) and _amounts_match(s_row, g_row):
+                    best_s_key = s_key
+                    break
+            
+            if best_s_key:
+                s_row = s_inv_map[best_s_key]
+                matched_s.add(best_s_key)
+                matched_g.add(g_key)
+                
+                deviations = _check_deviations(s_row, g_row)
                 if not deviations:
                     matched_grouped.setdefault(gstin, []).append(s_row)
                 else:
