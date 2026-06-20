@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Dispatch, SetStateAction } from "react";
 import { FormState, VoucherMeta } from "../types";
+import { DatePicker } from "../../../components/DatePicker";
 
 type VoucherHeaderProps = {
   meta: VoucherMeta;
@@ -87,15 +88,12 @@ export function VoucherHeader({
           <label className="text-[14px] font-bold text-slate-700">
             {meta.category === "Debit Note" ? "Debit Note Date" : meta.category === "Credit Note" ? "Credit Note Date" : "Invoice Date"}
           </label>
-          <input
-            type="date"
-            className="h-12 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-[17px] font-bold text-slate-900 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20 disabled:opacity-60 disabled:bg-slate-50"
+          <DatePicker
             value={form.voucher_date}
-            min={globalFromDate}
-            max={globalToDate}
-            onChange={(e) => setForm((prev) => ({ ...prev, voucher_date: e.target.value }))}
+            minDate={globalFromDate}
+            maxDate={globalToDate}
+            onChange={(val) => setForm((prev) => ({ ...prev, voucher_date: val }))}
             disabled={readOnly}
-            data-mandatory="true"
           />
         </div>
       </div>

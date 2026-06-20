@@ -6,6 +6,7 @@ import { useFirmScope } from "../shared/useFirmScope";
 import { useToast } from "@/context/ToastContext";
 import { getApiBaseUrl } from "@/lib/api";
 import { formatCurrency } from "@/lib/format";
+import { DatePicker } from "../components/DatePicker";
 import {
   ReconciliationResult,
   ReconciliationRow,
@@ -440,6 +441,7 @@ export default function ReconciliationPage() {
   } | null>(null);
 
   const [tolerance, setTolerance] = useState<number>(1.0);
+  const [invoiceTolerance, setInvoiceTolerance] = useState<number>(0);
 
   const [localFromDate, setLocalFromDate] = useState(fromDate);
   const [localToDate, setLocalToDate] = useState(toDate);
@@ -514,6 +516,7 @@ export default function ReconciliationPage() {
       formData.append("to_date", localToDate);
       formData.append("match_type", matchType);
       formData.append("tolerance", tolerance.toString());
+      formData.append("invoice_tolerance", invoiceTolerance.toString());
       formData.append("file", selectedFile);
 
       const {
@@ -592,6 +595,7 @@ export default function ReconciliationPage() {
       formData.append("to_date", localToDate);
       formData.append("match_type", matchType);
       formData.append("tolerance", tolerance.toString());
+      formData.append("invoice_tolerance", invoiceTolerance.toString());
       formData.append("file", selectedFile);
 
       const {
@@ -786,22 +790,20 @@ export default function ReconciliationPage() {
               <label className="text-sm font-medium text-slate-700">
                 From Date
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={localFromDate}
-                onChange={(e) => setLocalFromDate(e.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-tally-500 focus:outline-none focus:ring-1 focus:ring-tally-500"
+                onChange={(val) => setLocalFromDate(val)}
+                className="!py-0"
               />
             </div>
             <div className="flex flex-col space-y-2">
               <label className="text-sm font-medium text-slate-700">
                 To Date
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={localToDate}
-                onChange={(e) => setLocalToDate(e.target.value)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-tally-500 focus:outline-none focus:ring-1 focus:ring-tally-500"
+                onChange={(val) => setLocalToDate(val)}
+                className="!py-0"
               />
             </div>
           </div>
@@ -935,6 +937,17 @@ export default function ReconciliationPage() {
                 min="0"
                 value={tolerance}
                 onChange={(e) => setTolerance(parseFloat(e.target.value) || 0)}
+                className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-tally-500 focus:outline-none focus:ring-1 focus:ring-tally-500"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Invoice Value Tolerance (₹)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={invoiceTolerance}
+                onChange={(e) => setInvoiceTolerance(parseFloat(e.target.value) || 0)}
                 className="w-24 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-tally-500 focus:outline-none focus:ring-1 focus:ring-tally-500"
               />
             </div>

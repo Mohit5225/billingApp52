@@ -317,6 +317,7 @@ def reconcile(
     software_rows: list[dict[str, Any]], 
     gstr2a_rows: list[dict[str, Any]],
     tolerance: float = 1.0,
+    invoice_tolerance: float = 0.0,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
 ) -> dict[str, Any]:
@@ -331,23 +332,26 @@ def reconcile(
         if s_row["Invoice Num"].strip() != g_row["Invoice Num"].strip():
             devs.append("Invoice Num")
 
-        # Numeric fields (tolerance for rounding)
-        for col in ["Invoice Value", "Taxable Value", "IGST", "CGST", "SGST"]:
-            if abs(s_row[col] - g_row[col]) > tolerance:
-                devs.append(col)
+        if invoice_tolerance > 0 and abs(s_row["Invoice Value"] - g_row["Invoice Value"]) <= invoice_tolerance:
+            pass # ignore numeric fields differences
+        else:
+            # Numeric fields (tolerance for rounding)
+            for col in ["Invoice Value", "Taxable Value", "IGST", "CGST", "SGST"]:
+                if abs(s_row[col] - g_row[col]) > tolerance:
+                    devs.append(col)
 
-        # Tax type swap: one side IGST, other side CGST+SGST, but total is same
-        s_igst, s_cgst, s_sgst = s_row["IGST"], s_row["CGST"], s_row["SGST"]
-        g_igst, g_cgst, g_sgst = g_row["IGST"], g_row["CGST"], g_row["SGST"]
-        
-        if s_igst > 0 and g_igst == 0 and abs(s_igst - (g_cgst + g_sgst)) <= tolerance:
-            pass # Ignore deviation
-        elif g_igst > 0 and s_igst == 0 and abs(g_igst - (s_cgst + s_sgst)) <= tolerance:
-            pass # Ignore deviation
-        elif s_igst > 0 and g_igst == 0 and abs(s_igst - (g_cgst + g_sgst)) > tolerance:
-            devs.append("Tax Type (IGST vs CGST+SGST)")
-        elif g_igst > 0 and s_igst == 0 and abs(g_igst - (s_cgst + s_sgst)) > tolerance:
-            devs.append("Tax Type (IGST vs CGST+SGST)")
+            # Tax type swap: one side IGST, other side CGST+SGST, but total is same
+            s_igst, s_cgst, s_sgst = s_row["IGST"], s_row["CGST"], s_row["SGST"]
+            g_igst, g_cgst, g_sgst = g_row["IGST"], g_row["CGST"], g_row["SGST"]
+            
+            if s_igst > 0 and g_igst == 0 and abs(s_igst - (g_cgst + g_sgst)) <= tolerance:
+                pass # Ignore deviation
+            elif g_igst > 0 and s_igst == 0 and abs(g_igst - (s_cgst + s_sgst)) <= tolerance:
+                pass # Ignore deviation
+            elif s_igst > 0 and g_igst == 0 and abs(s_igst - (g_cgst + g_sgst)) > tolerance:
+                devs.append("Tax Type (IGST vs CGST+SGST)")
+            elif g_igst > 0 and s_igst == 0 and abs(g_igst - (s_cgst + s_sgst)) > tolerance:
+                devs.append("Tax Type (IGST vs CGST+SGST)")
 
         # Date
         if s_row["date"] != g_row["date"]:

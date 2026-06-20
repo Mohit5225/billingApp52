@@ -11,6 +11,7 @@ import { apiRequest } from "@/lib/http";
 import { useDateFilter } from "@/context/DateFilterContext";
 import { useFirmScope } from "../shared/useFirmScope";
 import { useGlobalSearch } from "@/context/GlobalSearchContext";
+import { DateRangePicker } from "./DateRangePicker";
 
 export default function Header() {
   const { fromDate, toDate, setDateRange } = useDateFilter();
@@ -118,46 +119,13 @@ export default function Header() {
           )}
 
           <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-            <div className="hidden items-center justify-center gap-6 rounded-[22px] bg-white px-6 py-3.5 text-[16px] font-semibold text-slate-800 shadow-sm xl:flex">
-              <div className="flex items-center gap-4">
-                <svg className="h-[22px] w-[22px] text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <rect x="4" y="5" width="16" height="16" rx="4" ry="4" />
-                  <line x1="16" y1="3" x2="16" y2="7" />
-                  <line x1="8" y1="3" x2="8" y2="7" />
-                  <line x1="4" y1="11" x2="20" y2="11" />
-                  <rect x="7" y="15" width="3" height="3" rx="1" fill="currentColor" />
-                </svg>
-                <input
-                  type="date"
-                  value={fromDate}
-                  max={toDate}
-                  onChange={(e) => setDateRange(e.target.value, toDate)}
-                  className="bg-transparent outline-none cursor-pointer text-slate-800 w-[115px]"
-                />
-              </div>
-              
-              <div className="flex items-center gap-6">
-                <div className="h-5 w-[1px] bg-slate-200" />
-                <span className="text-slate-500 font-medium">to</span>
-                <div className="h-5 w-[1px] bg-slate-200" />
-              </div>
-
-              <div className="flex items-center gap-4">
-                <input
-                  type="date"
-                  value={toDate}
-                  min={fromDate}
-                  onChange={(e) => setDateRange(fromDate, e.target.value)}
-                  className="bg-transparent outline-none cursor-pointer text-slate-800 w-[115px] text-right"
-                />
-                <svg className="h-[22px] w-[22px] text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <rect x="4" y="5" width="16" height="16" rx="4" ry="4" />
-                  <line x1="16" y1="3" x2="16" y2="7" />
-                  <line x1="8" y1="3" x2="8" y2="7" />
-                  <line x1="4" y1="11" x2="20" y2="11" />
-                  <rect x="14" y="15" width="3" height="3" rx="1" fill="currentColor" />
-                </svg>
-              </div>
+            <div className="hidden xl:block">
+              <DateRangePicker 
+                fromDate={fromDate}
+                toDate={toDate}
+                onChangeFrom={(val) => setDateRange(val, toDate)}
+                onChangeTo={(val) => setDateRange(fromDate, val)}
+              />
             </div>
 
             <button className="relative flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[20px] bg-white text-slate-600 shadow-sm transition hover:bg-slate-50">
@@ -198,41 +166,12 @@ export default function Header() {
             </div>
           )}
           
-          <div className="flex items-center justify-center gap-3 sm:gap-5 rounded-[20px] bg-white px-4 py-3.5 text-sm sm:text-[15px] font-semibold text-slate-800 shadow-sm border border-slate-100">
-            <svg className="h-5 w-5 text-slate-800 shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <rect x="4" y="5" width="16" height="16" rx="4" ry="4" />
-              <line x1="16" y1="3" x2="16" y2="7" />
-              <line x1="8" y1="3" x2="8" y2="7" />
-              <line x1="4" y1="11" x2="20" y2="11" />
-              <rect x="7" y="15" width="3" height="3" rx="1" fill="currentColor" />
-            </svg>
-            <input
-              type="date"
-              value={fromDate}
-              max={toDate}
-              onChange={(e) => setDateRange(e.target.value, toDate)}
-              className="bg-transparent outline-none cursor-pointer w-[110px] sm:w-[115px]"
-            />
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div className="h-4 w-[1px] bg-slate-200" />
-              <span className="text-slate-500 font-medium">to</span>
-              <div className="h-4 w-[1px] bg-slate-200" />
-            </div>
-            <input
-              type="date"
-              value={toDate}
-              min={fromDate}
-              onChange={(e) => setDateRange(fromDate, e.target.value)}
-              className="bg-transparent outline-none cursor-pointer w-[110px] sm:w-[115px] sm:text-right"
-            />
-            <svg className="h-5 w-5 text-slate-800 shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <rect x="4" y="5" width="16" height="16" rx="4" ry="4" />
-              <line x1="16" y1="3" x2="16" y2="7" />
-              <line x1="8" y1="3" x2="8" y2="7" />
-              <line x1="4" y1="11" x2="20" y2="11" />
-              <rect x="14" y="15" width="3" height="3" rx="1" fill="currentColor" />
-            </svg>
-          </div>
+          <DateRangePicker 
+            fromDate={fromDate}
+            toDate={toDate}
+            onChangeFrom={(val) => setDateRange(val, toDate)}
+            onChangeTo={(val) => setDateRange(fromDate, val)}
+          />
         </div>
       </div>
 

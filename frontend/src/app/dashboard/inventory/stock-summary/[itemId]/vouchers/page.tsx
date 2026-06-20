@@ -22,10 +22,15 @@ export default function StockItemVouchersPage() {
 
   // If monthStart is present, we calculate fromDate and toDate for that month
   if (monthStart) {
-    const d = new Date(monthStart);
-    fromDate = d.toISOString().split("T")[0];
-    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-    toDate = lastDay.toISOString().split("T")[0];
+    const [yearStr, monthStr] = monthStart.split("-");
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    
+    fromDate = monthStart;
+    
+    const lastDay = new Date(Date.UTC(year, month, 0));
+    const lastDateStr = String(lastDay.getUTCDate()).padStart(2, "0");
+    toDate = `${yearStr}-${monthStr.padStart(2, "0")}-${lastDateStr}`;
   }
 
   const itemId = params.itemId;

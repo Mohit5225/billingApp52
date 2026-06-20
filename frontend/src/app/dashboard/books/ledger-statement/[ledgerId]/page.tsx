@@ -14,6 +14,7 @@ import { formatCurrency, formatDate } from "@/lib/format";
 import { EmptyState, MetricTile, PageHero, SurfaceCard } from "../../../shared/WorkspaceUi";
 import { useFirmScope } from "../../../shared/useFirmScope";
 import { useDateFilter } from "@/context/DateFilterContext";
+import { DatePicker } from "../../../components/DatePicker";
 
 function formatBalance(amount: number, balanceType: string) {
   return `${balanceType} ${formatCurrency(amount)}`;
@@ -208,24 +209,22 @@ export default function LedgerStatementPage() {
             <form onSubmit={handleFilterSubmit} className="grid gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 md:grid-cols-[1fr_1fr_auto] md:items-end">
               <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 From date
-                <input
-                  type="date"
+                <DatePicker
                   value={filters.fromDate}
-                  min={globalFromDate}
-                  max={globalToDate}
-                  onChange={(event) => setFilters((prev) => ({ ...prev, fromDate: event.target.value }))}
-                  className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-300"
+                  minDate={globalFromDate}
+                  maxDate={globalToDate}
+                  onChange={(val) => setFilters((prev) => ({ ...prev, fromDate: val }))}
+                  className="!py-0 h-11"
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
                 To date
-                <input
-                  type="date"
+                <DatePicker
                   value={filters.toDate}
-                  min={globalFromDate}
-                  max={globalToDate}
-                  onChange={(event) => setFilters((prev) => ({ ...prev, toDate: event.target.value }))}
-                  className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-300"
+                  minDate={globalFromDate}
+                  maxDate={globalToDate}
+                  onChange={(val) => setFilters((prev) => ({ ...prev, toDate: val }))}
+                  className="!py-0 h-11"
                 />
               </label>
               <div className="flex gap-2">

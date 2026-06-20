@@ -1,6 +1,7 @@
 import { FormState } from "../types";
 import { Dispatch, SetStateAction, useState, useEffect } from "react";
 import { ConfirmModal } from "../../WorkspaceUi";
+import { DatePicker } from "../../../components/DatePicker";
 
 type DebitCreditNoteDetailsModalProps = {
   open: boolean;
@@ -122,11 +123,9 @@ export function DebitCreditNoteDetailsModal({
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-bold text-slate-700">Original Invoice Date</label>
-                  <input
-                    type="date"
-                    className="h-11 w-full rounded-md border border-slate-300 bg-white px-3 font-semibold text-slate-900 shadow-sm outline-none transition focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20"
+                  <DatePicker
                     value={localInvoiceDate}
-                    onChange={(e) => setLocalInvoiceDate(e.target.value)}
+                    onChange={(val) => setLocalInvoiceDate(val)}
                   />
                 </div>
               </div>

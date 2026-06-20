@@ -214,6 +214,7 @@ async def reconcile_gstr2a(
     to_date: date = Form(...),
     match_type: str = Form("purchases"),
     tolerance: float = Form(1.0),
+    invoice_tolerance: float = Form(0.0),
     file: UploadFile = File(...),
     jwt: str = Depends(get_verified_jwt),
 ):
@@ -237,7 +238,7 @@ async def reconcile_gstr2a(
     raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
-    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance,
+    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance, invoice_tolerance=invoice_tolerance,
                        from_date=from_date, to_date=to_date)
 
     # Compute actual date range present in the uploaded sheet
@@ -267,6 +268,7 @@ async def download_reconciliation_report(
     to_date: date = Form(...),
     match_type: str = Form("purchases"),
     tolerance: float = Form(1.0),
+    invoice_tolerance: float = Form(0.0),
     file: UploadFile = File(...),
     jwt: str = Depends(get_verified_jwt),
 ):
@@ -286,7 +288,7 @@ async def download_reconciliation_report(
     raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
-    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance,
+    result = reconcile(software_rows, gstr2a_rows, tolerance=tolerance, invoice_tolerance=invoice_tolerance,
                        from_date=from_date, to_date=to_date)
     excel_bytes = build_result_excel(result)
 

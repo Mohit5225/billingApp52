@@ -6,6 +6,7 @@ import { DrCrType } from "@/interfaces/ledger";
 import { BillAllocationState } from "../types";
 import { apiRequest } from "@/lib/http";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { DatePicker } from "../../../components/DatePicker";
 
 type OutstandingBill = {
   ref_name: string;
@@ -291,11 +292,9 @@ export function BillWiseDetailsModal({
                 {/* Due Date */}
                 <div className="w-full sm:w-[200px] shrink-0">
                   <label className="block text-sm font-bold uppercase tracking-wider text-slate-400 mb-2 px-1">Due Date</label>
-                  <input
-                    className="h-14 w-full rounded-xl border border-slate-200 bg-white px-5 text-lg text-slate-700 outline-none transition-all hover:border-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    type="date"
+                  <DatePicker
                     value={row.due_date}
-                    onChange={(e) => updateRow(index, { due_date: e.target.value })}
+                    onChange={(val) => updateRow(index, { due_date: val })}
                   />
                 </div>
 
