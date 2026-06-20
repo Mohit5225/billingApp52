@@ -85,12 +85,61 @@ def normalize_key_str(s: str | None) -> str:
         return ""
     return re.sub(r"[^A-Z0-9]", "", str(s).upper())
 
+GST_STATE_MAP = {
+    "01": "JAMMUANDKASHMIR",
+    "02": "HIMACHALPRADESH",
+    "03": "PUNJAB",
+    "04": "CHANDIGARH",
+    "05": "UTTARAKHAND",
+    "06": "HARYANA",
+    "07": "DELHI",
+    "08": "RAJASTHAN",
+    "09": "UTTARPRADESH",
+    "10": "BIHAR",
+    "11": "SIKKIM",
+    "12": "ARUNACHALPRADESH",
+    "13": "NAGALAND",
+    "14": "MANIPUR",
+    "15": "MIZORAM",
+    "16": "TRIPURA",
+    "17": "MEGHALAYA",
+    "18": "ASSAM",
+    "19": "WESTBENGAL",
+    "20": "JHARKHAND",
+    "21": "ODISHA",
+    "22": "CHHATTISGARH",
+    "23": "MADHYAPRADESH",
+    "24": "GUJARAT",
+    "25": "DAMANANDDIU",
+    "26": "DADRAANDNAGARHAVELI",
+    "27": "MAHARASHTRA",
+    "28": "ANDHRAPRADESH",
+    "29": "KARNATAKA",
+    "30": "GOA",
+    "31": "LAKSHADWEEP",
+    "32": "KERALA",
+    "33": "TAMILNADU",
+    "34": "PUDUCHERRY",
+    "35": "ANDAMANANDNICOBARISLANDS",
+    "36": "TELANGANA",
+    "37": "ANDHRAPRADESH",
+    "38": "LADAKH",
+}
+
 def normalize_state(s: str | None) -> str:
     if not s:
         return ""
+    # Handle pure state codes (e.g. "24" or 24)
+    s_str = str(s).strip()
+    if s_str.isdigit() and len(s_str) in (1, 2):
+        code = s_str.zfill(2)
+        if code in GST_STATE_MAP:
+            return GST_STATE_MAP[code]
+            
     # Remove leading digits and hyphens, e.g. "09-Uttar Pradesh" -> "Uttar Pradesh"
-    cleaned = re.sub(r"^[\d\-]+", "", str(s))
-    return re.sub(r"\s+", "", cleaned).upper()
+    cleaned = re.sub(r"^[\d\-]+", "", s_str)
+    cleaned = re.sub(r"\s+", "", cleaned).upper()
+    return cleaned
 
 def _safe_float(val: Any) -> float:
     try:
