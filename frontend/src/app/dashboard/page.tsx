@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import ActionIconCard from "./components/ActionIconCard";
 import EwayBillModal from "./components/EwayBillModal";
 import KpiCard from "./components/KpiCard";
+import AdaptiveText from "./components/AdaptiveText";
 import ListRowItem from "./components/ListRowItem";
 import { useFirmScope } from "./shared/useFirmScope";
 import { useDateFilter } from "@/context/DateFilterContext";
@@ -230,19 +231,27 @@ export default function DashboardPage() {
           </div>
           <div className="grid gap-4 sm:gap-5 grid-cols-2">
             <div className="min-w-0 rounded-xl sm:rounded-[26px] border border-slate-100 bg-white/92 p-4 sm:p-5 shadow-sm">
-              <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.14em] text-slate-500 truncate" title="Item Masters">Item Masters</p>
-              <p className="mt-3 text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-950 truncate" title={String(overview?.inventory.items_count ?? 0)}>
-                {overview?.inventory.items_count ?? 0}
-              </p>
+              <AdaptiveText className="text-xs sm:text-sm font-semibold uppercase tracking-[0.14em] text-slate-500" title="Item Masters">
+                Item Masters
+              </AdaptiveText>
+              <div className="mt-3">
+                <AdaptiveText className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-950 mono-num" title={String(overview?.inventory.items_count ?? 0)}>
+                  {overview?.inventory.items_count ?? 0}
+                </AdaptiveText>
+              </div>
               <p className="mt-2.5 text-sm sm:text-base lg:text-lg font-medium text-slate-500 truncate" title={`${overview?.inventory.uom_count ?? 0} UOM`}>
                 {overview?.inventory.uom_count ?? 0} UOM
               </p>
             </div>
             <div className="min-w-0 rounded-xl sm:rounded-[26px] border border-slate-100 bg-white/92 p-4 sm:p-5 shadow-sm">
-              <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.14em] text-slate-500 truncate" title="Closing Stock Value">Closing Stock Value</p>
-              <p className="mt-3 text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-950 truncate" title={formatCurrency(overview?.inventory.closing_value ?? 0)}>
-                {formatCurrency(overview?.inventory.closing_value ?? 0)}
-              </p>
+              <AdaptiveText className="text-xs sm:text-sm font-semibold uppercase tracking-[0.14em] text-slate-500" title="Closing Stock Value">
+                Closing Stock Value
+              </AdaptiveText>
+              <div className="mt-3">
+                <AdaptiveText className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-950 mono-num" title={formatCurrency(overview?.inventory.closing_value ?? 0)}>
+                  {formatCurrency(overview?.inventory.closing_value ?? 0)}
+                </AdaptiveText>
+              </div>
               <p className="mt-2.5 text-sm sm:text-base lg:text-lg font-medium text-slate-500 truncate" title={`${overview?.inventory.stock_items_count ?? 0} tracked items`}>
                 {overview?.inventory.stock_items_count ?? 0} tracked items
               </p>
