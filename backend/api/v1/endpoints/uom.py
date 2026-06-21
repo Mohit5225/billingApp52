@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
-from core.supabase import supabase
+from core.supabase import get_supabase
 from models.uom import Uom, UomCreate, UomUpdate
 
 router = APIRouter()
@@ -16,11 +16,12 @@ async def list_uoms(
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     """List all UOMs for a firm."""
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     response = (
-        supabase.table("uom")
+        await supabase.table("uom")
         .select("*")
         .eq("firm_id", target_firm_id)
         .order("name")
@@ -35,13 +36,14 @@ async def create_uom(
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     """Create a new Unit of Measure."""
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, str(uom_in.firm_id))
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, str(uom_in.firm_id))
 
     payload = uom_in.model_dump(mode="json")
     payload["firm_id"] = target_firm_id
 
-    response = supabase.table("uom").insert(payload).execute()
+    response = await supabase.table("uom").insert(payload).execute()
     if not response.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -56,10 +58,11 @@ async def get_uom(
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     """Fetch a single UOM by ID."""
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     response = (
-        supabase.table("uom")
+        await supabase.table("uom")
         .select("*")
         .eq("id", uom_id)
         .single()
@@ -69,7 +72,7 @@ async def get_uom(
     if not uom:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="UOM not found")
 
-    resolve_target_firm_id(profile, str(uom["firm_id"]))
+    await resolve_target_firm_id(profile, str(uom["firm_id"]))
     return uom
 
 
@@ -80,15 +83,16 @@ async def update_uom(
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     """Update an existing UOM."""
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     existing = (
-        supabase.table("uom").select("firm_id").eq("id", uom_id).single().execute()
+        await supabase.table("uom").select("firm_id").eq("id", uom_id).single().execute()
     )
     if not existing.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="UOM not found")
 
-    resolve_target_firm_id(profile, str(existing.data["firm_id"]))
+    await resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
     payload = uom_in.model_dump(mode="json", exclude_none=True)
     if not payload:
@@ -97,7 +101,7 @@ async def update_uom(
             detail="No fields provided to update",
         )
 
-    response = supabase.table("uom").update(payload).eq("id", uom_id).execute()
+    response = await supabase.table("uom").update(payload).eq("id", uom_id).execute()
     if not response.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -115,18 +119,19 @@ async def delete_uom(
     Delete a UOM. The DB will reject this with a 409 if any items reference it
     (ON DELETE RESTRICT on the FK from items.uom_id).
     """
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     existing = (
-        supabase.table("uom").select("firm_id").eq("id", uom_id).single().execute()
+        await supabase.table("uom").select("firm_id").eq("id", uom_id).single().execute()
     )
     if not existing.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="UOM not found")
 
-    resolve_target_firm_id(profile, str(existing.data["firm_id"]))
+    await resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
     try:
-        supabase.table("uom").delete().eq("id", uom_id).execute()
+        await supabase.table("uom").delete().eq("id", uom_id).execute()
     except Exception as e:
         err_msg = str(e)
         if "violates foreign key constraint" in err_msg or "23503" in err_msg:

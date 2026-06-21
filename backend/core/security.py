@@ -1,6 +1,6 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from .supabase import supabase
+from core.supabase import get_supabase
 
 security = HTTPBearer()
 
@@ -12,11 +12,12 @@ async def get_verified_jwt(
     Returns the valid JWT string, or raises 401 Unauthorized.
     """
     jwt = credentials.credentials
+    supabase = await get_supabase()
 
     # Verify token using get_claims() — fast with asymmetric keys (cached JWKS).
     # Does NOT catch server-side revocation, which is acceptable for this use case.
     try:
-        supabase.auth.get_claims(jwt)
+        await supabase.auth.get_claims(jwt)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

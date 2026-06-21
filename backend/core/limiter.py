@@ -1,8 +1,29 @@
+import base64
+import json
+
 from fastapi import Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from core.rate_limits import LIMIT_GLOBAL
-from core.supabase import supabase
+
+
+def _extract_jwt_sub(token: str) -> str | None:
+    """
+    Extract the 'sub' claim from a JWT without signature verification.
+    This is safe to use for rate-limiting purposes only — the actual
+    signature validation happens in get_verified_jwt / get_profile_context.
+    """
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    try:
+        # Add padding if needed
+        payload_b64 = parts[1] + "=" * (-len(parts[1]) % 4)
+        payload = json.loads(base64.urlsafe_b64decode(payload_b64))
+        return payload.get("sub")
+    except Exception:
+        return None
+
 
 def get_user_or_ip(request: Request) -> str:
     """
@@ -13,18 +34,12 @@ def get_user_or_ip(request: Request) -> str:
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
-        parts = token.split(".")
-        if len(parts) == 3:
-            try:
-                # get_claims securely verifies the JWT signature before returning the payload
-                claims = supabase.auth.get_claims(token)
-                sub = claims.get("sub")
-                if sub:
-                    return f"user:{sub}"
-            except Exception:
-                pass
-                
+        sub = _extract_jwt_sub(token)
+        if sub:
+            return f"user:{sub}"
+
     return get_remote_address(request)
+
 
 # Global limiter instance with default limits for all routes
 limiter = Limiter(key_func=get_user_or_ip, default_limits=[LIMIT_GLOBAL])

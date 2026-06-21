@@ -13,7 +13,7 @@ from postgrest.exceptions import APIError
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
-from core.supabase import supabase
+from core.supabase import get_supabase
 from models.ledger import (
     AccountGroup,
     Ledger,
@@ -42,9 +42,10 @@ GROUP_TEMPLATE_MAP: dict[str, str] = {
 }
 
 
-def _get_groups_by_id() -> dict[str, dict[str, Any]]:
+async def _get_groups_by_id() -> dict[str, dict[str, Any]]:
+    supabase = await get_supabase()
     groups = (
-        supabase.table("account_groups")
+        await supabase.table("account_groups")
         .select("id, firm_id, name, parent_id, nature, affects_gross_profit, is_control_account, is_system, sort_order, alias, is_primary, created_at, updated_at")
         .execute()
     ).data or []
@@ -67,27 +68,28 @@ def _resolve_template_type(group: Optional[dict[str, Any]], groups_by_id: dict[s
     return "default"
 
 
-def _build_ledger_detail_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+async def _build_ledger_detail_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not rows:
         return []
 
-    groups_by_id = _get_groups_by_id()
+    supabase = await get_supabase()
+    groups_by_id = await _get_groups_by_id()
     ledger_ids = [str(row["id"]) for row in rows]
 
     bank_rows = (
-        supabase.table("ledger_bank_details")
+        await supabase.table("ledger_bank_details")
         .select("*")
         .in_("ledger_id", ledger_ids)
         .execute()
     ).data or []
     party_rows = (
-        supabase.table("ledger_party_details")
+        await supabase.table("ledger_party_details")
         .select("*")
         .in_("ledger_id", ledger_ids)
         .execute()
     ).data or []
     tax_rows = (
-        supabase.table("ledger_tax_details")
+        await supabase.table("ledger_tax_details")
         .select("*")
         .in_("ledger_id", ledger_ids)
         .execute()
@@ -116,9 +118,10 @@ def _build_ledger_detail_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]
     return details
 
 
-def _get_ledger_or_404(ledger_id: str) -> dict[str, Any]:
+async def _get_ledger_or_404(ledger_id: str) -> dict[str, Any]:
+    supabase = await get_supabase()
     response = (
-        supabase.table("ledgers")
+        await supabase.table("ledgers")
         .select("*")
         .eq("id", ledger_id)
         .single()
@@ -129,9 +132,10 @@ def _get_ledger_or_404(ledger_id: str) -> dict[str, Any]:
     return response.data
 
 
-def _validate_group_access(group_id: str, target_firm_id: str) -> None:
+async def _validate_group_access(group_id: str, target_firm_id: str) -> None:
+    supabase = await get_supabase()
     group = (
-        supabase.table("account_groups")
+        await supabase.table("account_groups")
         .select("id, firm_id")
         .eq("id", group_id)
         .single()
@@ -148,8 +152,9 @@ def _validate_group_access(group_id: str, target_firm_id: str) -> None:
         )
 
 
-def _replace_detail_row(table_name: str, ledger_id: str, detail_model: Any) -> None:
-    supabase.table(table_name).delete().eq("ledger_id", ledger_id).execute()
+async def _replace_detail_row(table_name: str, ledger_id: str, detail_model: Any) -> None:
+    supabase = await get_supabase()
+    await supabase.table(table_name).delete().eq("ledger_id", ledger_id).execute()
 
     if detail_model is None:
         return
@@ -159,7 +164,7 @@ def _replace_detail_row(table_name: str, ledger_id: str, detail_model: Any) -> N
         return
 
     payload["ledger_id"] = ledger_id
-    supabase.table(table_name).insert(payload).execute()
+    await supabase.table(table_name).insert(payload).execute()
 
 
 def _statement_side(amount: Decimal) -> str:
@@ -324,13 +329,14 @@ def _build_statement_rows(statement: dict[str, Any]) -> list[list[Any]]:
     return rows
 
 
-def _get_ledger_statement(ledger_id: str, from_date: Optional[date], to_date: Optional[date], jwt: str) -> dict[str, Any]:
-    profile = get_profile_context(jwt)
-    ledger = _get_ledger_or_404(ledger_id)
-    target_firm_id = resolve_target_firm_id(profile, str(ledger["firm_id"]))
+async def _get_ledger_statement(ledger_id: str, from_date: Optional[date], to_date: Optional[date], jwt: str) -> dict[str, Any]:
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    ledger = await _get_ledger_or_404(ledger_id)
+    target_firm_id = await resolve_target_firm_id(profile, str(ledger["firm_id"]))
     ledger_id_str = str(ledger_id)
 
-    ledger_detail = _build_ledger_detail_rows([ledger])[0]
+    ledger_detail = (await _build_ledger_detail_rows([ledger]))[0]
 
     vouchers_query = (
         supabase.table("vouchers")
@@ -341,7 +347,7 @@ def _get_ledger_statement(ledger_id: str, from_date: Optional[date], to_date: Op
     if to_date:
         vouchers_query = vouchers_query.lte("voucher_date", str(to_date))
 
-    vouchers = vouchers_query.order("voucher_date").execute().data or []
+    vouchers = (await vouchers_query.order("voucher_date").execute()).data or []
 
     voucher_ids = [str(voucher["id"]) for voucher in vouchers]
     if not voucher_ids:
@@ -358,7 +364,7 @@ def _get_ledger_statement(ledger_id: str, from_date: Optional[date], to_date: Op
         }
 
     accounting_lines = (
-        supabase.table("voucher_accounting_lines")
+        await supabase.table("voucher_accounting_lines")
         .select("voucher_id, ledger_id, line_number, debit_amount, credit_amount")
         .eq("firm_id", target_firm_id)
         .in_("voucher_id", voucher_ids)
@@ -376,7 +382,7 @@ def _get_ledger_statement(ledger_id: str, from_date: Optional[date], to_date: Op
     ledger_name_by_id: dict[str, str] = {}
     if counterparty_ledger_ids:
         ledger_name_rows = (
-            supabase.table("ledgers")
+            await supabase.table("ledgers")
             .select("id, name")
             .in_("id", list(counterparty_ledger_ids))
             .execute()
@@ -497,11 +503,12 @@ async def list_account_groups(
     firm_id: Optional[str] = None,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     response = (
-        supabase.table("account_groups")
+        await supabase.table("account_groups")
         .select("id, firm_id, name, alias, nature, is_primary, parent_id, affects_gross_profit, is_control_account, is_system, sort_order, created_at, updated_at")
         .execute()
     )
@@ -538,8 +545,9 @@ async def list_ledgers(
     group_id: Optional[str] = None,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     query = supabase.table("ledgers").select("*").eq("firm_id", target_firm_id)
     if group_id:
@@ -547,8 +555,8 @@ async def list_ledgers(
     if search:
         query = query.or_(f"name.ilike.%{search}%,alias.ilike.%{search}%")
 
-    response = query.order("name").execute()
-    return _build_ledger_detail_rows(response.data or [])
+    response = await query.order("name").execute()
+    return await _build_ledger_detail_rows(response.data or [])
 
 
 @router.get("/{ledger_id}", response_model=LedgerDetail)
@@ -556,10 +564,10 @@ async def get_ledger(
     ledger_id: str,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    ledger = _get_ledger_or_404(ledger_id)
-    resolve_target_firm_id(profile, str(ledger["firm_id"]))
-    return _build_ledger_detail_rows([ledger])[0]
+    profile = await get_profile_context(jwt)
+    ledger = await _get_ledger_or_404(ledger_id)
+    await resolve_target_firm_id(profile, str(ledger["firm_id"]))
+    return (await _build_ledger_detail_rows([ledger]))[0]
 
 
 @router.get("/{ledger_id}/statement", response_model=LedgerStatement)
@@ -569,7 +577,7 @@ async def get_ledger_statement(
     to_date: Optional[date] = Query(None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    return _get_ledger_statement(ledger_id, from_date, to_date, jwt)
+    return await _get_ledger_statement(ledger_id, from_date, to_date, jwt)
 
 
 @router.get("/{ledger_id}/statement/export")
@@ -581,7 +589,7 @@ async def export_ledger_statement(
     to_date: Optional[date] = Query(None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Response:
-    statement = _get_ledger_statement(ledger_id, from_date, to_date, jwt)
+    statement = await _get_ledger_statement(ledger_id, from_date, to_date, jwt)
     ledger_name = statement["ledger"]["name"]
     file_label = _safe_filename_component(ledger_name)
     xlsx_bytes = _build_xlsx(f"{ledger_name} Statement", _build_statement_rows(statement))
@@ -607,14 +615,15 @@ async def export_ledger_statement(
 
 @router.post("/", response_model=LedgerDetail, status_code=status.HTTP_201_CREATED)
 async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified_jwt)) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, str(ledger_in.firm_id))
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, str(ledger_in.firm_id))
 
-    _validate_group_access(str(ledger_in.group_id), target_firm_id)
+    await _validate_group_access(str(ledger_in.group_id), target_firm_id)
 
     # Pre-insertion uniqueness checks
     clean_name = ledger_in.name.strip()
-    name_check = supabase.table("ledgers").select("id").eq("firm_id", target_firm_id).ilike("name", clean_name).execute()
+    name_check = await supabase.table("ledgers").select("id").eq("firm_id", target_firm_id).ilike("name", clean_name).execute()
     if name_check.data:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A ledger with the name '{clean_name}' already exists.")
 
@@ -626,12 +635,12 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
         if gstin:
             if gst_type not in ("Regular", "Composition"):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A GSTIN is provided, so the Registration Type must be Regular or Composition.")
-            gstin_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("gstin", gstin).eq("ledgers.firm_id", target_firm_id).execute()
+            gstin_check = await supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("gstin", gstin).eq("ledgers.firm_id", target_firm_id).execute()
             if gstin_check.data:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this GSTIN already exists.")
                 
         if pan:
-            pan_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("pan_number", pan).eq("ledgers.firm_id", target_firm_id).execute()
+            pan_check = await supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("pan_number", pan).eq("ledgers.firm_id", target_firm_id).execute()
             if pan_check.data:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this PAN number already exists.")
         
@@ -646,14 +655,14 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
     payload["firm_id"] = target_firm_id
 
     try:
-        response = supabase.table("ledgers").insert(payload).execute()
+        response = await supabase.table("ledgers").insert(payload).execute()
         if not response.data:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to create ledger")
 
         ledger_id = response.data[0]["id"]
-        _replace_detail_row("ledger_bank_details", ledger_id, ledger_in.bank_details)
-        _replace_detail_row("ledger_party_details", ledger_id, ledger_in.party_details)
-        _replace_detail_row("ledger_tax_details", ledger_id, ledger_in.tax_details)
+        await _replace_detail_row("ledger_bank_details", ledger_id, ledger_in.bank_details)
+        await _replace_detail_row("ledger_party_details", ledger_id, ledger_in.party_details)
+        await _replace_detail_row("ledger_tax_details", ledger_id, ledger_in.tax_details)
     except APIError as e:
         error_message = e.message or str(e)
         if "A party with this GSTIN already exists" in error_message:
@@ -664,7 +673,7 @@ async def create_ledger(ledger_in: LedgerCreate, jwt: str = Depends(get_verified
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A ledger with the name '{clean_name}' already exists.")
         raise
 
-    return _build_ledger_detail_rows([_get_ledger_or_404(ledger_id)])[0]
+    return (await _build_ledger_detail_rows([await _get_ledger_or_404(ledger_id)]))[0]
 
 
 @router.patch("/{ledger_id}", response_model=LedgerDetail)
@@ -673,17 +682,18 @@ async def update_ledger(
     ledger_in: LedgerUpdate,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    existing = _get_ledger_or_404(ledger_id)
-    target_firm_id = resolve_target_firm_id(profile, str(existing["firm_id"]))
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    existing = await _get_ledger_or_404(ledger_id)
+    target_firm_id = await resolve_target_firm_id(profile, str(existing["firm_id"]))
 
     if ledger_in.group_id:
-        _validate_group_access(str(ledger_in.group_id), target_firm_id)
+        await _validate_group_access(str(ledger_in.group_id), target_firm_id)
 
     # Pre-update uniqueness checks
     clean_name = ledger_in.name.strip() if ledger_in.name else existing["name"]
     if ledger_in.name:
-        name_check = supabase.table("ledgers").select("id").eq("firm_id", target_firm_id).ilike("name", clean_name).neq("id", ledger_id).execute()
+        name_check = await supabase.table("ledgers").select("id").eq("firm_id", target_firm_id).ilike("name", clean_name).neq("id", ledger_id).execute()
         if name_check.data:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A ledger with the name '{clean_name}' already exists.")
 
@@ -695,12 +705,12 @@ async def update_ledger(
         if gstin:
             if gst_type not in ("Regular", "Composition"):
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="A GSTIN is provided, so the Registration Type must be Regular or Composition.")
-            gstin_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("gstin", gstin).eq("ledgers.firm_id", target_firm_id).neq("ledger_id", ledger_id).execute()
+            gstin_check = await supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("gstin", gstin).eq("ledgers.firm_id", target_firm_id).neq("ledger_id", ledger_id).execute()
             if gstin_check.data:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this GSTIN already exists.")
                 
         if pan:
-            pan_check = supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("pan_number", pan).eq("ledgers.firm_id", target_firm_id).neq("ledger_id", ledger_id).execute()
+            pan_check = await supabase.table("ledger_party_details").select("ledger_id, ledgers!inner(firm_id)").ilike("pan_number", pan).eq("ledgers.firm_id", target_firm_id).neq("ledger_id", ledger_id).execute()
             if pan_check.data:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A party with this PAN number already exists.")
 
@@ -715,16 +725,16 @@ async def update_ledger(
     
     try:
         if payload:
-            response = supabase.table("ledgers").update(payload).eq("id", ledger_id).execute()
+            response = await supabase.table("ledgers").update(payload).eq("id", ledger_id).execute()
             if not response.data:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to update ledger")
 
         if "bank_details" in ledger_in.model_fields_set:
-            _replace_detail_row("ledger_bank_details", ledger_id, ledger_in.bank_details)
+            await _replace_detail_row("ledger_bank_details", ledger_id, ledger_in.bank_details)
         if "party_details" in ledger_in.model_fields_set:
-            _replace_detail_row("ledger_party_details", ledger_id, ledger_in.party_details)
+            await _replace_detail_row("ledger_party_details", ledger_id, ledger_in.party_details)
         if "tax_details" in ledger_in.model_fields_set:
-            _replace_detail_row("ledger_tax_details", ledger_id, ledger_in.tax_details)
+            await _replace_detail_row("ledger_tax_details", ledger_id, ledger_in.tax_details)
     except APIError as e:
         error_message = e.message or str(e)
         if "A party with this GSTIN already exists" in error_message:
@@ -735,7 +745,7 @@ async def update_ledger(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"A ledger with the name '{clean_name}' already exists.")
         raise
 
-    return _build_ledger_detail_rows([_get_ledger_or_404(ledger_id)])[0]
+    return (await _build_ledger_detail_rows([await _get_ledger_or_404(ledger_id)]))[0]
 
 
 @router.delete("/{ledger_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -743,8 +753,9 @@ async def delete_ledger(
     ledger_id: str,
     jwt: str = Depends(get_verified_jwt),
 ) -> None:
-    profile = get_profile_context(jwt)
-    existing = _get_ledger_or_404(ledger_id)
-    resolve_target_firm_id(profile, str(existing["firm_id"]))
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    existing = await _get_ledger_or_404(ledger_id)
+    await resolve_target_firm_id(profile, str(existing["firm_id"]))
 
-    supabase.table("ledgers").delete().eq("id", ledger_id).execute()
+    await supabase.table("ledgers").delete().eq("id", ledger_id).execute()

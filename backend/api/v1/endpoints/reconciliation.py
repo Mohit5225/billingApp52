@@ -8,7 +8,7 @@ from typing import Optional, List
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
-from core.supabase import supabase
+from core.supabase import get_supabase
 from core.gstr2a_helpers import parse_gstr2a_excel, reconcile, build_software_rows, build_result_excel, COLUMNS, normalize_key_str
 import openpyxl
 from openpyxl.styles import Font
@@ -51,12 +51,13 @@ async def debug_excel(
 
     return debug_info
 
-def _fetch_purchase_vouchers(target_firm_id: str, from_date: date, to_date: date, match_type: str):
+async def _fetch_purchase_vouchers(target_firm_id: str, from_date: date, to_date: date, match_type: str):
     """
     Fetch vouchers to reconcile. 
     match_type == "purchases" -> category='Purchase'
     match_type == "debit_notes" -> category in ('Debit Note', 'Credit Note')
     """
+    supabase = await get_supabase()
     query = (
         supabase.table("vouchers")
         .select("*")
@@ -70,7 +71,7 @@ def _fetch_purchase_vouchers(target_firm_id: str, from_date: date, to_date: date
     else:
         query = query.in_("category", ["Debit Note", "Credit Note"])
         
-    vouchers = query.execute().data or []
+    vouchers = (await query.execute()).data or []
     if not vouchers:
         return []
 
@@ -80,7 +81,7 @@ def _fetch_purchase_vouchers(target_firm_id: str, from_date: date, to_date: date
     parties_map = {}
     if party_ledger_ids:
         ledgers = (
-            supabase.table("ledgers")
+            await supabase.table("ledgers")
             .select("id, name")
             .in_("id", party_ledger_ids)
             .execute()
@@ -89,7 +90,7 @@ def _fetch_purchase_vouchers(target_firm_id: str, from_date: date, to_date: date
             parties_map[l["id"]] = {"name": l["name"]}
             
         party_details = (
-            supabase.table("ledger_party_details")
+            await supabase.table("ledger_party_details")
             .select("ledger_id, gstin, state")
             .in_("ledger_id", party_ledger_ids)
             .execute()
@@ -102,7 +103,7 @@ def _fetch_purchase_vouchers(target_firm_id: str, from_date: date, to_date: date
                 })
 
     inv_lines = (
-        supabase.table("voucher_inventory_lines")
+        await supabase.table("voucher_inventory_lines")
         .select("voucher_id, taxable_amount, igst_amount, cgst_amount, sgst_amount")
         .in_("voucher_id", voucher_ids)
         .execute()
@@ -119,7 +120,7 @@ def _fetch_purchase_vouchers(target_firm_id: str, from_date: date, to_date: date
         inv_map[vid]["sgst"] += float(line.get("sgst_amount") or 0.0)
 
     acc_lines = (
-        supabase.table("voucher_accounting_lines")
+        await supabase.table("voucher_accounting_lines")
         .select("voucher_id, ledger_id, debit_amount, credit_amount")
         .in_("voucher_id", voucher_ids)
         .execute()
@@ -166,10 +167,10 @@ async def export_software_data(
     match_type: str = Query("purchases"),
     jwt: str = Depends(get_verified_jwt),
 ):
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
-    raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
+    raw_vouchers = await _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
     wb = openpyxl.Workbook()
@@ -217,8 +218,8 @@ async def reconcile_gstr2a(
     file: UploadFile = File(...),
     jwt: str = Depends(get_verified_jwt),
 ):
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     if not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(status_code=400, detail="Invalid file type. Only Excel files are supported.")
@@ -234,7 +235,7 @@ async def reconcile_gstr2a(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse Excel: {e}")
 
-    raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
+    raw_vouchers = await _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
     result = reconcile(software_rows, gstr2a_rows, taxable_tolerance=taxable_tolerance,
@@ -270,8 +271,8 @@ async def download_reconciliation_report(
     file: UploadFile = File(...),
     jwt: str = Depends(get_verified_jwt),
 ):
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     file_bytes = await file.read()
     if len(file_bytes) > MAX_UPLOAD_SIZE_BYTES:
@@ -283,7 +284,7 @@ async def download_reconciliation_report(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to parse Excel: {e}")
 
-    raw_vouchers = _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
+    raw_vouchers = await _fetch_purchase_vouchers(target_firm_id, from_date, to_date, match_type)
     software_rows = build_software_rows(raw_vouchers, match_type)
 
     result = reconcile(software_rows, gstr2a_rows, taxable_tolerance=taxable_tolerance,
@@ -295,4 +296,3 @@ async def download_reconciliation_report(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=reconciliation_report.xlsx"}
     )
-

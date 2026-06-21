@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
-from core.supabase import supabase
+from core.supabase import get_supabase
 from models.voucher import (
     AccountingLineCreate,
     BillAllocationCreate,
@@ -28,7 +28,7 @@ router = APIRouter()
 _NO_PARTY_CATEGORIES = {VoucherCategory.JOURNAL, VoucherCategory.CONTRA}
 
 
-def _validate_accounting_lines(
+async def _validate_accounting_lines(
     lines: list[AccountingLineCreate],
     target_firm_id: str,
 ) -> None:
@@ -38,9 +38,10 @@ def _validate_accounting_lines(
             detail="A voucher must have at least one accounting line",
         )
 
+    supabase = await get_supabase()
     ledger_ids = [str(line.ledger_id) for line in lines]
     rows = (
-        supabase.table("ledgers")
+        await supabase.table("ledgers")
         .select("id, firm_id")
         .in_("id", ledger_ids)
         .execute()
@@ -89,7 +90,7 @@ def _validate_accounting_lines(
         )
 
 
-def _validate_party_ledger(
+async def _validate_party_ledger(
     category: VoucherCategory,
     party_ledger_id: Any,
     target_firm_id: str,
@@ -103,8 +104,9 @@ def _validate_party_ledger(
             detail=f"party_ledger_id is required for {category} vouchers",
         )
 
+    supabase = await get_supabase()
     party_resp = (
-        supabase.table("ledgers")
+        await supabase.table("ledgers")
         .select("firm_id")
         .eq("id", str(party_ledger_id))
         .single()
@@ -122,7 +124,7 @@ def _validate_party_ledger(
         )
 
 
-def _build_inventory_line_payloads(
+async def _build_inventory_line_payloads(
     lines: list[InventoryLineCreate],
     target_firm_id: str,
     voucher_id: str,
@@ -130,9 +132,10 @@ def _build_inventory_line_payloads(
     if not lines:
         return []
 
+    supabase = await get_supabase()
     item_ids = [str(line.item_id) for line in lines]
     items_resp = (
-        supabase.table("items")
+        await supabase.table("items")
         .select("id, firm_id, name, hsn_code, uom_id, taxability")
         .in_("id", item_ids)
         .execute()
@@ -145,7 +148,7 @@ def _build_inventory_line_payloads(
 
     if uom_ids:
         uom_rows = (
-            supabase.table("uom")
+            await supabase.table("uom")
             .select("id, name")
             .in_("id", uom_ids)
             .execute()
@@ -247,51 +250,58 @@ def _build_accounting_line_payloads(
     ]
 
 
-def _replace_voucher_lines(
+async def _replace_voucher_lines(
     voucher_id: str,
     voucher_in: VoucherCreate,
     target_firm_id: str,
 ) -> None:
-    supabase.table("voucher_accounting_lines").delete().eq("voucher_id", voucher_id).execute()
-    supabase.table("voucher_inventory_lines").delete().eq("voucher_id", voucher_id).execute()
-
+    supabase = await get_supabase()
+    # Build payloads first to trigger any validation errors BEFORE deleting existing lines
     acc_payloads = _build_accounting_line_payloads(voucher_in, target_firm_id, voucher_id)
-    if acc_payloads:
-        supabase.table("voucher_accounting_lines").insert(acc_payloads).execute()
 
+    inv_payloads = []
     if voucher_in.inventory_lines:
-        inv_payloads = _build_inventory_line_payloads(
+        inv_payloads = await _build_inventory_line_payloads(
             voucher_in.inventory_lines,
             target_firm_id,
             voucher_id,
         )
-        supabase.table("voucher_inventory_lines").insert(inv_payloads).execute()
+
+    await supabase.table("voucher_accounting_lines").delete().eq("voucher_id", voucher_id).execute()
+    await supabase.table("voucher_inventory_lines").delete().eq("voucher_id", voucher_id).execute()
+
+    if acc_payloads:
+        await supabase.table("voucher_accounting_lines").insert(acc_payloads).execute()
+
+    if inv_payloads:
+        await supabase.table("voucher_inventory_lines").insert(inv_payloads).execute()
 
 
-def _fetch_voucher_detail(voucher_id: str) -> dict[str, Any]:
+async def _fetch_voucher_detail(voucher_id: str) -> dict[str, Any]:
+    supabase = await get_supabase()
     voucher_resp = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("*")
         .eq("id", voucher_id)
         .single()
         .execute()
     )
     acc_lines_resp = (
-        supabase.table("voucher_accounting_lines")
+        await supabase.table("voucher_accounting_lines")
         .select("*")
         .eq("voucher_id", voucher_id)
         .order("line_number")
         .execute()
     )
     inv_lines_resp = (
-        supabase.table("voucher_inventory_lines")
+        await supabase.table("voucher_inventory_lines")
         .select("*")
         .eq("voucher_id", voucher_id)
         .order("line_number")
         .execute()
     )
     bill_alloc_resp = (
-        supabase.table("bill_allocations")
+        await supabase.table("bill_allocations")
         .select("*")
         .eq("voucher_id", voucher_id)
         .execute()
@@ -304,13 +314,14 @@ def _fetch_voucher_detail(voucher_id: str) -> dict[str, Any]:
     return result
 
 
-def _find_party_accounting_line_id(
+async def _find_party_accounting_line_id(
     voucher_id: str,
     party_ledger_id: str,
 ) -> str | None:
     """Find the accounting line ID for the party ledger in a voucher."""
+    supabase = await get_supabase()
     resp = (
-        supabase.table("voucher_accounting_lines")
+        await supabase.table("voucher_accounting_lines")
         .select("id")
         .eq("voucher_id", voucher_id)
         .eq("ledger_id", party_ledger_id)
@@ -322,7 +333,7 @@ def _find_party_accounting_line_id(
     return None
 
 
-def _persist_bill_allocations(
+async def _persist_bill_allocations(
     voucher_id: str,
     firm_id: str,
     party_ledger_id: str,
@@ -333,6 +344,7 @@ def _persist_bill_allocations(
     if not allocations:
         return
 
+    supabase = await get_supabase()
     payloads = [
         {
             "voucher_id": voucher_id,
@@ -347,15 +359,16 @@ def _persist_bill_allocations(
         }
         for alloc in allocations
     ]
-    supabase.table("bill_allocations").insert(payloads).execute()
+    await supabase.table("bill_allocations").insert(payloads).execute()
 
 
-def _delete_bill_allocations(voucher_id: str) -> None:
+async def _delete_bill_allocations(voucher_id: str) -> None:
     """Delete all bill_allocations for a voucher."""
-    supabase.table("bill_allocations").delete().eq("voucher_id", voucher_id).execute()
+    supabase = await get_supabase()
+    await supabase.table("bill_allocations").delete().eq("voucher_id", voucher_id).execute()
 
 
-def _auto_create_new_ref(
+async def _auto_create_new_ref(
     voucher_id: str,
     firm_id: str,
     voucher_in: VoucherCreate,
@@ -365,9 +378,10 @@ def _auto_create_new_ref(
     if not party_ledger_id:
         return
 
+    supabase = await get_supabase()
     # Check if party has maintain_bill_by_bill enabled
     party_resp = (
-        supabase.table("ledger_party_details")
+        await supabase.table("ledger_party_details")
         .select("maintain_bill_by_bill, default_credit_days")
         .eq("ledger_id", party_ledger_id)
         .maybe_single()
@@ -377,13 +391,13 @@ def _auto_create_new_ref(
         return
 
     # Find the party's accounting line
-    acc_line_id = _find_party_accounting_line_id(voucher_id, party_ledger_id)
+    acc_line_id = await _find_party_accounting_line_id(voucher_id, party_ledger_id)
     if not acc_line_id:
         return
 
     # Calculate grand total from the party's accounting line
     party_line = (
-        supabase.table("voucher_accounting_lines")
+        await supabase.table("voucher_accounting_lines")
         .select("debit_amount, credit_amount")
         .eq("id", acc_line_id)
         .single()
@@ -406,7 +420,7 @@ def _auto_create_new_ref(
     from datetime import timedelta
     due_date = voucher_date + timedelta(days=credit_days) if credit_days else voucher_date
 
-    _persist_bill_allocations(
+    await _persist_bill_allocations(
         voucher_id=voucher_id,
         firm_id=firm_id,
         party_ledger_id=party_ledger_id,
@@ -433,8 +447,9 @@ async def list_vouchers(
     to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     query = (
         supabase.table("vouchers")
@@ -454,7 +469,7 @@ async def list_vouchers(
     if to_date:
         query = query.lte("voucher_date", str(to_date))
 
-    return query.order("voucher_date", desc=True).execute().data or []
+    return (await query.order("voucher_date", desc=True).execute()).data or []
 
 
 @router.post("/", response_model=VoucherDetail, status_code=status.HTTP_201_CREATED)
@@ -464,13 +479,14 @@ async def create_voucher(
     voucher_in: VoucherCreate,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, str(voucher_in.firm_id))
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, str(voucher_in.firm_id))
 
-    _validate_party_ledger(voucher_in.category, voucher_in.party_ledger_id, target_firm_id)
-    _validate_accounting_lines(voucher_in.accounting_lines, target_firm_id)
+    await _validate_party_ledger(voucher_in.category, voucher_in.party_ledger_id, target_firm_id)
+    await _validate_accounting_lines(voucher_in.accounting_lines, target_firm_id)
 
-    header_resp = supabase.table("vouchers").insert(
+    header_resp = await supabase.table("vouchers").insert(
         _build_header_payload(voucher_in, target_firm_id)
     ).execute()
     if not header_resp.data:
@@ -481,15 +497,15 @@ async def create_voucher(
 
     voucher_id = header_resp.data[0]["id"]
     try:
-        _replace_voucher_lines(voucher_id, voucher_in, target_firm_id)
+        await _replace_voucher_lines(voucher_id, voucher_in, target_firm_id)
 
         # ── Bill allocations ──
         party_id = str(voucher_in.party_ledger_id) if voucher_in.party_ledger_id else None
         if party_id and voucher_in.bill_allocations:
             # User-supplied allocations (Payment/Receipt or manual)
-            acc_line_id = _find_party_accounting_line_id(voucher_id, party_id)
+            acc_line_id = await _find_party_accounting_line_id(voucher_id, party_id)
             if acc_line_id:
-                _persist_bill_allocations(
+                await _persist_bill_allocations(
                     voucher_id, target_firm_id, party_id, acc_line_id,
                     voucher_in.bill_allocations,
                 )
@@ -498,19 +514,19 @@ async def create_voucher(
             VoucherCategory.DEBIT_NOTE, VoucherCategory.CREDIT_NOTE,
         ):
             # Auto-create New Ref for invoice-family vouchers
-            _auto_create_new_ref(voucher_id, target_firm_id, voucher_in)
+            await _auto_create_new_ref(voucher_id, target_firm_id, voucher_in)
 
     except HTTPException:
-        supabase.table("vouchers").delete().eq("id", voucher_id).execute()
+        await supabase.table("vouchers").delete().eq("id", voucher_id).execute()
         raise
     except Exception as exc:
-        supabase.table("vouchers").delete().eq("id", voucher_id).execute()
+        await supabase.table("vouchers").delete().eq("id", voucher_id).execute()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Voucher creation failed: {exc}",
         ) from exc
 
-    return _fetch_voucher_detail(voucher_id)
+    return await _fetch_voucher_detail(voucher_id)
 
 
 @router.get("/next-number")
@@ -519,11 +535,12 @@ async def get_next_number(
     category: VoucherCategory,
     jwt: str = Depends(get_verified_jwt),
 ) -> dict[str, str]:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     # 1. Fetch the prefix setting from the firm
-    firm_resp = supabase.table("firms").select("*").eq("id", target_firm_id).maybe_single().execute()
+    firm_resp = await supabase.table("firms").select("*").eq("id", target_firm_id).maybe_single().execute()
     if not firm_resp or not firm_resp.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Firm not found")
     firm = firm_resp.data
@@ -540,7 +557,7 @@ async def get_next_number(
 
     # 2. Query existing vouchers for this firm and category
     vouchers_resp = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("voucher_number")
         .eq("firm_id", target_firm_id)
         .eq("category", category.value)
@@ -607,12 +624,13 @@ async def get_outstanding_bills(
     Return all pending (non-zero-balance) bills for a party ledger.
     Computes outstanding by grouping allocations by ref_name and netting Dr vs Cr.
     """
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     # Fetch all allocations for this party, excluding cancelled vouchers
     alloc_resp = (
-        supabase.table("bill_allocations")
+        await supabase.table("bill_allocations")
         .select("ref_name, ref_type, amount, amount_type, due_date, voucher_id")
         .eq("firm_id", target_firm_id)
         .eq("party_ledger_id", party_ledger_id)
@@ -628,7 +646,7 @@ async def get_outstanding_bills(
     # Fetch voucher statuses to exclude cancelled vouchers
     voucher_ids = list({str(a["voucher_id"]) for a in allocations})
     voucher_resp = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("id, is_cancelled, voucher_date")
         .in_("id", voucher_ids)
         .execute()
@@ -677,8 +695,6 @@ async def get_outstanding_bills(
             "balance": abs(balance),
             "balance_type": balance_type,
         })
-        
-
 
     return result
 
@@ -688,9 +704,10 @@ async def get_voucher(
     voucher_id: str,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
     voucher_resp = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("*")
         .eq("id", voucher_id)
         .single()
@@ -699,8 +716,8 @@ async def get_voucher(
     if not voucher_resp.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Voucher not found")
 
-    resolve_target_firm_id(profile, str(voucher_resp.data["firm_id"]))
-    return _fetch_voucher_detail(voucher_id)
+    await resolve_target_firm_id(profile, str(voucher_resp.data["firm_id"]))
+    return await _fetch_voucher_detail(voucher_id)
 
 
 @router.put("/{voucher_id}", response_model=VoucherDetail)
@@ -711,9 +728,10 @@ async def replace_voucher(
     voucher_in: VoucherCreate,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
     existing_resp = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("*")
         .eq("id", voucher_id)
         .single()
@@ -728,25 +746,25 @@ async def replace_voucher(
             detail="Cannot edit a cancelled voucher",
         )
 
-    target_firm_id = resolve_target_firm_id(profile, str(existing["firm_id"]))
+    target_firm_id = await resolve_target_firm_id(profile, str(existing["firm_id"]))
     if str(voucher_in.firm_id) != target_firm_id:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="firm_id cannot be changed during edit",
         )
 
-    _validate_party_ledger(voucher_in.category, voucher_in.party_ledger_id, target_firm_id)
-    _validate_accounting_lines(voucher_in.accounting_lines, target_firm_id)
+    await _validate_party_ledger(voucher_in.category, voucher_in.party_ledger_id, target_firm_id)
+    await _validate_accounting_lines(voucher_in.accounting_lines, target_firm_id)
 
     previous_accounting = (
-        supabase.table("voucher_accounting_lines")
+        await supabase.table("voucher_accounting_lines")
         .select("*")
         .eq("voucher_id", voucher_id)
         .order("line_number")
         .execute()
     ).data or []
     previous_inventory = (
-        supabase.table("voucher_inventory_lines")
+        await supabase.table("voucher_inventory_lines")
         .select("*")
         .eq("voucher_id", voucher_id)
         .order("line_number")
@@ -761,18 +779,18 @@ async def replace_voucher(
     }
 
     try:
-        supabase.table("vouchers").update(
+        await supabase.table("vouchers").update(
             _build_header_payload(voucher_in, target_firm_id)
         ).eq("id", voucher_id).execute()
-        _replace_voucher_lines(voucher_id, voucher_in, target_firm_id)
+        await _replace_voucher_lines(voucher_id, voucher_in, target_firm_id)
 
         # ── Replace bill allocations ──
-        _delete_bill_allocations(voucher_id)
+        await _delete_bill_allocations(voucher_id)
         party_id = str(voucher_in.party_ledger_id) if voucher_in.party_ledger_id else None
         if party_id and voucher_in.bill_allocations:
-            acc_line_id = _find_party_accounting_line_id(voucher_id, party_id)
+            acc_line_id = await _find_party_accounting_line_id(voucher_id, party_id)
             if acc_line_id:
-                _persist_bill_allocations(
+                await _persist_bill_allocations(
                     voucher_id, target_firm_id, party_id, acc_line_id,
                     voucher_in.bill_allocations,
                 )
@@ -780,53 +798,25 @@ async def replace_voucher(
             VoucherCategory.SALES, VoucherCategory.PURCHASE,
             VoucherCategory.DEBIT_NOTE, VoucherCategory.CREDIT_NOTE,
         ):
-            _auto_create_new_ref(voucher_id, target_firm_id, voucher_in)
+            await _auto_create_new_ref(voucher_id, target_firm_id, voucher_in)
 
     except HTTPException:
-        supabase.table("vouchers").update(previous_header).eq("id", voucher_id).execute()
-        # No need to restore lines since _replace_voucher_lines deletes them AFTER validation now
+        await supabase.table("vouchers").update(previous_header).eq("id", voucher_id).execute()
         raise
     except Exception as exc:
-        supabase.table("vouchers").update(previous_header).eq("id", voucher_id).execute()
-        # If a DB error happened during insert, some lines might be deleted, so we should restore
-        supabase.table("voucher_accounting_lines").delete().eq("voucher_id", voucher_id).execute()
-        supabase.table("voucher_inventory_lines").delete().eq("voucher_id", voucher_id).execute()
+        await supabase.table("vouchers").update(previous_header).eq("id", voucher_id).execute()
+        await supabase.table("voucher_accounting_lines").delete().eq("voucher_id", voucher_id).execute()
+        await supabase.table("voucher_inventory_lines").delete().eq("voucher_id", voucher_id).execute()
         if previous_accounting:
-            supabase.table("voucher_accounting_lines").insert(previous_accounting).execute()
+            await supabase.table("voucher_accounting_lines").insert(previous_accounting).execute()
         if previous_inventory:
-            supabase.table("voucher_inventory_lines").insert(previous_inventory).execute()
+            await supabase.table("voucher_inventory_lines").insert(previous_inventory).execute()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Voucher replacement failed: {exc}",
         ) from exc
 
-    return _fetch_voucher_detail(voucher_id)
-
-
-def _replace_voucher_lines(
-    voucher_id: str,
-    voucher_in: VoucherCreate,
-    target_firm_id: str,
-) -> None:
-    # Build payloads first to trigger any validation errors BEFORE deleting existing lines
-    acc_payloads = _build_accounting_line_payloads(voucher_in, target_firm_id, voucher_id)
-    
-    inv_payloads = []
-    if voucher_in.inventory_lines:
-        inv_payloads = _build_inventory_line_payloads(
-            voucher_in.inventory_lines,
-            target_firm_id,
-            voucher_id,
-        )
-
-    supabase.table("voucher_accounting_lines").delete().eq("voucher_id", voucher_id).execute()
-    supabase.table("voucher_inventory_lines").delete().eq("voucher_id", voucher_id).execute()
-
-    if acc_payloads:
-        supabase.table("voucher_accounting_lines").insert(acc_payloads).execute()
-
-    if inv_payloads:
-        supabase.table("voucher_inventory_lines").insert(inv_payloads).execute()
+    return await _fetch_voucher_detail(voucher_id)
 
 
 @router.patch("/{voucher_id}", response_model=Voucher)
@@ -837,10 +827,11 @@ async def update_voucher(
     voucher_in: VoucherUpdate,
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     existing = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("firm_id, is_cancelled")
         .eq("id", voucher_id)
         .single()
@@ -854,7 +845,7 @@ async def update_voucher(
             detail="Cannot edit a cancelled voucher",
         )
 
-    resolve_target_firm_id(profile, str(existing.data["firm_id"]))
+    await resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
     payload = voucher_in.model_dump(mode="json", exclude_none=True)
     if not payload:
@@ -865,7 +856,7 @@ async def update_voucher(
     if "voucher_date" in payload:
         payload["voucher_date"] = str(payload["voucher_date"])
 
-    response = supabase.table("vouchers").update(payload).eq("id", voucher_id).execute()
+    response = await supabase.table("vouchers").update(payload).eq("id", voucher_id).execute()
     if not response.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -879,10 +870,11 @@ async def cancel_voucher(
     voucher_id: str,
     jwt: str = Depends(get_verified_jwt),
 ) -> None:
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     existing = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("firm_id, is_cancelled")
         .eq("id", voucher_id)
         .single()
@@ -896,9 +888,5 @@ async def cancel_voucher(
             detail="Voucher is already cancelled",
         )
 
-    resolve_target_firm_id(profile, str(existing.data["firm_id"]))
-    supabase.table("vouchers").update({"is_cancelled": True}).eq("id", voucher_id).execute()
-
-
-
-
+    await resolve_target_firm_id(profile, str(existing.data["firm_id"]))
+    await supabase.table("vouchers").update({"is_cancelled": True}).eq("id", voucher_id).execute()

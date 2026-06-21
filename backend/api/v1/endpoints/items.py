@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
-from core.supabase import supabase
+from core.supabase import get_supabase
 from models.item import Item, ItemCreate, ItemDetail, ItemUpdate
 
 router = APIRouter()
 
 
-def _validate_cross_tenant_refs(
+async def _validate_cross_tenant_refs(
     uom_id: str,
     target_firm_id: str,
 ) -> None:
@@ -19,8 +19,9 @@ def _validate_cross_tenant_refs(
     The DB FK will also block this, but this check gives a clean 403 instead of
     a cryptic constraint violation.
     """
+    supabase = await get_supabase()
     uom_resp = (
-        supabase.table("uom")
+        await supabase.table("uom")
         .select("firm_id")
         .eq("id", uom_id)
         .single()
@@ -35,7 +36,7 @@ def _validate_cross_tenant_refs(
         )
 
 
-def _enrich_items(items: list[dict]) -> list[dict]:
+async def _enrich_items(items: list[dict]) -> list[dict]:
     """
     Join uom_name onto raw item rows for display.
     Batch-fetches UOM records to avoid N+1 queries.
@@ -43,13 +44,14 @@ def _enrich_items(items: list[dict]) -> list[dict]:
     if not items:
         return items
 
+    supabase = await get_supabase()
     uom_ids = list({str(i["uom_id"]) for i in items if i.get("uom_id")})
 
     uom_map: dict[str, str] = {}
 
     if uom_ids:
         uom_rows = (
-            supabase.table("uom")
+            await supabase.table("uom")
             .select("id, name")
             .in_("id", uom_ids)
             .execute()
@@ -73,8 +75,9 @@ async def list_items(
     List items for a firm. Enriched with hsn_code and uom_name.
     Use ?search= to filter by name or alias (powers voucher entry typeahead).
     """
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     query = supabase.table("items").select("*").eq("firm_id", target_firm_id)
 
@@ -84,10 +87,10 @@ async def list_items(
     if search:
         query = query.or_(f"name.ilike.%{search}%,alias.ilike.%{search}%")
 
-    response = query.order("name").execute()
+    response = await query.order("name").execute()
     items = response.data or []
 
-    return _enrich_items(items)
+    return await _enrich_items(items)
 
 
 @router.post("/", response_model=ItemDetail, status_code=status.HTTP_201_CREATED)
@@ -98,24 +101,25 @@ async def create_item(
     """
     Create a new item. Validates that uom_id belongs to the same firm.
     """
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, str(item_in.firm_id))
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, str(item_in.firm_id))
 
-    _validate_cross_tenant_refs(str(item_in.uom_id), target_firm_id)
+    await _validate_cross_tenant_refs(str(item_in.uom_id), target_firm_id)
 
     payload = item_in.model_dump(mode="json")
     payload["firm_id"] = target_firm_id
     # Serialize UUIDs to strings for Supabase client
     payload["uom_id"] = str(payload["uom_id"])
 
-    response = supabase.table("items").insert(payload).execute()
+    response = await supabase.table("items").insert(payload).execute()
     if not response.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to create item. Name may already exist for this firm.",
         )
 
-    return _enrich_items(response.data)[0]
+    return (await _enrich_items(response.data))[0]
 
 
 @router.get("/{item_id}", response_model=ItemDetail)
@@ -124,17 +128,18 @@ async def get_item(
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     """Fetch a single item with enriched HSN and UOM details."""
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     response = (
-        supabase.table("items").select("*").eq("id", item_id).single().execute()
+        await supabase.table("items").select("*").eq("id", item_id).single().execute()
     )
     item = response.data
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
-    resolve_target_firm_id(profile, str(item["firm_id"]))
-    return _enrich_items([item])[0]
+    await resolve_target_firm_id(profile, str(item["firm_id"]))
+    return (await _enrich_items([item]))[0]
 
 
 @router.patch("/{item_id}", response_model=ItemDetail)
@@ -144,10 +149,11 @@ async def update_item(
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
     """Update an item. Re-validates cross-tenant refs if hsn_id or uom_id changes."""
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     existing_resp = (
-        supabase.table("items")
+        await supabase.table("items")
         .select("firm_id, uom_id")
         .eq("id", item_id)
         .single()
@@ -157,7 +163,7 @@ async def update_item(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
     existing = existing_resp.data
-    target_firm_id = resolve_target_firm_id(profile, str(existing["firm_id"]))
+    target_firm_id = await resolve_target_firm_id(profile, str(existing["firm_id"]))
 
     payload = item_in.model_dump(mode="json", exclude_none=True)
     if not payload:
@@ -169,20 +175,20 @@ async def update_item(
     # Re-validate cross-tenant refs if UOM FK is being changed
     new_uom_id = str(payload.get("uom_id", existing["uom_id"]))
     if "uom_id" in payload:
-        _validate_cross_tenant_refs(new_uom_id, target_firm_id)
+        await _validate_cross_tenant_refs(new_uom_id, target_firm_id)
 
     # Serialize UUIDs
     if "uom_id" in payload:
         payload["uom_id"] = str(payload["uom_id"])
 
-    response = supabase.table("items").update(payload).eq("id", item_id).execute()
+    response = await supabase.table("items").update(payload).eq("id", item_id).execute()
     if not response.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to update item",
         )
 
-    return _enrich_items(response.data)[0]
+    return (await _enrich_items(response.data))[0]
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -194,18 +200,19 @@ async def delete_item(
     Delete an item. The DB will block this if any voucher inventory lines reference it.
     Consider soft-deleting via PATCH is_active=false for items that have been invoiced.
     """
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     existing = (
-        supabase.table("items").select("firm_id").eq("id", item_id).single().execute()
+        await supabase.table("items").select("firm_id").eq("id", item_id).single().execute()
     )
     if not existing.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
-    resolve_target_firm_id(profile, str(existing.data["firm_id"]))
+    await resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
     try:
-        supabase.table("items").delete().eq("id", item_id).execute()
+        await supabase.table("items").delete().eq("id", item_id).execute()
     except Exception as e:
         err_msg = str(e)
         if "violates foreign key constraint" in err_msg or "23503" in err_msg:

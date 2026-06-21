@@ -3,7 +3,7 @@ from typing import Any
 # pyrefly: ignore [missing-import]
 from postgrest.exceptions import APIError
 from core.security import get_verified_jwt
-from core.supabase import supabase
+from core.supabase import get_supabase
 from models.firm import FirmCreate, Firm, FirmUpdate
 from core.helpers import get_profile_context, resolve_target_firm_id
 import uuid
@@ -20,12 +20,13 @@ async def list_my_firms(jwt: str = Depends(get_verified_jwt)) -> Any:
     """
     Returns only the firms the current user has access to.
     """
-    profile = get_profile_context(jwt)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
 
     if profile["role"] in ("ca_admin", "ca_employee"):
         # CA God Mode: sees all firms without restriction
         firms = (
-            supabase.table("firms")
+            await supabase.table("firms")
             .select("*")
             .order("name")
             .execute()
@@ -34,7 +35,7 @@ async def list_my_firms(jwt: str = Depends(get_verified_jwt)) -> Any:
 
     # Merchant: only firms they have explicit access to
     access_rows = (
-        supabase.table("user_firm_access")
+        await supabase.table("user_firm_access")
         .select("firm_id")
         .eq("user_id", str(profile["id"]))
         .execute()
@@ -44,7 +45,7 @@ async def list_my_firms(jwt: str = Depends(get_verified_jwt)) -> Any:
         return []
 
     return (
-        supabase.table("firms")
+        await supabase.table("firms")
         .select("*")
         .in_("id", firm_ids)
         .order("name")
@@ -156,17 +157,19 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
     Endpoint to create a firm and automatically link the user to it 
     by creating their initial profile.
     """
+    supabase = await get_supabase()
+
     # Pre-insertion uniqueness checks
     gstin = (firm_in.gstin or "").strip()
     pan = (firm_in.pan or "").strip()
     
     if gstin:
-        gstin_check = supabase.table("firms").select("id").ilike("gstin", gstin).execute()
+        gstin_check = await supabase.table("firms").select("id").ilike("gstin", gstin).execute()
         if gstin_check.data:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A firm with this GSTIN already exists.")
             
     if pan:
-        pan_check = supabase.table("firms").select("id").ilike("pan", pan).execute()
+        pan_check = await supabase.table("firms").select("id").ilike("pan", pan).execute()
         if pan_check.data:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A firm with this PAN number already exists.")
 
@@ -175,14 +178,14 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
         firm_data = firm_in.model_dump(mode="json", exclude_unset=True)
         
         # 1. Identify the user from the JWT
-        user_resp = supabase.auth.get_user(jwt)
+        user_resp = await supabase.auth.get_user(jwt)
         user = user_resp.user
         if not user:
             raise HTTPException(status_code=401, detail="Could not identify user from token")
 
         try:
             # 2. Insert firm using the admin client
-            response = supabase.table("firms").insert(firm_data).execute()
+            response = await supabase.table("firms").insert(firm_data).execute()
         except APIError as e:
             error_message = e.message or str(e)
             if "A firm with this GSTIN already exists" in error_message or "uq_firm_gstin_trim_lower" in error_message:
@@ -197,18 +200,18 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
         new_firm = response.data[0]
         
         # 3. Handle Profile and Access Link
-        existing_profile = supabase.table("profiles").select("id").eq("id", user.id).maybe_single().execute()
+        existing_profile = await supabase.table("profiles").select("id").eq("id", user.id).maybe_single().execute()
         
         if existing_profile and existing_profile.data:
             # User already exists, they are just adding a second firm
             # DO NOT overwrite profile.firm_id. Just add to junction table.
-            access_resp = supabase.table("user_firm_access").insert({
+            access_resp = await supabase.table("user_firm_access").insert({
                 "user_id": user.id,
                 "firm_id": new_firm["id"],
             }).execute()
             
             if not access_resp.data:
-                supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
+                await supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
                 raise HTTPException(status_code=500, detail="Failed to link user to firm. Firm creation rolled back.")
         else:
             # First time user signup. Create profile AND access link.
@@ -219,12 +222,12 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
                 "full_name": user.user_metadata.get("full_name", "") if user.user_metadata else "User",
                 "email": user.email
             }
-            prof_response = supabase.table("profiles").upsert(profile_data).execute()
+            prof_response = await supabase.table("profiles").upsert(profile_data).execute()
             if not prof_response.data:
-                supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
+                await supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
                 raise HTTPException(status_code=500, detail="Failed to create user profile. Firm creation rolled back.")
             
-            supabase.table("user_firm_access").insert({
+            await supabase.table("user_firm_access").insert({
                 "user_id": user.id,
                 "firm_id": new_firm["id"],
             }).execute()
@@ -241,14 +244,15 @@ async def update_firm(firm_id: str, firm_in: FirmUpdate, jwt: str = Depends(get_
     """
     Update firm details.
     """
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     # Convert the pydantic model to a dict, excluding None/unset values
     firm_data = firm_in.model_dump(mode="json", exclude_unset=True)
 
     try:
-        response = supabase.table("firms").update(firm_data).eq("id", target_firm_id).execute()
+        response = await supabase.table("firms").update(firm_data).eq("id", target_firm_id).execute()
         
         if not response.data:
             raise HTTPException(status_code=400, detail="Failed to update firm")

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response, Request
 
 from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
-from core.supabase import supabase
+from core.supabase import get_supabase
 from .ledgers import _build_xlsx, _safe_filename_component
 from models.voucher import VoucherCategory
 from models.workspace import DashboardOverview, RegisterRow, StockSummaryRow, StockMonthlyRow, StockVoucherRow
@@ -32,13 +32,14 @@ def _as_float(value: Any) -> float:
     return float(value)
 
 
-def _fetch_vouchers(
+async def _fetch_vouchers(
     target_firm_id: str,
     *,
     categories: Optional[list[str]] = None,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
 ) -> list[dict[str, Any]]:
+    supabase = await get_supabase()
     query = (
         supabase.table("vouchers")
         .select("*")
@@ -53,15 +54,16 @@ def _fetch_vouchers(
     if to_date:
         query = query.lte("voucher_date", str(to_date))
 
-    return query.order("voucher_date", desc=True).execute().data or []
+    return (await query.order("voucher_date", desc=True).execute()).data or []
 
 
-def _fetch_accounting_lines(voucher_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
+async def _fetch_accounting_lines(voucher_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
     if not voucher_ids:
         return {}
 
+    supabase = await get_supabase()
     rows = (
-        supabase.table("voucher_accounting_lines")
+        await supabase.table("voucher_accounting_lines")
         .select("*")
         .in_("voucher_id", voucher_ids)
         .order("line_number")
@@ -74,12 +76,13 @@ def _fetch_accounting_lines(voucher_ids: list[str]) -> dict[str, list[dict[str, 
     return lines_by_voucher
 
 
-def _fetch_inventory_lines(voucher_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
+async def _fetch_inventory_lines(voucher_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
     if not voucher_ids:
         return {}
 
+    supabase = await get_supabase()
     rows = (
-        supabase.table("voucher_inventory_lines")
+        await supabase.table("voucher_inventory_lines")
         .select("*")
         .in_("voucher_id", voucher_ids)
         .order("line_number")
@@ -92,12 +95,13 @@ def _fetch_inventory_lines(voucher_ids: list[str]) -> dict[str, list[dict[str, A
     return lines_by_voucher
 
 
-def _fetch_ledger_name_map(ledger_ids: list[str]) -> dict[str, str]:
+async def _fetch_ledger_name_map(ledger_ids: list[str]) -> dict[str, str]:
     if not ledger_ids:
         return {}
 
+    supabase = await get_supabase()
     rows = (
-        supabase.table("ledgers")
+        await supabase.table("ledgers")
         .select("id, name")
         .in_("id", ledger_ids)
         .execute()
@@ -105,20 +109,22 @@ def _fetch_ledger_name_map(ledger_ids: list[str]) -> dict[str, str]:
     return {str(row["id"]): row["name"] for row in rows}
 
 
-def _fetch_group_name_map() -> dict[str, str]:
+async def _fetch_group_name_map() -> dict[str, str]:
+    supabase = await get_supabase()
     rows = (
-        supabase.table("account_groups")
+        await supabase.table("account_groups")
         .select("id, name")
         .execute()
     ).data or []
     return {str(row["id"]): row["name"] for row in rows}
 
 
-def _fetch_ledgers(ledger_ids: list[str]) -> dict[str, dict[str, Any]]:
+async def _fetch_ledgers(ledger_ids: list[str]) -> dict[str, dict[str, Any]]:
     if not ledger_ids:
         return {}
+    supabase = await get_supabase()
     rows = (
-        supabase.table("ledgers")
+        await supabase.table("ledgers")
         .select("id, name, party_details:ledger_party_details(gstin, gst_registration_type, address, state, pincode)")
         .in_("id", ledger_ids)
         .execute()
@@ -137,10 +143,11 @@ def _fetch_ledgers(ledger_ids: list[str]) -> dict[str, dict[str, Any]]:
     return result
 
 
-def _fetch_cash_bank_ledger_ids(target_firm_id: str) -> set[str]:
-    group_name_by_id = _fetch_group_name_map()
+async def _fetch_cash_bank_ledger_ids(target_firm_id: str) -> set[str]:
+    supabase = await get_supabase()
+    group_name_by_id = await _fetch_group_name_map()
     ledgers = (
-        supabase.table("ledgers")
+        await supabase.table("ledgers")
         .select("id, group_id")
         .eq("firm_id", target_firm_id)
         .execute()
@@ -220,17 +227,18 @@ def _build_register_rows(
     return rows
 
 
-def _build_stock_summary_rows(
+async def _build_stock_summary_rows(
     target_firm_id: str,
     search: Optional[str] = None,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
     active_only_filter: bool = True,
 ) -> list[dict[str, Any]]:
+    supabase = await get_supabase()
     items_query = supabase.table("items").select("*").eq("firm_id", target_firm_id)
     if search:
         items_query = items_query.or_(f"name.ilike.%{search}%,alias.ilike.%{search}%")
-    items = items_query.order("name").execute().data or []
+    items = (await items_query.order("name").execute()).data or []
 
     if not items:
         return []
@@ -240,13 +248,13 @@ def _build_stock_summary_rows(
     uom_map = {
         str(row["id"]): row["name"]
         for row in (
-            supabase.table("uom").select("id, name").in_("id", uom_ids or ["00000000-0000-0000-0000-000000000000"]).execute()
+            await supabase.table("uom").select("id, name").in_("id", uom_ids or ["00000000-0000-0000-0000-000000000000"]).execute()
         ).data or []
     }
 
     # Fetch all vouchers to know their dates
     vouchers = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("id, category, is_cancelled, voucher_date")
         .eq("firm_id", target_firm_id)
         .eq("is_cancelled", False)
@@ -256,7 +264,7 @@ def _build_stock_summary_rows(
     voucher_ids = list(vouchers_by_id.keys())
 
     inventory_lines = (
-        supabase.table("voucher_inventory_lines")
+        await supabase.table("voucher_inventory_lines")
         .select("voucher_id, item_id, quantity, taxable_amount")
         .in_("item_id", item_ids)
         .in_("voucher_id", voucher_ids or ["00000000-0000-0000-0000-000000000000"])
@@ -591,17 +599,18 @@ async def get_overview(
     to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
-    vouchers = _fetch_vouchers(target_firm_id, from_date=from_date, to_date=to_date)
+    vouchers = await _fetch_vouchers(target_firm_id, from_date=from_date, to_date=to_date)
     voucher_ids = [str(voucher["id"]) for voucher in vouchers]
-    accounting_lines_by_voucher = _fetch_accounting_lines(voucher_ids)
-    inventory_lines_by_voucher = _fetch_inventory_lines(voucher_ids)
+    accounting_lines_by_voucher = await _fetch_accounting_lines(voucher_ids)
+    inventory_lines_by_voucher = await _fetch_inventory_lines(voucher_ids)
 
     ledger_ids = {str(line["ledger_id"]) for lines in accounting_lines_by_voucher.values() for line in lines}
     party_ids = {str(voucher["party_ledger_id"]) for voucher in vouchers if voucher.get("party_ledger_id")}
-    ledger_name_by_id = _fetch_ledger_name_map(list(ledger_ids | party_ids))
+    ledger_name_by_id = await _fetch_ledger_name_map(list(ledger_ids | party_ids))
 
     def metric_for(category: str) -> dict[str, Any]:
         category_vouchers = [voucher for voucher in vouchers if voucher["category"] == category]
@@ -613,7 +622,7 @@ async def get_overview(
             ), 2),
         }
 
-    stock_rows = _build_stock_summary_rows(target_firm_id, from_date=from_date, to_date=to_date)
+    stock_rows = await _build_stock_summary_rows(target_firm_id, from_date=from_date, to_date=to_date)
     recent_vouchers = [
         {
             "id": voucher["id"],
@@ -627,9 +636,9 @@ async def get_overview(
         for voucher in vouchers[:6]
     ]
 
-    items = supabase.table("items").select("id").eq("firm_id", target_firm_id).execute().data or []
-    uom = supabase.table("uom").select("id").eq("firm_id", target_firm_id).execute().data or []
-    hsn = supabase.table("hsn_codes").select("id").eq("firm_id", target_firm_id).execute().data or []
+    items = (await supabase.table("items").select("id").eq("firm_id", target_firm_id).execute()).data or []
+    uom = (await supabase.table("uom").select("id").eq("firm_id", target_firm_id).execute()).data or []
+    hsn = (await supabase.table("hsn_codes").select("id").eq("firm_id", target_firm_id).execute()).data or []
 
     return {
         "total_vouchers": len(vouchers),
@@ -659,8 +668,8 @@ async def get_book(
     to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
     category_filters: Optional[list[str]] = None
     primary_ledger_filter: Optional[set[str]] = None
@@ -685,19 +694,19 @@ async def get_book(
         category_filters = None
     elif book_slug == "cash-book":
         category_filters = None
-        primary_ledger_filter = _fetch_cash_bank_ledger_ids(target_firm_id)
+        primary_ledger_filter = await _fetch_cash_bank_ledger_ids(target_firm_id)
     else:
         return []
 
-    vouchers = _fetch_vouchers(
+    vouchers = await _fetch_vouchers(
         target_firm_id,
         categories=category_filters,
         from_date=from_date,
         to_date=to_date,
     )
     voucher_ids = [str(voucher["id"]) for voucher in vouchers]
-    accounting_lines_by_voucher = _fetch_accounting_lines(voucher_ids)
-    inventory_lines_by_voucher = _fetch_inventory_lines(voucher_ids)
+    accounting_lines_by_voucher = await _fetch_accounting_lines(voucher_ids)
+    inventory_lines_by_voucher = await _fetch_inventory_lines(voucher_ids)
 
     if book_slug == "cash-book" and primary_ledger_filter is not None:
         vouchers = [
@@ -711,7 +720,7 @@ async def get_book(
 
     ledger_ids = {str(line["ledger_id"]) for lines in accounting_lines_by_voucher.values() for line in lines}
     party_ids = {str(voucher["party_ledger_id"]) for voucher in vouchers if voucher.get("party_ledger_id")}
-    ledger_name_by_id = _fetch_ledger_name_map(list(ledger_ids | party_ids))
+    ledger_name_by_id = await _fetch_ledger_name_map(list(ledger_ids | party_ids))
 
     return _build_register_rows(
         vouchers,
@@ -733,8 +742,8 @@ async def export_book(
     format: Optional[str] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Response:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
     
     print(f"EXPORT REQUEST RECEIVED: book_slug={book_slug}, format={format}")
 
@@ -747,17 +756,17 @@ async def export_book(
         elif book_slug == "purchase-register":
             category_filters = [VoucherCategory.PURCHASE.value]
         elif book_slug == "cash-book":
-            primary_ledger_filter = _fetch_cash_bank_ledger_ids(target_firm_id)
+            primary_ledger_filter = await _fetch_cash_bank_ledger_ids(target_firm_id)
             
-        vouchers = _fetch_vouchers(
+        vouchers = await _fetch_vouchers(
             target_firm_id,
             categories=category_filters,
             from_date=from_date,
             to_date=to_date,
         )
         voucher_ids = [str(voucher["id"]) for voucher in vouchers]
-        accounting_lines_by_voucher = _fetch_accounting_lines(voucher_ids)
-        inventory_lines_by_voucher = _fetch_inventory_lines(voucher_ids)
+        accounting_lines_by_voucher = await _fetch_accounting_lines(voucher_ids)
+        inventory_lines_by_voucher = await _fetch_inventory_lines(voucher_ids)
         
         if book_slug == "cash-book" and primary_ledger_filter is not None:
             vouchers = [
@@ -771,7 +780,7 @@ async def export_book(
             
         ledger_ids = {str(line["ledger_id"]) for lines in accounting_lines_by_voucher.values() for line in lines}
         party_ids = {str(voucher["party_ledger_id"]) for voucher in vouchers if voucher.get("party_ledger_id")}
-        ledgers_by_id = _fetch_ledgers(list(ledger_ids | party_ids))
+        ledgers_by_id = await _fetch_ledgers(list(ledger_ids | party_ids))
         
         export_rows = _build_tally_export_rows(
             vouchers,
@@ -780,7 +789,7 @@ async def export_book(
             ledgers_by_id,
         )
     else:
-        rows = await get_book(book_slug, firm_id=target_firm_id, from_date=from_date, to_date=to_date, jwt=jwt)
+        rows = await get_book(request, book_slug, firm_id=target_firm_id, from_date=from_date, to_date=to_date, jwt=jwt)
         if not isinstance(rows, list):
             rows = []
         export_rows = _build_register_export_rows(book_slug, rows)
@@ -818,9 +827,9 @@ async def get_stock_summary(
     to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
-    return _build_stock_summary_rows(target_firm_id, search=search, from_date=from_date, to_date=to_date)
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
+    return await _build_stock_summary_rows(target_firm_id, search=search, from_date=from_date, to_date=to_date)
 
 @router.get("/stock-summary/{item_id}/monthly", response_model=list[StockMonthlyRow])
 @limiter.limit(LIMIT_AGGREGATIONS)
@@ -832,15 +841,16 @@ async def get_stock_item_monthly_summary(
     to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
     
-    item = supabase.table("items").select("*").eq("id", item_id).eq("firm_id", target_firm_id).single().execute().data
+    item = (await supabase.table("items").select("*").eq("id", item_id).eq("firm_id", target_firm_id).single().execute()).data
     if not item:
         return []
 
     vouchers = (
-        supabase.table("vouchers")
+        await supabase.table("vouchers")
         .select("id, category, is_cancelled, voucher_date")
         .eq("firm_id", target_firm_id)
         .eq("is_cancelled", False)
@@ -850,7 +860,7 @@ async def get_stock_item_monthly_summary(
     voucher_ids = list(vouchers_by_id.keys())
 
     inventory_lines = (
-        supabase.table("voucher_inventory_lines")
+        await supabase.table("voucher_inventory_lines")
         .select("voucher_id, quantity, taxable_amount")
         .eq("item_id", item_id)
         .in_("voucher_id", voucher_ids or ["00000000-0000-0000-0000-000000000000"])
@@ -992,10 +1002,11 @@ async def get_stock_item_vouchers(
     to_date: Optional[date] = Query(default=None),
     jwt: str = Depends(get_verified_jwt),
 ) -> Any:
-    profile = get_profile_context(jwt)
-    target_firm_id = resolve_target_firm_id(profile, firm_id)
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+    target_firm_id = await resolve_target_firm_id(profile, firm_id)
 
-    item = supabase.table("items").select("*").eq("id", item_id).eq("firm_id", target_firm_id).single().execute().data
+    item = (await supabase.table("items").select("*").eq("id", item_id).eq("firm_id", target_firm_id).single().execute()).data
     if not item:
         return []
 
@@ -1010,7 +1021,7 @@ async def get_stock_item_vouchers(
     if to_date:
         vouchers_query = vouchers_query.lte("voucher_date", str(to_date))
 
-    vouchers = vouchers_query.order("voucher_date").execute().data or []
+    vouchers = (await vouchers_query.order("voucher_date").execute()).data or []
     if not vouchers:
         return []
         
@@ -1018,10 +1029,10 @@ async def get_stock_item_vouchers(
     voucher_ids = list(vouchers_by_id.keys())
 
     party_ledger_ids = list({str(v["party_ledger_id"]) for v in vouchers if v.get("party_ledger_id")})
-    ledger_name_map = _fetch_ledger_name_map(party_ledger_ids)
+    ledger_name_map = await _fetch_ledger_name_map(party_ledger_ids)
 
     inventory_lines = (
-        supabase.table("voucher_inventory_lines")
+        await supabase.table("voucher_inventory_lines")
         .select("voucher_id, quantity, taxable_amount")
         .eq("item_id", item_id)
         .in_("voucher_id", voucher_ids)
@@ -1039,7 +1050,7 @@ async def get_stock_item_vouchers(
     
     if from_date:
         past_vouchers = (
-            supabase.table("vouchers")
+            await supabase.table("vouchers")
             .select("id, category")
             .eq("firm_id", target_firm_id)
             .eq("is_cancelled", False)
@@ -1051,7 +1062,7 @@ async def get_stock_item_vouchers(
         
         if past_voucher_ids:
             past_lines = (
-                supabase.table("voucher_inventory_lines")
+                await supabase.table("voucher_inventory_lines")
                 .select("voucher_id, quantity, taxable_amount")
                 .eq("item_id", item_id)
                 .in_("voucher_id", past_voucher_ids)
@@ -1138,4 +1149,3 @@ async def get_stock_item_vouchers(
         })
 
     return results
-
