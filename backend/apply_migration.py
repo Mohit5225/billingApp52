@@ -28,8 +28,10 @@ def apply_migration(filepath: str):
         print(f"Error applying migration: {e}")
 
 if __name__ == "__main__":
+    import sys
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    migration_file = os.path.join(script_dir, "03_manual_matches.sql")
+    migration_filename = sys.argv[1] if len(sys.argv) > 1 else "03_manual_matches.sql"
+    migration_file = os.path.join(script_dir, migration_filename)
     if not os.path.exists(migration_file):
         print(f"File not found: {migration_file}")
     else:

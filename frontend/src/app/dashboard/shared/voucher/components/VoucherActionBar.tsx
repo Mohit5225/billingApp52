@@ -8,6 +8,7 @@ type VoucherActionBarProps = {
   isSubmitting: boolean;
   isLoading: boolean;
   voucherId?: string;
+  isBlocked?: boolean;
   onCancel: () => void;
   onSubmit: () => void;
   onPreview: () => void;
@@ -21,6 +22,7 @@ export function VoucherActionBar({
   isSubmitting,
   isLoading,
   voucherId,
+  isBlocked,
   onCancel,
   onSubmit,
   onPreview,
@@ -132,12 +134,14 @@ export function VoucherActionBar({
             )}
           </button>
         ) : (
-          <Link
-            href={`/dashboard/vouchers/${voucherId}/edit`}
-            className="flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-emerald-800 hover:shadow"
-          >
-            Edit Voucher
-          </Link>
+          !isBlocked && (
+            <Link
+              href={`/dashboard/vouchers/${voucherId}/edit`}
+              className="flex items-center gap-2 rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-px hover:bg-emerald-800 hover:shadow"
+            >
+              Edit Voucher
+            </Link>
+          )
         )}
       </div>
     </div>

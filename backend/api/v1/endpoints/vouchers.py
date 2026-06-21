@@ -23,6 +23,49 @@ from models.voucher import (
 from core.limiter import limiter
 from core.rate_limits import LIMIT_VOUCHER_WRITES
 
+async def _check_period_block_for_merchant(
+    profile: dict[str, Any],
+    firm_id: str,
+    voucher_date: date,
+    category: VoucherCategory,
+) -> None:
+    """If the user is a merchant, check if the period is blocked for this category."""
+    if profile.get("role") != "merchant":
+        return
+
+    supabase = await get_supabase()
+    year = voucher_date.year
+    month = voucher_date.month
+
+    resp = (
+        await supabase.table("period_blocks")
+        .select("*")
+        .eq("firm_id", firm_id)
+        .eq("year", year)
+        .eq("month", month)
+        .execute()
+    )
+    if not resp.data:
+        return
+
+    block = resp.data[0]
+    
+    blocked = False
+    if category == VoucherCategory.SALES and block.get("block_sales"):
+        blocked = True
+    elif category == VoucherCategory.PURCHASE and block.get("block_purchases"):
+        blocked = True
+    elif category == VoucherCategory.DEBIT_NOTE and block.get("block_debit_notes"):
+        blocked = True
+    elif category == VoucherCategory.CREDIT_NOTE and block.get("block_credit_notes"):
+        blocked = True
+
+    if blocked:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"The period for {category.value} in {year}-{month:02d} is blocked."
+        )
+
 router = APIRouter()
 
 _NO_PARTY_CATEGORIES = {VoucherCategory.JOURNAL, VoucherCategory.CONTRA}
@@ -485,6 +528,7 @@ async def create_voucher(
 
     await _validate_party_ledger(voucher_in.category, voucher_in.party_ledger_id, target_firm_id)
     await _validate_accounting_lines(voucher_in.accounting_lines, target_firm_id)
+    await _check_period_block_for_merchant(profile, target_firm_id, voucher_in.voucher_date, voucher_in.category)
 
     header_resp = await supabase.table("vouchers").insert(
         _build_header_payload(voucher_in, target_firm_id)
@@ -756,6 +800,13 @@ async def replace_voucher(
     await _validate_party_ledger(voucher_in.category, voucher_in.party_ledger_id, target_firm_id)
     await _validate_accounting_lines(voucher_in.accounting_lines, target_firm_id)
 
+    orig_date = date.fromisoformat(str(existing["voucher_date"])) if existing.get("voucher_date") else None
+    if orig_date:
+        await _check_period_block_for_merchant(profile, target_firm_id, orig_date, existing["category"])
+        
+    if voucher_in.voucher_date and voucher_in.voucher_date != orig_date:
+        await _check_period_block_for_merchant(profile, target_firm_id, voucher_in.voucher_date, voucher_in.category)
+
     previous_accounting = (
         await supabase.table("voucher_accounting_lines")
         .select("*")
@@ -847,6 +898,14 @@ async def update_voucher(
 
     await resolve_target_firm_id(profile, str(existing.data["firm_id"]))
 
+    orig_date = date.fromisoformat(str(existing.data["voucher_date"])) if "voucher_date" in existing.data else None
+    
+    if orig_date and "category" in existing.data:
+        await _check_period_block_for_merchant(profile, str(existing.data["firm_id"]), orig_date, existing.data["category"])
+        
+        if voucher_in.voucher_date and voucher_in.voucher_date != orig_date:
+            await _check_period_block_for_merchant(profile, str(existing.data["firm_id"]), voucher_in.voucher_date, existing.data["category"])
+
     payload = voucher_in.model_dump(mode="json", exclude_none=True)
     if not payload:
         raise HTTPException(
@@ -889,4 +948,9 @@ async def cancel_voucher(
         )
 
     await resolve_target_firm_id(profile, str(existing.data["firm_id"]))
+    
+    orig_date = date.fromisoformat(str(existing.data["voucher_date"])) if "voucher_date" in existing.data else None
+    if orig_date and "category" in existing.data:
+        await _check_period_block_for_merchant(profile, str(existing.data["firm_id"]), orig_date, existing.data["category"])
+
     await supabase.table("vouchers").update({"is_cancelled": True}).eq("id", voucher_id).execute()

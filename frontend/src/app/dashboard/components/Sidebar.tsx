@@ -106,6 +106,7 @@ const NAV_ITEMS: NavItem[] = [
       { label: "Firm Details", href: "/dashboard/settings/firm-details" },
       { label: "Firm Invites", href: "/dashboard/settings/invites" },
       { label: "Paused Access", href: "/dashboard/settings/paused-access" },
+      { label: "Period Block", href: "/dashboard/settings/period-block" },
     ],
   },
 ];

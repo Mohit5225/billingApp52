@@ -30,6 +30,7 @@ import {
 } from "./voucher/types";
 import { useVoucherData } from "./voucher/hooks/useVoucherData";
 import { useVoucherHydration } from "./voucher/hooks/useVoucherHydration";
+import { usePeriodBlock } from "./voucher/hooks/usePeriodBlock";
 import { buildVoucherPayload } from "./voucher/buildPayload";
 import { VoucherHeader } from "./voucher/components/VoucherHeader";
 import { VoucherPartySection } from "./voucher/components/VoucherPartySection";
@@ -50,6 +51,7 @@ export function VoucherWorkbench({
 }) {
   const router = useRouter();
   const { activeFirmId, supabase } = useFirmScope();
+  const { profile } = useProfile();
   const { showToast } = useToast();
   const meta = VOUCHER_META[slug];
   const isEditing = Boolean(voucherId);
@@ -161,6 +163,24 @@ export function VoucherWorkbench({
     allLedgerOptions,
     nextNumberData,
   } = useVoucherData(activeFirmId, supabase, meta.category, isEditing);
+
+  const voucherDateObj = form.voucher_date ? new Date(form.voucher_date) : null;
+  const { data: periodBlock } = usePeriodBlock(
+    activeFirmId,
+    supabase,
+    voucherDateObj?.getFullYear() || null,
+    (voucherDateObj?.getMonth() ?? -1) + 1 || null
+  );
+
+  const isMerchant = profile?.role === "merchant";
+  const isBlocked = useMemo(() => {
+    if (!isMerchant || !periodBlock) return false;
+    if (meta.category === "Sales" && periodBlock.block_sales) return true;
+    if (meta.category === "Purchase" && periodBlock.block_purchases) return true;
+    if (meta.category === "Debit Note" && periodBlock.block_debit_notes) return true;
+    if (meta.category === "Credit Note" && periodBlock.block_credit_notes) return true;
+    return false;
+  }, [isMerchant, periodBlock, meta.category]);
 
   const selectedPartyLedger = useMemo(
     () => ledgers.find((ledger) => ledger.id === form.party_ledger_id) || null,
@@ -662,6 +682,7 @@ export function VoucherWorkbench({
         isSubmitting={isSubmitting}
         isLoading={isLoading}
         voucherId={voucherId}
+        isBlocked={isBlocked}
         onCancel={() => {
           if (!isEditing && activeFirmId) {
             sessionStorage.removeItem(`draft-voucher-${activeFirmId}-${slug}`);
