@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useProfile } from "@/context/ProfileContext";
-import { useFirm } from "@/app/dashboard/shared/FirmProvider";
+import { useActiveFirm } from "@/app/dashboard/shared/FirmProvider";
 import { getApiBaseUrl } from "@/lib/api";
 
 const MONTHS = [
@@ -21,7 +21,7 @@ interface PeriodBlock {
 
 export default function PeriodBlockPage() {
   const { profile, supabase } = useProfile();
-  const { activeFirm } = useFirm();
+  const { activeFirmId } = useActiveFirm();
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [blocks, setBlocks] = useState<Record<number, PeriodBlock>>({});
   const [loading, setLoading] = useState(true);
@@ -30,11 +30,11 @@ export default function PeriodBlockPage() {
   const isMerchant = profile?.role === "merchant";
 
   const fetchBlocks = async (year: number) => {
-    if (!activeFirm || !profile) return;
+    if (!activeFirmId || !profile) return;
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${getApiBaseUrl()}/api/firms/${activeFirm.id}/period-blocks?year=${year}`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/firms/${activeFirmId}/period-blocks?year=${year}`, {
         headers: { "Authorization": `Bearer ${session?.access_token}` }
       });
       if (res.ok) {
@@ -54,10 +54,10 @@ export default function PeriodBlockPage() {
 
   useEffect(() => {
     fetchBlocks(selectedYear);
-  }, [selectedYear, activeFirm]);
+  }, [selectedYear, activeFirmId]);
 
   const handleToggle = async (month: number, key: keyof Omit<PeriodBlock, 'year'|'month'>, currentValue: boolean) => {
-    if (!activeFirm) return;
+    if (!activeFirmId) return;
     // Merchants cannot turn off (unblock)
     if (isMerchant && currentValue === true) return;
 
@@ -69,7 +69,7 @@ export default function PeriodBlockPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const payload = { [key]: newValue };
 
-      const res = await fetch(`${getApiBaseUrl()}/api/firms/${activeFirm.id}/period-blocks/${selectedYear}/${month}`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/firms/${activeFirmId}/period-blocks/${selectedYear}/${month}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${session?.access_token}`,
