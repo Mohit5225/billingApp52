@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+
 interface KpiCardProps {
   label: string;
   amount: string;
@@ -15,6 +19,32 @@ export default function KpiCard({
   accentColor = "#40916C",
   isLoading = false,
 }: KpiCardProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const text = textRef.current;
+    if (!container || !text) return;
+
+    const updateScale = () => {
+      text.style.transform = "none";
+      const containerWidth = container.clientWidth;
+      const textWidth = text.scrollWidth;
+
+      if (textWidth > containerWidth && containerWidth > 0) {
+        const scale = (containerWidth - 2) / textWidth;
+        text.style.transform = `scale(${scale})`;
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(() => updateScale());
+    resizeObserver.observe(container);
+    updateScale();
+
+    return () => resizeObserver.disconnect();
+  }, [amount]);
+
   const sparklinePoints =
     trend === "up"
       ? "M0,40 C20,35 30,30 50,25 C70,20 80,15 100,8 C120,12 130,10 150,5"
@@ -61,9 +91,15 @@ export default function KpiCard({
         {isLoading ? (
           <div className="my-1 h-8 sm:h-12 w-32 sm:w-48 animate-shimmer-fast rounded-full bg-slate-200" style={{ animationDelay: "0.1s" }} />
         ) : (
-          <p className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-950 mono-num truncate" title={amount}>
-            {amount}
-          </p>
+          <div ref={containerRef} className="w-full overflow-hidden flex items-center min-w-0">
+            <p 
+              ref={textRef}
+              className="text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-slate-950 mono-num whitespace-nowrap origin-left inline-block" 
+              title={amount}
+            >
+              {amount}
+            </p>
+          </div>
         )}
         {isLoading ? (
           <div className="mt-2.5 h-4 sm:h-5 w-40 sm:w-56 animate-shimmer-fast rounded-full bg-slate-200" style={{ animationDelay: "0.2s" }} />
