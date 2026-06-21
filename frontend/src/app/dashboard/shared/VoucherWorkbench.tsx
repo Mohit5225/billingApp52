@@ -7,6 +7,7 @@ import { VoucherDetail } from "@/interfaces/voucher";
 import { apiRequest } from "@/lib/http";
 import { useToast } from "@/context/ToastContext";
 import { useDashboardChrome } from "@/context/DashboardChromeContext";
+import { useProfile } from "@/context/ProfileContext";
 import type { InvoiceData, InvoiceType } from "@/components/templates/types";
 
 import { useFirmScope } from "./useFirmScope";
