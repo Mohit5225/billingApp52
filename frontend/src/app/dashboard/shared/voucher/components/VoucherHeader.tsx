@@ -25,7 +25,7 @@ export function VoucherHeader({
   onOpenNoteDetails,
 }: VoucherHeaderProps) {
   return (
-    <div className="relative shrink-0 border-b border-slate-500 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-row flex-wrap items-center justify-between gap-y-4 md:flex-nowrap md:justify-start md:gap-x-8">
+    <div className="relative z-[50] shrink-0 border-b border-slate-500 bg-white px-4 py-4 sm:px-6 sm:py-5 flex flex-row flex-wrap items-center justify-between gap-y-4 md:flex-nowrap md:justify-start md:gap-x-8">
       {/* Title and Badges */}
       <div className="flex flex-col gap-1 order-1 w-full md:w-auto md:flex-none items-center sm:items-start text-center sm:text-left mt-2 sm:mt-0">
         <div className="flex items-center justify-center sm:justify-start gap-3">
@@ -94,6 +94,7 @@ export function VoucherHeader({
             maxDate={globalToDate}
             onChange={(val) => setForm((prev) => ({ ...prev, voucher_date: val }))}
             disabled={readOnly}
+            variant="voucher"
           />
         </div>
       </div>

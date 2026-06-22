@@ -19,6 +19,8 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   const { isSidebarCollapsed } = useDashboardChrome();
   
   const isVoucherScreen = pathname.includes("/dashboard/create/") || pathname.includes("/dashboard/vouchers/");
+  const isPeriodBlockScreen = pathname.includes("/dashboard/settings/period-block");
+  const hideHeader = isVoucherScreen || isPeriodBlockScreen;
 
   useEffect(() => {
     if (isLoading) {
@@ -112,7 +114,7 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
 
       <div className={`min-h-screen transition-all duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${isSidebarCollapsed ? "lg:pl-[var(--sidebar-space-collapsed)]" : "lg:pl-[var(--sidebar-space-expanded)]"}`}>
-        {!isVoucherScreen && (
+        {!hideHeader && (
           <Suspense
             fallback={<div className="h-[88px] border-b border-white/60 bg-white/70 backdrop-blur-xl" />}
           >
@@ -121,16 +123,16 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
         )}
 
         <div className="relative isolate">
-          {!isVoucherScreen && (
+          {!hideHeader && (
             <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-64 bg-[radial-gradient(circle_at_top,rgba(82,183,136,0.14),transparent_58%)]" />
           )}
           <main 
             className={`mx-auto flex flex-col min-h-screen w-full max-w-[var(--content-max-w)] transition-[max-width] duration-400 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
-              isVoucherScreen 
+              hideHeader 
                 ? "p-2 sm:p-4 lg:p-4" 
                 : "px-4 pb-28 pt-1.5 sm:px-6 sm:pb-32 sm:pt-6 lg:px-8 lg:pb-10 lg:pt-8 min-h-[calc(100vh-88px)]"
             }`}
-            style={{ "--content-max-w": isVoucherScreen ? "100%" : isSidebarCollapsed ? "2400px" : "1800px" } as React.CSSProperties}
+            style={{ "--content-max-w": hideHeader ? "100%" : isSidebarCollapsed ? "2400px" : "1800px" } as React.CSSProperties}
           >
             {children}
           </main>
