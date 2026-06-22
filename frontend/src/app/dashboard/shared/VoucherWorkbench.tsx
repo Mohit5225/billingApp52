@@ -96,6 +96,12 @@ export function VoucherWorkbench({
           if (parsed.form) setForm(parsed.form);
           if (parsed.invoiceLines) setInvoiceLines(parsed.invoiceLines);
           if (parsed.journalLines) setJournalLines(parsed.journalLines);
+        } else {
+          // New voucher, load default preference
+          const defaultDiscountType = localStorage.getItem("defaultDiscountType");
+          if (defaultDiscountType === "amount" || defaultDiscountType === "percentage") {
+            setForm(prev => ({ ...prev, discount_type: defaultDiscountType }));
+          }
         }
       } catch(e) {}
       setIsDraftLoaded(true);
@@ -255,6 +261,13 @@ export function VoucherWorkbench({
   });
 
 
+  const toggleDiscountType = useCallback(() => {
+    setForm((prev) => {
+      const nextType = prev.discount_type === "percentage" ? "amount" : "percentage";
+      localStorage.setItem("defaultDiscountType", nextType);
+      return { ...prev, discount_type: nextType };
+    });
+  }, []);
 
   useEffect(() => {
     if (nextNumberData?.next_number && !isEditing) {
@@ -327,7 +340,7 @@ export function VoucherWorkbench({
           quantity: line.quantity,
           uom: item?.uom_name || "NOS",
           rate: line.unit_price,
-          discount: line.discount_amount,
+          discount: form.discount_type === "percentage" ? line.discount_percent : line.discount_amount,
           taxableAmount: line.taxable_amount,
           igstRate: line.igst_rate || undefined,
           cgstRate: line.cgst_rate || undefined,
@@ -441,6 +454,7 @@ export function VoucherWorkbench({
           ifsc: firmDetails.ifscCode || "",
         }
         : undefined,
+      discountType: form.discount_type,
     };
   }, [firmDetails, invoiceLines, items, invoiceTotals, form, ledgers, meta.category]);
 
@@ -651,6 +665,8 @@ export function VoucherWorkbench({
           readOnly={readOnly}
           itemsScrollRef={itemsScrollRef}
           showDiscount={permanentDiscountToggle}
+          discountType={form.discount_type}
+          onToggleDiscountType={toggleDiscountType}
         />
       ) : null}
 

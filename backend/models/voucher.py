@@ -85,6 +85,7 @@ class VoucherBase(BaseSchema):
     party_ledger_id: Optional[UUID4] = None
     original_invoice_number: Optional[str] = None
     original_invoice_date: Optional[date] = None
+    discount_type: str = "percentage"
 
 
 # ── Bill Allocation ───────────────────────────────────────────────────────────

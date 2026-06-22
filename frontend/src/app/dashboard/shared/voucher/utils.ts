@@ -5,12 +5,27 @@ export function round2(value: number) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
-export function recalcLine(line: InvoiceLineState, item: ItemDetail | undefined, taxMode: TaxMode) {
+export function recalcLine(
+  line: InvoiceLineState,
+  item: ItemDetail | undefined,
+  taxMode: TaxMode,
+  discountType: "percentage" | "amount" = "percentage"
+) {
   const quantity = Number(line.quantity || 0);
   const unitPrice = Number(line.unit_price || 0);
-  const discountPercent = Number(line.discount_percent || 0);
   const grossAmount = quantity * unitPrice;
-  const discountAmount = round2(grossAmount * (discountPercent / 100));
+
+  let discountAmount = 0;
+  let discountPercent = 0;
+
+  if (discountType === "percentage") {
+    discountPercent = Number(line.discount_percent || 0);
+    discountAmount = round2(grossAmount * (discountPercent / 100));
+  } else {
+    discountAmount = Number(line.discount_amount || 0);
+    discountPercent = grossAmount > 0 ? round2((discountAmount / grossAmount) * 100) : 0;
+  }
+
   const taxable = round2(Math.max(grossAmount - discountAmount, 0));
 
   let igstRate = 0;
@@ -32,6 +47,7 @@ export function recalcLine(line: InvoiceLineState, item: ItemDetail | undefined,
 
   return {
     ...line,
+    discount_percent: discountPercent,
     discount_amount: discountAmount,
     taxable_amount: taxable,
     igst_rate: igstRate,

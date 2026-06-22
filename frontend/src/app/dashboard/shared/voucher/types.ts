@@ -69,6 +69,7 @@ export type FormState = {
   manual_tax_mode: TaxMode;
   additional_ledgers: AdditionalLedgerState[];
   bill_allocations: BillAllocationState[];
+  discount_type: "percentage" | "amount";
   original_invoice_number: string;
   original_invoice_date: string;
 };
@@ -146,6 +147,7 @@ export const getEmptyForm = (fromDate: string, toDate: string): FormState => ({
   bill_allocations: [],
   original_invoice_number: "",
   original_invoice_date: "",
+  discount_type: "percentage",
 });
 
 export const EMPTY_INVOICE_LINE: InvoiceLineState = {

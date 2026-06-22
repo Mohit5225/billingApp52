@@ -111,6 +111,9 @@ export interface InvoiceData {
 
   /** Original/Duplicate/Triplicate */
   copyLabel?: string;
+
+  /** Is the discount percentage or amount? */
+  discountType?: "percentage" | "amount";
 }
 
 /** Props that every template component receives */

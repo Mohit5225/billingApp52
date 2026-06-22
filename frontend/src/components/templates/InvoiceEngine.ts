@@ -96,12 +96,13 @@ export function detectColumns(data: InvoiceData): ColumnDef[] {
   });
 
   if (hasDiscount) {
+    const isPercentage = data.discountType === "percentage";
     columns.push({
       key: "discount",
-      label: "Discount",
+      label: isPercentage ? "Discount (%)" : "Discount",
       width: "",
       align: "right",
-      format: "currency",
+      format: isPercentage ? "percent" : "currency",
       bucket: "amount",
     });
   }

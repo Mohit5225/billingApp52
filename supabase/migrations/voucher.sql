@@ -19,6 +19,7 @@ CREATE TABLE public.vouchers (
     voucher_number    TEXT NOT NULL,
     voucher_date      DATE NOT NULL,
     narration         TEXT,
+    discount_type     VARCHAR(20) NOT NULL DEFAULT 'percentage',
 
     is_cancelled      BOOLEAN NOT NULL DEFAULT false,
 

@@ -15,6 +15,8 @@ type InvoiceItemsTableProps = {
   readOnly: boolean;
   itemsScrollRef: RefObject<HTMLDivElement | null>;
   showDiscount?: boolean;
+  discountType?: "percentage" | "amount";
+  onToggleDiscountType?: () => void;
 };
 
 export function InvoiceItemsTable({
@@ -25,6 +27,8 @@ export function InvoiceItemsTable({
   readOnly,
   itemsScrollRef,
   showDiscount = false,
+  discountType = "percentage",
+  onToggleDiscountType,
 }: InvoiceItemsTableProps) {
   const [isMobileWindowOpen, setIsMobileWindowOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
@@ -35,7 +39,7 @@ export function InvoiceItemsTable({
         if (lineIndex !== index) return line;
         const merged = { ...line, ...partial };
         const item = items.find((entry) => entry.id === merged.item_id);
-        return recalcLine(merged, item, taxMode);
+        return recalcLine(merged, item, taxMode, discountType);
       }),
     );
   }
@@ -72,7 +76,15 @@ export function InvoiceItemsTable({
             <div>HSN/SAC</div>
             <div>Qty</div>
             <div>Rate (₹)</div>
-            {showDiscount && <div>Discount (%)</div>}
+            {showDiscount && (
+              <div
+                className={`text-center ${!readOnly && onToggleDiscountType ? 'cursor-pointer hover:text-blue-600 transition-colors' : ''}`}
+                onClick={() => !readOnly && onToggleDiscountType && onToggleDiscountType()}
+                title={!readOnly ? "Click to toggle discount type" : ""}
+              >
+                Discount ({discountType === "percentage" ? "%" : "₹"})
+              </div>
+            )}
             <div className="text-right">Amount (₹)</div>
             <div className="w-10" />
           </div>
@@ -146,9 +158,15 @@ export function InvoiceItemsTable({
                         disabled={readOnly}
                         type="number"
                         step="0.01"
-                        value={line.discount_percent || ""}
-                        onChange={(e) => updateInvoiceLine(index, { discount_percent: Number(e.target.value) })}
-                        placeholder="0"
+                        value={discountType === "percentage" ? (line.discount_percent || "") : (line.discount_amount || "")}
+                        onChange={(e) => {
+                          if (discountType === "percentage") {
+                            updateInvoiceLine(index, { discount_percent: Number(e.target.value) });
+                          } else {
+                            updateInvoiceLine(index, { discount_amount: Number(e.target.value) });
+                          }
+                        }}
+                        placeholder={discountType === "percentage" ? "0" : "0.00"}
                         className="mono-num h-12 w-full rounded-lg border border-transparent bg-transparent px-2 text-[17px] font-semibold text-slate-800 outline-none transition-all hover:border-slate-500 focus:border-tally-400 focus:bg-white focus:ring-2 focus:ring-tally-500/[0.16]"
                       />
                     </div>
@@ -288,6 +306,8 @@ export function InvoiceItemsTable({
           readOnly={readOnly}
           onClose={() => setIsMobileWindowOpen(false)}
           showDiscount={showDiscount}
+          discountType={discountType}
+          onToggleDiscountType={onToggleDiscountType}
         />
       )}
 

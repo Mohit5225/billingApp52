@@ -231,6 +231,7 @@ export function buildVoucherPayload({
       party_ledger_id: partyLedgerId,
       original_invoice_number: form.original_invoice_number || null,
       original_invoice_date: form.original_invoice_date || null,
+      discount_type: form.discount_type,
       accounting_lines: accountingLines,
       inventory_lines: finalInvoiceLines.map((line, index) => ({
         ...line,

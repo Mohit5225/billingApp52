@@ -15,6 +15,8 @@ type MobileItemsWindowProps = {
   readOnly: boolean;
   onClose: () => void;
   showDiscount?: boolean;
+  discountType?: "percentage" | "amount";
+  onToggleDiscountType?: () => void;
 };
 
 export function MobileItemsWindow({
@@ -25,6 +27,8 @@ export function MobileItemsWindow({
   readOnly,
   onClose,
   showDiscount = false,
+  discountType = "percentage",
+  onToggleDiscountType,
 }: MobileItemsWindowProps) {
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
@@ -69,7 +73,7 @@ export function MobileItemsWindow({
         if (lineIndex !== index) return line;
         const merged = { ...line, ...partial };
         const item = items.find((entry) => entry.id === merged.item_id);
-        return recalcLine(merged, item, taxMode);
+        return recalcLine(merged, item, taxMode, discountType);
       }),
     );
   }
@@ -257,19 +261,42 @@ export function MobileItemsWindow({
                 {/* DISCOUNT */}
                 {showDiscount && (
                   <div className={`flex flex-col p-2.5 px-3 relative ${isEditing ? 'bg-white' : 'bg-white'}`}>
-                    <span className={`text-[11px] font-bold uppercase tracking-wider mb-1 text-slate-500`}>DISCOUNT (%)</span>
+                    <div className="flex items-center gap-1 mb-1">
+                      <span className={`text-[11px] font-bold uppercase tracking-wider text-slate-500`}>DISCOUNT ({discountType === "percentage" ? "%" : "₹"})</span>
+                      {isEditing && onToggleDiscountType && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleDiscountType();
+                          }}
+                          className="flex items-center justify-center rounded-sm bg-slate-100 p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
+                        >
+                          <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                     {isEditing ? (
                       <input 
                         type="number" 
                         step="0.01"
                         className="w-full bg-transparent text-[14px] font-semibold text-slate-800 outline-none mono-num placeholder:text-slate-300"
-                        value={line.discount_percent || ""}
-                        onChange={(e) => updateInvoiceLine(index, { discount_percent: Number(e.target.value) })}
-                        placeholder="0"
+                        value={discountType === "percentage" ? (line.discount_percent || "") : (line.discount_amount || "")}
+                        onChange={(e) => {
+                          if (discountType === "percentage") {
+                            updateInvoiceLine(index, { discount_percent: Number(e.target.value) });
+                          } else {
+                            updateInvoiceLine(index, { discount_amount: Number(e.target.value) });
+                          }
+                        }}
+                        placeholder={discountType === "percentage" ? "0" : "0.00"}
                         disabled={readOnly}
                       />
                     ) : (
-                      <span className={`text-[14px] font-semibold mono-num ${isEditing ? 'text-slate-800' : 'text-slate-700'}`}>{line.discount_percent || "0"}%</span>
+                      <span className={`text-[14px] font-semibold mono-num ${isEditing ? 'text-slate-800' : 'text-slate-700'}`}>
+                        {discountType === "percentage" ? `${line.discount_percent || "0"}%` : formatCurrency(line.discount_amount || 0)}
+                      </span>
                     )}
                     {!isEditing && <div className="absolute inset-0 cursor-pointer" onClick={() => toggleEditing(index)} />}
                   </div>

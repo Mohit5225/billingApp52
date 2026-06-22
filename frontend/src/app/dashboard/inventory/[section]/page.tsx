@@ -254,6 +254,64 @@ export default function InventorySectionPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
+  // Draft management state
+  const [isDraftLoaded, setIsDraftLoaded] = useState(false);
+
+  // ── Draft Management ──
+  useEffect(() => {
+    if (!activeFirmId || section !== "items") {
+      setIsDraftLoaded(true);
+      return;
+    }
+
+    if (!isDraftLoaded) {
+      const draftStr = sessionStorage.getItem(`draft-item-form-${activeFirmId}`);
+      
+      // Only restore draft if we are returning from a sub-creation screen
+      // or if we have a search param (came from + create link in voucher)
+      const hasReturnTo = searchParams?.has("returnTo");
+      const hasSearch = searchParams?.has("search");
+      
+      if (draftStr && (hasReturnTo || hasSearch)) {
+        try {
+          const parsed = JSON.parse(draftStr);
+          if (parsed.itemForm) setItemForm(parsed.itemForm);
+          if (parsed.editingId !== undefined) setEditingId(parsed.editingId);
+          if (parsed.isFormOpen !== undefined) setIsFormOpen(parsed.isFormOpen);
+          if (parsed.openingStockOpen !== undefined) setOpeningStockOpen(parsed.openingStockOpen);
+        } catch (e) {
+          // ignore corrupted draft
+        }
+      } else {
+        // If we didn't return from somewhere, clear any stale draft
+        sessionStorage.removeItem(`draft-item-form-${activeFirmId}`);
+        
+        // Handle normal search param prefill if no draft was used
+        if (hasSearch && !draftStr) {
+          setItemForm((prev) => ({ ...EMPTY_ITEM, name: searchParams.get("search") || "" }));
+          setIsFormOpen(true);
+        }
+      }
+      setIsDraftLoaded(true);
+    }
+  }, [activeFirmId, section, searchParams, isDraftLoaded]);
+
+  function saveDraft() {
+    if (!activeFirmId || section !== "items") return;
+    sessionStorage.setItem(`draft-item-form-${activeFirmId}`, JSON.stringify({
+      itemForm,
+      editingId,
+      isFormOpen,
+      openingStockOpen
+    }));
+  }
+
+  function clearDraft() {
+    if (activeFirmId) {
+      sessionStorage.removeItem(`draft-item-form-${activeFirmId}`);
+    }
+  }
+
   async function handleMakeInactive(id: string) {
     try {
       await apiRequest<ItemDetail>(supabase, `/api/items/${id}`, {
@@ -292,6 +350,7 @@ export default function InventorySectionPage() {
     setItemForm(EMPTY_ITEM);
     setOpeningStockOpen(false);
     setIsFormOpen(false);
+    clearDraft();
   }
 
   function handleReturn() {
@@ -304,16 +363,12 @@ export default function InventorySectionPage() {
   }
 
   useEffect(() => {
-    resetForms();
-    setSearch("");
-
-    // Check if we came from a "+ Create" link with a search prefill
-    const qs = searchParams?.get("search");
-    if (qs && section === "items") {
-      setItemForm((prev) => ({ ...EMPTY_ITEM, name: qs }));
-      setIsFormOpen(true);
+    // Only reset if we haven't loaded a draft for items, or if we switched sections
+    if (section !== "items" || (!searchParams?.has("returnTo") && !searchParams?.has("search"))) {
+        resetForms();
     }
-  }, [section, searchParams]);
+    setSearch("");
+  }, [section]);
 
   function handleIgstChange(value: number) {
     const half = parseFloat((value / 2).toFixed(2));
@@ -529,6 +584,7 @@ export default function InventorySectionPage() {
                       </label>
                       <Link 
                         href={`/dashboard/inventory/uom?firm_id=${activeFirmId}&returnTo=${encodeURIComponent(pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : ""))}`}
+                        onClick={() => saveDraft()}
                         className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700"
                       >
                         + Add new

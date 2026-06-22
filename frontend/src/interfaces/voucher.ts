@@ -71,6 +71,7 @@ export interface Voucher extends BaseEntity {
   is_cancelled: boolean;
   original_invoice_number?: string | null;
   original_invoice_date?: string | null;
+  discount_type?: "percentage" | "amount";
 }
 
 export interface VoucherDetail extends Voucher {
@@ -88,6 +89,7 @@ export interface VoucherWritePayload {
   party_ledger_id?: string | null;
   original_invoice_number?: string | null;
   original_invoice_date?: string | null;
+  discount_type?: "percentage" | "amount";
   accounting_lines: AccountingLine[];
   inventory_lines: InventoryLine[];
   bill_allocations?: BillAllocationCreate[];

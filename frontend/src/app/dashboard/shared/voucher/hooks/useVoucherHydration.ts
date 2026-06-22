@@ -49,6 +49,7 @@ export function useVoucherHydration({
           voucher_date: voucher.voucher_date,
           narration: voucher.narration || "",
           party_ledger_id: voucher.party_ledger_id || "",
+          discount_type: voucher.discount_type || "percentage",
         }));
 
         if (family === "invoice") {
