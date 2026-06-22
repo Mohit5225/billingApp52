@@ -17,8 +17,10 @@ from models.voucher import (
     VoucherCategory,
     VoucherCreate,
     VoucherDetail,
+    VoucherDetail,
     VoucherUpdate,
 )
+from models.base import BulkDeleteRequest
 
 from core.limiter import limiter
 from core.rate_limits import LIMIT_VOUCHER_WRITES
@@ -954,3 +956,61 @@ async def cancel_voucher(
         await _check_period_block_for_merchant(profile, str(existing.data["firm_id"]), orig_date, existing.data["category"])
 
     await supabase.table("vouchers").update({"is_cancelled": True}).eq("id", voucher_id).execute()
+
+
+@router.post("/bulk-delete", status_code=status.HTTP_200_OK)
+async def bulk_cancel_vouchers(
+    request: BulkDeleteRequest,
+    jwt: str = Depends(get_verified_jwt),
+) -> dict[str, Any]:
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+
+    if not request.ids:
+        return {"success": [], "failed": []}
+
+    existing = (
+        await supabase.table("vouchers")
+        .select("id, firm_id, voucher_number, voucher_date, category, is_cancelled")
+        .in_("id", request.ids)
+        .execute()
+    )
+    
+    if not existing.data:
+        return {"success": [], "failed": [{"id": id, "reason": "Not found"} for id in request.ids]}
+
+    firm_ids = {str(item["firm_id"]) for item in existing.data}
+    if not firm_ids:
+        return {"success": [], "failed": [{"id": id, "reason": "Not found"} for id in request.ids]}
+        
+    await resolve_target_firm_id(profile, list(firm_ids)[0])
+
+    valid_items = existing.data
+    item_map = {item["id"]: item["voucher_number"] for item in existing.data}
+    
+    success = []
+    failed = []
+
+    for item in valid_items:
+        item_id = item["id"]
+        if item.get("is_cancelled"):
+            failed.append({"id": item_id, "name": item_map.get(item_id, item_id), "reason": "Already cancelled"})
+            continue
+            
+        orig_date = date.fromisoformat(str(item["voucher_date"])) if item.get("voucher_date") else None
+        try:
+            if orig_date and "category" in item:
+                await _check_period_block_for_merchant(profile, str(item["firm_id"]), orig_date, item["category"])
+                
+            await supabase.table("vouchers").update({"is_cancelled": True}).eq("id", item_id).execute()
+            success.append(item_id)
+        except HTTPException as e:
+            failed.append({"id": item_id, "name": item_map.get(item_id, item_id), "reason": e.detail})
+        except Exception as e:
+            failed.append({"id": item_id, "name": item_map.get(item_id, item_id), "reason": "Database error"})
+
+    found_ids = {item["id"] for item in existing.data}
+    for id in set(request.ids) - found_ids:
+        failed.append({"id": id, "name": id, "reason": "Not found or permission denied"})
+
+    return {"success": success, "failed": failed}

@@ -15,6 +15,176 @@ from core.rate_limits import LIMIT_RAPID_API
 
 router = APIRouter()
 
+
+DEFAULT_FIRM_LEDGER_SEEDS: list[dict[str, Any]] = [
+    {
+        "name": "Sales",
+        "group_name": "Sales Accounts",
+        "opening_balance_type": "Cr",
+    },
+    {
+        "name": "Purchase",
+        "group_name": "Purchase Accounts",
+        "opening_balance_type": "Dr",
+    },
+    {
+        "name": "Cash",
+        "group_name": "Cash-in-Hand",
+        "opening_balance_type": "Dr",
+    },
+    {
+        "name": "Sgst",
+        "group_name": "Duties & Taxes",
+        "opening_balance_type": "Cr",
+        "tax_details": {
+            "duty_tax_type": "GST",
+            "tax_percentage": 0,
+        },
+    },
+    {
+        "name": "Cgst",
+        "group_name": "Duties & Taxes",
+        "opening_balance_type": "Cr",
+        "tax_details": {
+            "duty_tax_type": "GST",
+            "tax_percentage": 0,
+        },
+    },
+    {
+        "name": "Igst",
+        "group_name": "Duties & Taxes",
+        "opening_balance_type": "Cr",
+        "tax_details": {
+            "duty_tax_type": "GST",
+            "tax_percentage": 0,
+        },
+    },
+    {
+        "name": "DiscountReceived",
+        "group_name": "Indirect Incomes",
+        "opening_balance_type": "Cr",
+    },
+    {
+        "name": "DiscountPaid",
+        "group_name": "Indirect Expenses",
+        "opening_balance_type": "Dr",
+    },
+]
+
+
+def _normalize_label(value: str) -> str:
+    return " ".join(value.strip().split()).lower()
+
+
+async def _get_system_account_groups() -> dict[str, dict[str, Any]]:
+    supabase = await get_supabase()
+    groups = (
+        await supabase.table("account_groups")
+        .select("id, name, firm_id, nature, parent_id, is_system")
+        .execute()
+    ).data or []
+
+    system_groups: dict[str, dict[str, Any]] = {}
+    for group in groups:
+        if group.get("firm_id") is not None:
+            continue
+        group_name = group.get("name")
+        if group_name:
+            system_groups[_normalize_label(str(group_name))] = group
+    return system_groups
+
+
+async def _get_firm_ledgers_by_name(firm_id: str) -> dict[str, dict[str, Any]]:
+    supabase = await get_supabase()
+    ledgers = (
+        await supabase.table("ledgers")
+        .select("id, name, firm_id")
+        .eq("firm_id", firm_id)
+        .execute()
+    ).data or []
+
+    return {
+        _normalize_label(str(ledger["name"])): ledger
+        for ledger in ledgers
+        if ledger.get("name") is not None
+    }
+
+
+async def _get_tax_detail_ledger_ids(ledger_ids: list[str]) -> set[str]:
+    if not ledger_ids:
+        return set()
+
+    supabase = await get_supabase()
+    rows = (
+        await supabase.table("ledger_tax_details")
+        .select("ledger_id")
+        .in_("ledger_id", ledger_ids)
+        .execute()
+    ).data or []
+    return {str(row["ledger_id"]) for row in rows}
+
+
+async def _seed_default_ledgers_for_firm(firm_id: str) -> None:
+    supabase = await get_supabase()
+    system_groups = await _get_system_account_groups()
+    ledgers_by_name = await _get_firm_ledgers_by_name(firm_id)
+    ledger_ids_with_tax_details = await _get_tax_detail_ledger_ids(
+        [str(ledger["id"]) for ledger in ledgers_by_name.values()]
+    )
+
+    for seed in DEFAULT_FIRM_LEDGER_SEEDS:
+        ledger_name = str(seed["name"])
+        normalized_name = _normalize_label(ledger_name)
+        group_name = str(seed["group_name"])
+        group = system_groups.get(_normalize_label(group_name))
+
+        if not group:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Required system account group '{group_name}' was not found.",
+            )
+
+        existing_ledger = ledgers_by_name.get(normalized_name)
+        if existing_ledger:
+            ledger_id = str(existing_ledger["id"])
+        else:
+            payload: dict[str, Any] = {
+                "firm_id": firm_id,
+                "group_id": group["id"],
+                "name": ledger_name,
+                "opening_balance": 0,
+                "opening_balance_type": seed["opening_balance_type"],
+                "inventory_values_affected": False,
+                "cost_centre_applicable": False,
+                "type_of_ledger": "Not Applicable",
+                "rounding_limit": 1,
+                "is_system": True,
+            }
+            response = await supabase.table("ledgers").insert(payload).execute()
+            if not response.data:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create default ledger '{ledger_name}'.",
+                )
+
+            ledger_id = str(response.data[0]["id"])
+            ledgers_by_name[normalized_name] = response.data[0]
+
+        tax_details = seed.get("tax_details")
+        if tax_details and ledger_id not in ledger_ids_with_tax_details:
+            tax_payload = {
+                "ledger_id": ledger_id,
+                "duty_tax_type": tax_details["duty_tax_type"],
+                "tax_percentage": tax_details["tax_percentage"],
+            }
+            tax_response = await supabase.table("ledger_tax_details").insert(tax_payload).execute()
+            if not tax_response.data:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create tax details for default ledger '{ledger_name}'.",
+                )
+            ledger_ids_with_tax_details.add(ledger_id)
+
 @router.get("/my-firms")
 async def list_my_firms(jwt: str = Depends(get_verified_jwt)) -> Any:
     """
@@ -198,39 +368,46 @@ async def create_firm(firm_in: FirmCreate, jwt: str = Depends(get_verified_jwt))
             raise HTTPException(status_code=400, detail="Failed to create firm")
             
         new_firm = response.data[0]
-        
-        # 3. Handle Profile and Access Link
-        existing_profile = await supabase.table("profiles").select("id").eq("id", user.id).maybe_single().execute()
-        
-        if existing_profile and existing_profile.data:
-            # User already exists, they are just adding a second firm
-            # DO NOT overwrite profile.firm_id. Just add to junction table.
-            access_resp = await supabase.table("user_firm_access").insert({
-                "user_id": user.id,
-                "firm_id": new_firm["id"],
-            }).execute()
-            
-            if not access_resp.data:
-                await supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
-                raise HTTPException(status_code=500, detail="Failed to link user to firm. Firm creation rolled back.")
-        else:
-            # First time user signup. Create profile AND access link.
-            profile_data = {
-                "id": user.id,
-                "firm_id": new_firm["id"],
-                "role": "merchant",
-                "full_name": user.user_metadata.get("full_name", "") if user.user_metadata else "User",
-                "email": user.email
-            }
-            prof_response = await supabase.table("profiles").upsert(profile_data).execute()
-            if not prof_response.data:
-                await supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
-                raise HTTPException(status_code=500, detail="Failed to create user profile. Firm creation rolled back.")
-            
-            await supabase.table("user_firm_access").insert({
-                "user_id": user.id,
-                "firm_id": new_firm["id"],
-            }).execute()
+
+        try:
+            await _seed_default_ledgers_for_firm(str(new_firm["id"]))
+
+            # 3. Handle Profile and Access Link
+            existing_profile = await supabase.table("profiles").select("id").eq("id", user.id).maybe_single().execute()
+
+            if existing_profile and existing_profile.data:
+                # User already exists, they are just adding a second firm
+                # DO NOT overwrite profile.firm_id. Just add to junction table.
+                access_resp = await supabase.table("user_firm_access").insert({
+                    "user_id": user.id,
+                    "firm_id": new_firm["id"],
+                }).execute()
+
+                if not access_resp.data:
+                    raise HTTPException(status_code=500, detail="Failed to link user to firm. Firm creation rolled back.")
+            else:
+                # First time user signup. Create profile AND access link.
+                profile_data = {
+                    "id": user.id,
+                    "firm_id": new_firm["id"],
+                    "role": "merchant",
+                    "full_name": user.user_metadata.get("full_name", "") if user.user_metadata else "User",
+                    "email": user.email
+                }
+                prof_response = await supabase.table("profiles").upsert(profile_data).execute()
+                if not prof_response.data:
+                    raise HTTPException(status_code=500, detail="Failed to create user profile. Firm creation rolled back.")
+
+                await supabase.table("user_firm_access").insert({
+                    "user_id": user.id,
+                    "firm_id": new_firm["id"],
+                }).execute()
+        except HTTPException:
+            await supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
+            raise
+        except Exception:
+            await supabase.table("firms").delete().eq("id", new_firm["id"]).execute()
+            raise
             
         return new_firm
         

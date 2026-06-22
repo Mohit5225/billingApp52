@@ -96,6 +96,7 @@ export function VoucherActionBar({
         </button>
         {!readOnly ? (
           <button
+            data-shortcut-action="save-voucher"
             data-entry-action="true"
             disabled={isSubmitting || isLoading || isBlocked}
             onClick={onSubmit}

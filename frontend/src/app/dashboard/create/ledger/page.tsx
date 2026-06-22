@@ -31,6 +31,38 @@ export default function LedgerCreatePage() {
 
   const cancelHref = returnTo || "/dashboard";
 
+  if (ledgerId && isLoading) {
+    return (
+      <div className="space-y-6 pb-20">
+        <div className="rounded-[32px] border border-white/70 bg-[linear-gradient(135deg,rgba(18,58,41,0.96),rgba(33,92,70,0.92))] px-6 py-7 shadow-[0_24px_60px_rgba(15,23,42,0.14)] sm:px-8 sm:py-9">
+          <div className="h-4 w-28 animate-shimmer-fast rounded-full bg-white/15" />
+          <div className="mt-4 h-10 w-72 animate-shimmer-fast rounded-full bg-white/15" />
+          <div className="mt-3 h-5 w-[32rem] max-w-full animate-shimmer-fast rounded-full bg-white/10" />
+        </div>
+
+        <div className="space-y-6">
+          <section className="rounded-[32px] border border-white/70 bg-white/80 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.08)] sm:p-6">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div className="space-y-3">
+                <div className="h-6 w-32 animate-shimmer-fast rounded-full bg-slate-200" />
+                <div className="h-4 w-72 animate-shimmer-fast rounded-full bg-slate-100" />
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="h-12 w-full animate-shimmer-fast rounded-2xl bg-slate-100" />
+              <div className="grid gap-5 md:grid-cols-2">
+                <div className="h-12 w-full animate-shimmer-fast rounded-2xl bg-slate-100" />
+                <div className="h-12 w-full animate-shimmer-fast rounded-2xl bg-slate-100" />
+              </div>
+              <div className="h-12 w-full animate-shimmer-fast rounded-2xl bg-slate-100" />
+              <div className="h-28 w-full animate-shimmer-fast rounded-2xl bg-slate-100" />
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 pb-20">
       <PageHero

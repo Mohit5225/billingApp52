@@ -48,7 +48,7 @@ export const BANK_SWIFT_REGEX = /^[A-Z0-9]{8}([A-Z0-9]{3})?$/;
 export const DR_GROUPS = [
   "Sundry Debtors",
   "Bank Accounts",
-  "Cash in Hand",
+  "Cash-in-Hand",
   "Direct Expenses",
   "Indirect Expenses",
   "Purchase Accounts",

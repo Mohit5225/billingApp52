@@ -6,7 +6,7 @@ from core.helpers import get_profile_context, resolve_target_firm_id
 from core.security import get_verified_jwt
 from core.supabase import get_supabase
 from models.item import Item, ItemCreate, ItemDetail, ItemUpdate
-
+from models.base import BulkDeleteRequest
 router = APIRouter()
 
 
@@ -224,3 +224,59 @@ async def delete_item(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Database error: {err_msg}",
         )
+
+
+@router.post("/bulk-delete", status_code=status.HTTP_200_OK)
+async def bulk_delete_items(
+    request: BulkDeleteRequest,
+    jwt: str = Depends(get_verified_jwt),
+) -> dict[str, Any]:
+    """
+    Bulk delete items. Returns a report of success and failures.
+    """
+    supabase = await get_supabase()
+    profile = await get_profile_context(jwt)
+
+    if not request.ids:
+        return {"success": [], "failed": []}
+
+    # Verify firm ownership for all requested IDs
+    existing = (
+        await supabase.table("items")
+        .select("id, firm_id, name")
+        .in_("id", request.ids)
+        .execute()
+    )
+    
+    if not existing.data:
+        return {"success": [], "failed": [{"id": id, "reason": "Not found"} for id in request.ids]}
+
+    # Ensure all items belong to a firm the user has access to
+    firm_ids = {str(item["firm_id"]) for item in existing.data}
+    if not firm_ids:
+        return {"success": [], "failed": [{"id": id, "reason": "Not found"} for id in request.ids]}
+        
+    # Pick one firm_id and resolve it (assuming all belong to same firm context)
+    await resolve_target_firm_id(profile, list(firm_ids)[0])
+
+    valid_ids = [item["id"] for item in existing.data]
+    item_map = {item["id"]: item["name"] for item in existing.data}
+    
+    success = []
+    failed = []
+
+    for item_id in valid_ids:
+        try:
+            await supabase.table("items").delete().eq("id", item_id).execute()
+            success.append(item_id)
+        except Exception as e:
+            err_msg = str(e)
+            if "violates foreign key constraint" in err_msg or "23503" in err_msg:
+                failed.append({"id": item_id, "name": item_map.get(item_id, item_id), "reason": "Used in vouchers"})
+            else:
+                failed.append({"id": item_id, "name": item_map.get(item_id, item_id), "reason": "Database error"})
+
+    for id in set(request.ids) - set(valid_ids):
+        failed.append({"id": id, "name": id, "reason": "Not found or permission denied"})
+
+    return {"success": success, "failed": failed}

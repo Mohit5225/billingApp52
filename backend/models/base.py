@@ -15,3 +15,6 @@ class TimestampSchema(BaseSchema):
     """Mix-in for schemas that include created and updated timestamps."""
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+class BulkDeleteRequest(BaseSchema):
+    ids: list[str]

@@ -2,6 +2,10 @@
 
 import { useEffect, useCallback } from "react";
 
+type FocusTraversalOptions = {
+  shortcutsEnabled?: boolean;
+};
+
 const FOCUSABLE_SELECTOR = [
   "input:not([disabled]):not([readonly])",
   "select:not([disabled])",
@@ -10,7 +14,12 @@ const FOCUSABLE_SELECTOR = [
   "[tabindex]:not([tabindex=\"-1\"])",
 ].join(", ");
 
-export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | null>) {
+export function useFocusTraversal(
+  containerRef: React.RefObject<HTMLElement | null>,
+  options: FocusTraversalOptions = {},
+) {
+  const shortcutsEnabled = options.shortcutsEnabled ?? true;
+
   const focusElement = useCallback((element: HTMLElement | undefined) => {
     if (!element) return;
     element.focus();
@@ -142,6 +151,68 @@ export function useFocusTraversal(containerRef: React.RefObject<HTMLElement | nu
     if (!container) return;
     const activeElement = document.activeElement as HTMLElement;
     if (!activeElement || !container?.contains(activeElement)) return;
+
+    const focusShortcutTarget = (selector: string) => {
+      const target = container.querySelector(selector) as HTMLElement | null;
+      if (!target) return false;
+      focusElement(target);
+      if (target.tagName === "TEXTAREA") {
+        requestAnimationFrame(() => {
+          const textarea = target as HTMLTextAreaElement;
+          const end = textarea.value.length;
+          try {
+            textarea.setSelectionRange(end, end);
+          } catch {
+            // Some environments or readonly states may not allow selection changes.
+          }
+        });
+      }
+      return true;
+    };
+
+    const triggerShortcutAction = (selector: string) => {
+      const target = container.querySelector(selector) as HTMLButtonElement | null;
+      if (!target || target.disabled) return false;
+      target.click();
+      return true;
+    };
+
+    if (shortcutsEnabled) {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        triggerShortcutAction("[data-shortcut-action=\"save-voucher\"]");
+        return;
+      }
+
+      const key = e.key;
+      const code = e.code;
+      const isCtrlHomeShortcut =
+        key === "Home" ||
+        key === "<" ||
+        (e.ctrlKey || e.metaKey) && e.shiftKey && (key === "," || code === "Comma");
+      const isCtrlEndShortcut =
+        key === "End" ||
+        key === ">" ||
+        (e.ctrlKey || e.metaKey) && e.shiftKey && (key === "." || code === "Period");
+
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && isCtrlHomeShortcut) {
+        e.preventDefault();
+        focusShortcutTarget("[data-shortcut-target=\"voucher-number\"]");
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && isCtrlEndShortcut) {
+        e.preventDefault();
+        focusShortcutTarget("[data-shortcut-target=\"narration\"]");
+        return;
+      }
+
+      if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && e.key === "F2") {
+        e.preventDefault();
+        focusShortcutTarget("[data-shortcut-target=\"voucher-date\"]");
+        return;
+      }
+    }
 
     // Explicit < and > shortcuts for forced sideways navigation (useful for number inputs)
     if (

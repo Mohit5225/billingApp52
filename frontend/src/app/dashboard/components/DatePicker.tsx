@@ -12,9 +12,10 @@ interface DatePickerProps {
   className?: string;
   disabled?: boolean;
   variant?: "default" | "voucher";
+  shortcutTarget?: string;
 }
 
-export function DatePicker({ value, onChange, minDate, maxDate, className = "", disabled = false, variant = "default" }: DatePickerProps) {
+export function DatePicker({ value, onChange, minDate, maxDate, className = "", disabled = false, variant = "default", shortcutTarget }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -115,6 +116,7 @@ export function DatePicker({ value, onChange, minDate, maxDate, className = "", 
           tabIndex={0}
           onClick={() => setIsOpen(!isOpen)}
           className={buttonClasses}
+          data-shortcut-target={shortcutTarget}
         >
           {isVoucher && isMobile ? (
             <>

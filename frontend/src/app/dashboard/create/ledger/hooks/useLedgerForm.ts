@@ -14,6 +14,15 @@ import { LedgerFormState, BankSectionMeta, BankSectionErrors } from "../types";
 import { EMPTY_FORM, EMPTY_BANK_META, DR_GROUPS, CR_GROUPS } from "../constants";
 import { resolveTemplateType, validateBankSection } from "../utils";
 
+function getFreshEmptyLedgerForm() {
+  return {
+    ...EMPTY_FORM,
+    bank_details: { ...EMPTY_FORM.bank_details },
+    party_details: { ...EMPTY_FORM.party_details },
+    tax_details: { ...EMPTY_FORM.tax_details },
+  };
+}
+
 export function useLedgerForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -256,12 +265,20 @@ export function useLedgerForm() {
         });
       }
 
-      queryClient.invalidateQueries({ queryKey: ["ledgers"] });
+      await queryClient.invalidateQueries({ queryKey: ["ledgers", activeFirmId] });
+      if (ledgerId) {
+        await queryClient.invalidateQueries({ queryKey: ["ledger", activeFirmId, ledgerId] });
+        await queryClient.invalidateQueries({ queryKey: ["ledger-statement", ledgerId] });
+      } else {
+        setForm(getFreshEmptyLedgerForm());
+        setBankMeta(EMPTY_BANK_META);
+        setBankErrors({});
+      }
 
       const returnTo = searchParams.get("returnTo");
-      if (returnTo) {
+      if (ledgerId && returnTo) {
         router.push(returnTo);
-      } else {
+      } else if (ledgerId) {
         router.push("/dashboard/books/ledger");
       }
     } catch (err) {

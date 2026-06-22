@@ -150,6 +150,7 @@ export function TotalsAndNarration({
           <div className="relative">
           <textarea
             data-escape-target="true"
+            data-shortcut-target="narration"
             disabled={readOnly}
             maxLength={250}
             className="min-h-[80px] w-full rounded-lg border border-slate-400 bg-white p-3 pb-8 text-[17px] font-semibold text-slate-800 shadow-sm outline-none transition-all placeholder:text-slate-400 hover:border-tally-400 focus:border-tally-500 focus:ring-2 focus:ring-tally-500/20"

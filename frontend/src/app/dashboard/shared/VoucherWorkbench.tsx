@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { VoucherDetail } from "@/interfaces/voucher";
 import { apiRequest } from "@/lib/http";
@@ -51,6 +52,7 @@ export function VoucherWorkbench({
   readOnly?: boolean;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { activeFirmId, supabase } = useFirmScope();
   const { profile } = useProfile();
   const { showToast } = useToast();
@@ -126,7 +128,9 @@ export function VoucherWorkbench({
   const prevJournalLinesLength = useRef(journalLines.length);
   const prevAdditionalLedgersLength = useRef(form.additional_ledgers?.length || 0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { initFocus, handleKeyDown } = useFocusTraversal(containerRef);
+  const { initFocus, handleKeyDown } = useFocusTraversal(containerRef, {
+    shortcutsEnabled: !readOnly,
+  });
 
   useEffect(() => {
     if (!isLoading && activeFirmId) {
@@ -493,6 +497,11 @@ export function VoucherWorkbench({
       if (isEditing) {
         router.push(`/dashboard/vouchers/${result.id}`);
       } else {
+        if (activeFirmId) {
+          await queryClient.invalidateQueries({
+            queryKey: ["next-voucher-number", activeFirmId, meta.category],
+          });
+        }
         sessionStorage.removeItem(`draft-voucher-${activeFirmId}-${slug}`);
         setForm((prev) => ({
           ...getEmptyForm(globalFromDate, globalToDate),
@@ -626,7 +635,7 @@ export function VoucherWorkbench({
   }
 
   return (
-    <div ref={containerRef} onKeyDown={handleKeyDown} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh/var(--scale-voucher-absolute)-2rem)] lg:min-h-[800px] rounded-xl border border-slate-300 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]" style={{ zoom: "var(--scale-voucher-relative)" } as React.CSSProperties}>
+    <div ref={containerRef} onKeyDownCapture={handleKeyDown} className="voucher-container flex flex-col w-full min-h-[calc(100vh-var(--bottom-nav-height)-1rem)] lg:h-[calc(100vh/var(--scale-voucher-absolute)-2rem)] lg:min-h-[800px] rounded-xl border border-slate-300 bg-white shadow-sm overflow-y-auto scroll-pb-[300px] lg:scroll-pb-[450px]" style={{ zoom: "var(--scale-voucher-relative)" } as React.CSSProperties}>
       {/* ── Voucher Command Ribbon ── */}
       <VoucherHeader
         meta={meta}

@@ -82,6 +82,7 @@ export function VoucherHeader({
             onChange={(e) => setForm((prev) => ({ ...prev, voucher_number: e.target.value }))}
             disabled={readOnly}
             data-mandatory="true"
+            data-shortcut-target="voucher-number"
           />
         </div>
         <div className="flex flex-col gap-1 w-full sm:w-44">
@@ -95,6 +96,7 @@ export function VoucherHeader({
             onChange={(val) => setForm((prev) => ({ ...prev, voucher_date: val }))}
             disabled={readOnly}
             variant="voucher"
+            shortcutTarget="voucher-date"
           />
         </div>
       </div>

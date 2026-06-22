@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { LedgerDetail } from "@/interfaces/ledger";
 import { RegisterRow } from "@/interfaces/workspace";
@@ -15,6 +15,9 @@ import { useToast } from "@/context/ToastContext";
 import { EmptyState, PageHero, SurfaceCard } from "../../shared/WorkspaceUi";
 import { useFirmScope } from "../../shared/useFirmScope";
 import { useDateFilter } from "@/context/DateFilterContext";
+import { useSelection } from "../../shared/useSelection";
+import SelectionRow from "../../shared/SelectionRow";
+import SelectionActionBar from "../../shared/SelectionActionBar";
 
 const BOOK_LABELS: Record<string, { title: string; description: string }> = {
   "sales-register": {
@@ -71,7 +74,16 @@ export default function BookDetailPage() {
   const { showToast } = useToast();
   const [exportingLedgerId, setExportingLedgerId] = useState<string | null>(null);
   const [isExportingBook, setIsExportingBook] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [search, setSearch] = useState("");
+
+  const {
+    selectedIds,
+    isSelectionMode,
+    toggleSelection,
+    clearSelection,
+    enterSelectionMode,
+  } = useSelection();
 
   const copy = BOOK_LABELS[bookSlug] || BOOK_LABELS["day-book"];
 
@@ -92,6 +104,8 @@ export default function BookDetailPage() {
       }),
     enabled: !!activeFirmId && bookSlug !== "ledger",
   });
+
+  const queryClient = useQueryClient();
 
   const isLoading = ledgersLoading || rowsLoading;
 
@@ -190,6 +204,42 @@ export default function BookDetailPage() {
     }
   }
 
+  async function handleBulkDelete() {
+    if (!activeFirmId || selectedIds.size === 0) return;
+    setIsDeleting(true);
+    try {
+      const endpoint = bookSlug === "ledger" ? "/api/ledgers/bulk-delete" : "/api/vouchers/bulk-delete";
+      const { data, error } = await supabase.auth.getSession();
+      if (!data.session) throw new Error("No session");
+      
+      const res = await fetch(`${getApiBaseUrl()}${endpoint}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${data.session.access_token}`
+        },
+        body: JSON.stringify({ ids: Array.from(selectedIds) })
+      });
+      
+      if (!res.ok) throw new Error("Failed to delete selected items");
+      const result = await res.json();
+      
+      if (result.success?.length) {
+        showToast(`Successfully deleted ${result.success.length} items.`, "success");
+      }
+      if (result.failed?.length) {
+        showToast(`Failed to delete ${result.failed.length} items. They might be in use.`, "error");
+      }
+      
+      clearSelection();
+      void queryClient.invalidateQueries({ queryKey: bookSlug === "ledger" ? ["ledgers"] : ["register"] });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Bulk delete failed", "error");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <PageHero eyebrow="Book Detail" title={copy.title} description={copy.description} backHref="/dashboard/books" />
@@ -244,13 +294,17 @@ export default function BookDetailPage() {
           filteredLedgers.length === 0 ? (
             <EmptyState title={search ? "No matches found" : "No ledgers yet"} description={search ? "Try adjusting your search terms." : "Create ledgers first so books and voucher selectors have something real to work with."} />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 pb-20">
               {filteredLedgers.map((ledger) => (
-                <div
+                <SelectionRow
                   key={ledger.id}
-                  className="rounded-3xl border border-slate-100 bg-white/92 p-5 shadow-sm transition hover:border-emerald-200"
+                  id={ledger.id}
+                  isSelected={selectedIds.has(ledger.id)}
+                  isSelectionMode={isSelectionMode}
+                  onToggle={toggleSelection}
+                  onLongPress={enterSelectionMode}
                 >
-                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between w-full">
                     <div>
                       <p className="text-lg font-semibold text-slate-950">{ledger.name}</p>
                       <p className="mt-2 text-sm text-slate-500">
@@ -286,21 +340,25 @@ export default function BookDetailPage() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </SelectionRow>
               ))}
             </div>
           )
         ) : filteredRows.length === 0 ? (
           <EmptyState title={search ? "No matches found" : "No entries yet"} description={search ? "Try adjusting your search terms." : "Once vouchers are created, this book will start filling with live rows."} />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 pb-20">
             {filteredRows.map((row) => (
-              <Link
+              <SelectionRow
                 key={row.id}
-                href={`/dashboard/vouchers/${row.id}`}
-                className="block rounded-3xl border border-slate-100 bg-white/92 p-5 shadow-sm transition hover:border-emerald-200"
+                id={row.id}
+                isSelected={selectedIds.has(row.id)}
+                isSelectionMode={isSelectionMode}
+                onToggle={toggleSelection}
+                onLongPress={enterSelectionMode}
+                onClickHref={`/dashboard/vouchers/${row.id}`}
               >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between w-full">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-lg font-semibold text-slate-950">{row.voucher_number}</p>
@@ -315,11 +373,18 @@ export default function BookDetailPage() {
                   </div>
                   <p className="text-lg font-semibold text-slate-950">{formatCurrency(row.amount)}</p>
                 </div>
-              </Link>
+              </SelectionRow>
             ))}
           </div>
         )}
       </SurfaceCard>
+      
+      <SelectionActionBar
+        selectedCount={selectedIds.size}
+        onClear={clearSelection}
+        onDelete={handleBulkDelete}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
