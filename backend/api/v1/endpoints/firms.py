@@ -121,7 +121,7 @@ async def fetch_gst_details(request: Request, gstin: str, jwt: str = Depends(get
 
             # 6. Final Mapping (Flexible & Safe)
             mapped_data = {
-                "name": raw_data.get("legal_name") or raw_data.get("legalName") or raw_data.get("trade_name") or raw_data.get("tradeName") or "N/A",
+                "name": raw_data.get("trade_name") or raw_data.get("tradeName") or raw_data.get("legal_name") or raw_data.get("legalName") or "N/A",
                 "mailing_name": raw_data.get("legal_name") or raw_data.get("legalName") or "N/A",
                 "address_lane1": addr_lane1,
                 "city": city, 
