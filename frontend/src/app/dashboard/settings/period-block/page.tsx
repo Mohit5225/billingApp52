@@ -5,9 +5,19 @@ import { useProfile } from "@/context/ProfileContext";
 import { useActiveFirm } from "@/app/dashboard/shared/FirmProvider";
 import { getApiBaseUrl } from "@/lib/api";
 
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
+const FY_MONTHS = [
+  { name: "April", num: 4 },
+  { name: "May", num: 5 },
+  { name: "June", num: 6 },
+  { name: "July", num: 7 },
+  { name: "August", num: 8 },
+  { name: "September", num: 9 },
+  { name: "October", num: 10 },
+  { name: "November", num: 11 },
+  { name: "December", num: 12 },
+  { name: "January", num: 1 },
+  { name: "February", num: 2 },
+  { name: "March", num: 3 },
 ];
 
 interface PeriodBlock {
@@ -22,7 +32,13 @@ interface PeriodBlock {
 export default function PeriodBlockPage() {
   const { profile, supabase } = useProfile();
   const { activeFirmId } = useActiveFirm();
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  
+  // Calculate current financial year start
+  const currentMonth = new Date().getMonth() + 1;
+  const currentCalendarYear = new Date().getFullYear();
+  const currentFyStart = currentMonth >= 4 ? currentCalendarYear : currentCalendarYear - 1;
+
+  const [selectedYear, setSelectedYear] = useState(currentFyStart);
   const [blocks, setBlocks] = useState<Record<number, PeriodBlock>>({});
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -30,22 +46,37 @@ export default function PeriodBlockPage() {
 
   const isMerchant = profile?.role === "merchant";
 
-  const fetchBlocks = async (year: number) => {
+  const fetchBlocks = async (fyYear: number) => {
     if (!activeFirmId || !profile) return;
     setLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${getApiBaseUrl()}/api/firms/${activeFirmId}/period-blocks?year=${year}`, {
-        headers: { "Authorization": `Bearer ${session?.access_token}` }
-      });
-      if (res.ok) {
-        const data: PeriodBlock[] = await res.json();
-        const blockMap: Record<number, PeriodBlock> = {};
-        data.forEach(b => {
-          blockMap[b.month] = b;
+      
+      const [res1, res2] = await Promise.all([
+        fetch(`${getApiBaseUrl()}/api/firms/${activeFirmId}/period-blocks?year=${fyYear}`, {
+          headers: { "Authorization": `Bearer ${session?.access_token}` }
+        }),
+        fetch(`${getApiBaseUrl()}/api/firms/${activeFirmId}/period-blocks?year=${fyYear + 1}`, {
+          headers: { "Authorization": `Bearer ${session?.access_token}` }
+        })
+      ]);
+
+      const blockMap: Record<number, PeriodBlock> = {};
+      
+      if (res1.ok) {
+        const data1: PeriodBlock[] = await res1.json();
+        data1.forEach(b => {
+          if (b.month >= 4) blockMap[b.month] = b;
         });
-        setBlocks(blockMap);
       }
+      if (res2.ok) {
+        const data2: PeriodBlock[] = await res2.json();
+        data2.forEach(b => {
+          if (b.month < 4) blockMap[b.month] = b;
+        });
+      }
+      
+      setBlocks(blockMap);
     } catch (e) {
       console.error("Failed to fetch blocks", e);
     } finally {
@@ -57,20 +88,21 @@ export default function PeriodBlockPage() {
     fetchBlocks(selectedYear);
   }, [selectedYear, activeFirmId]);
 
-  const handleToggle = async (month: number, key: keyof Omit<PeriodBlock, 'year'|'month'>, currentValue: boolean) => {
+  const handleToggle = async (monthNum: number, key: keyof Omit<PeriodBlock, 'year'|'month'>, currentValue: boolean) => {
     if (!activeFirmId) return;
     // Merchants cannot turn off (unblock)
     if (isMerchant && currentValue === true) return;
 
+    const calendarYear = monthNum >= 4 ? selectedYear : selectedYear + 1;
     const newValue = !currentValue;
-    const updateKey = `${month}-${key}`;
+    const updateKey = `${monthNum}-${key}`;
     setUpdating(updateKey);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const payload = { [key]: newValue };
 
-      const res = await fetch(`${getApiBaseUrl()}/api/firms/${activeFirmId}/period-blocks/${selectedYear}/${month}`, {
+      const res = await fetch(`${getApiBaseUrl()}/api/firms/${activeFirmId}/period-blocks/${calendarYear}/${monthNum}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${session?.access_token}`,
@@ -81,7 +113,7 @@ export default function PeriodBlockPage() {
 
       if (res.ok) {
         const updatedBlock = await res.json();
-        setBlocks(prev => ({ ...prev, [month]: updatedBlock }));
+        setBlocks(prev => ({ ...prev, [monthNum]: updatedBlock }));
       }
     } catch (e) {
       console.error("Failed to update block", e);
@@ -94,8 +126,7 @@ export default function PeriodBlockPage() {
     return blocks[month]?.[key] ?? false;
   };
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  const years = Array.from({ length: 5 }, (_, i) => currentFyStart - 2 + i);
 
   return (
     <div className="w-full max-w-[95%] 2xl:max-w-[1600px] mx-auto py-8 px-4 sm:px-6">
@@ -109,7 +140,7 @@ export default function PeriodBlockPage() {
 
       <div className="mb-8 flex items-center justify-between bg-white border border-slate-200/80 p-4 sm:p-5 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300">
         <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
-          <label className="text-[13px] sm:text-sm font-bold text-slate-500 tracking-widest uppercase">Select Year</label>
+          <label className="text-[13px] sm:text-sm font-bold text-slate-500 tracking-widest uppercase">Select Financial Year</label>
           <div className="relative flex-1 sm:flex-none">
             <select
               value={selectedYear}
@@ -133,8 +164,8 @@ export default function PeriodBlockPage() {
         </div>
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden divide-y divide-slate-100">
-          {MONTHS.map((monthName, index) => {
-            const month = index + 1;
+          {FY_MONTHS.map(({ name: monthName, num: month }) => {
+            const calendarYear = month >= 4 ? selectedYear : selectedYear + 1;
             const isExpanded = expandedMonth === month;
 
             return (
@@ -148,7 +179,7 @@ export default function PeriodBlockPage() {
                       {month}
                     </span>
                     <h3 className="text-[17px] font-bold text-slate-900 tracking-tight">
-                      {monthName} <span className="text-slate-400 font-medium ml-1.5">{selectedYear}</span>
+                      {monthName} <span className="text-slate-400 font-medium ml-1.5">{calendarYear}</span>
                     </h3>
                   </div>
                   

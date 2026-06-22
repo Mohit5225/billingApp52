@@ -9,13 +9,15 @@ import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { useFirmScope } from "../../../shared/useFirmScope";
 import { PageHero, EmptyState } from "../../../shared/WorkspaceUi";
+import { useDateFilter } from "@/context/DateFilterContext";
 
 export default function StockItemMonthlyPage() {
   const { activeFirmId, supabase } = useFirmScope();
+  const { fromDate: globalFromDate, toDate: globalToDate } = useDateFilter();
   const params = useParams<{ itemId: string }>();
   const searchParams = useSearchParams();
-  const fromDate = searchParams?.get("from_date");
-  const toDate = searchParams?.get("to_date");
+  const fromDate = searchParams?.get("from_date") || globalFromDate;
+  const toDate = searchParams?.get("to_date") || globalToDate;
 
   const itemId = params.itemId;
 

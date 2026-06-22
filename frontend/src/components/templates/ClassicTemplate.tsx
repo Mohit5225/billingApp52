@@ -25,22 +25,22 @@ import {
 const CLASSIC_CHUNK_OPTIONS: ChunkOptions = {
   ...DEFAULT_CHUNK_OPTIONS,
   // Safely reduced to account for Chrome's default print margins (~0.4 inches)
-  page1Budget: 740,
-  pageNBudget: 740, // Uniform budget since the letterhead is on all pages
-  lastPageReserve: 505,
+  page1Budget: 700,
+  pageNBudget: 700, // Uniform budget since the letterhead is on all pages
+  lastPageReserve: 460,
   rowHeight: (item) => {
     const nameLen = (item.name || "").length;
-    if (nameLen > 120) return 105;
-    if (nameLen > 60) return 85;
-    if (nameLen > 20) return 65; // 'KEYPAD AS PER DRAWING' wraps at 21 chars
-    return 50;
+    if (nameLen > 120) return 75;
+    if (nameLen > 60) return 55;
+    if (nameLen > 20) return 40; 
+    return 28;
   },
 };
 
 /* ─── Style constants ─────────────────────────────── */
 const BORDER = "1px solid #333";
-const CELL_PAD = "10px 8px";
-const FONT_SIZE = "14.5px";
+const CELL_PAD = "5px 6px";
+const FONT_SIZE = "12px";
 const HEADER_BG = "#f0f4f8";
 const FONT_FAMILY = "'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 
@@ -52,7 +52,7 @@ export default function ClassicTemplate({ data }: TemplateProps) {
   return (
     <>
       {prepared.pages.map((page, idx) => (
-        <div key={idx}>
+        <div key={idx} className={idx < prepared.pages.length - 1 ? "print-page-break" : ""}>
           <div
             className="page-wrapper"
             style={{
@@ -447,7 +447,7 @@ function ItemsTable({
       <tbody>
         {/* Dynamic data rows */}
         {page.items.map((item, idx) => (
-          <tr key={idx} style={{ height: (item as any)._adaptiveHeight ? `${(item as any)._adaptiveHeight + 4}px` : undefined }}>
+          <tr key={idx} style={{ height: (item as any)._adaptiveHeight ? `${(item as any)._adaptiveHeight}px` : undefined }}>
             {columns.map((col) => {
               const raw = getCellValue(item, col);
               const display = formatCell(raw, col.format);

@@ -9,12 +9,14 @@ import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { useFirmScope } from "../../shared/useFirmScope";
 import { PageHero, EmptyState } from "../../shared/WorkspaceUi";
+import { useDateFilter } from "@/context/DateFilterContext";
 
 export default function StockSummaryPage() {
   const { activeFirmId, supabase } = useFirmScope();
+  const { fromDate: globalFromDate, toDate: globalToDate } = useDateFilter();
   const searchParams = useSearchParams();
-  const fromDate = searchParams?.get("from_date");
-  const toDate = searchParams?.get("to_date");
+  const fromDate = searchParams?.get("from_date") || globalFromDate;
+  const toDate = searchParams?.get("to_date") || globalToDate;
 
   const { data: stockRows, isLoading } = useQuery({
     queryKey: ["stock-summary", activeFirmId, fromDate, toDate],

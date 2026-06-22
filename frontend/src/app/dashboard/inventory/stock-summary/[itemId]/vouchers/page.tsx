@@ -9,16 +9,18 @@ import { apiRequest } from "@/lib/http";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { useFirmScope } from "../../../../shared/useFirmScope";
 import { PageHero, EmptyState } from "../../../../shared/WorkspaceUi";
+import { useDateFilter } from "@/context/DateFilterContext";
 
 export default function StockItemVouchersPage() {
   const { activeFirmId, supabase } = useFirmScope();
+  const { fromDate: globalFromDate, toDate: globalToDate } = useDateFilter();
   const params = useParams<{ itemId: string }>();
   const searchParams = useSearchParams();
   
   // The month_start is passed from the monthly page
   const monthStart = searchParams?.get("month_start");
-  let fromDate = searchParams?.get("from_date");
-  let toDate = searchParams?.get("to_date");
+  let fromDate = searchParams?.get("from_date") || globalFromDate;
+  let toDate = searchParams?.get("to_date") || globalToDate;
 
   // If monthStart is present, we calculate fromDate and toDate for that month
   if (monthStart) {

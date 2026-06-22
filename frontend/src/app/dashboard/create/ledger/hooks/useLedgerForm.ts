@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { AccountGroup, LedgerDetail, LedgerTemplateType, LedgerWritePayload } from "@/interfaces/ledger";
@@ -17,6 +17,7 @@ import { resolveTemplateType, validateBankSection } from "../utils";
 export function useLedgerForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const ledgerId = searchParams.get("ledger_id");
   const { activeFirmId, supabase } = useFirmScope();
   const { showToast } = useToast();
@@ -254,6 +255,8 @@ export function useLedgerForm() {
           body: payload,
         });
       }
+
+      queryClient.invalidateQueries({ queryKey: ["ledgers"] });
 
       const returnTo = searchParams.get("returnTo");
       if (returnTo) {

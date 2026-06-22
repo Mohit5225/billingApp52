@@ -118,10 +118,9 @@ export function InvoicePreviewOverlay({
             margin: 0 !important;
             box-shadow: none !important;
             min-height: auto !important;
-            page-break-after: always;
           }
-          .page-wrapper:last-child {
-            page-break-after: avoid;
+          .print-page-break {
+            page-break-after: always;
           }
           * {
             print-color-adjust: exact;

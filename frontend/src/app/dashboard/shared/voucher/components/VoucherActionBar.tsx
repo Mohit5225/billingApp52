@@ -97,9 +97,13 @@ export function VoucherActionBar({
         {!readOnly ? (
           <button
             data-entry-action="true"
-            disabled={isSubmitting || isLoading}
+            disabled={isSubmitting || isLoading || isBlocked}
             onClick={onSubmit}
-            className="group relative flex items-center gap-3 overflow-hidden rounded-lg bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 hover:-translate-y-px hover:bg-emerald-800 hover:shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none"
+            className={`group relative flex items-center gap-3 overflow-hidden rounded-lg px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:translate-y-0 disabled:opacity-60 disabled:shadow-none ${
+              isBlocked
+                ? "bg-slate-400 cursor-not-allowed"
+                : "bg-emerald-700 hover:-translate-y-px hover:bg-emerald-800 hover:shadow focus-visible:outline-emerald-600"
+            }`}
           >
             {isSubmitting ? (
               <span className="flex items-center gap-2">
@@ -122,14 +126,22 @@ export function VoucherActionBar({
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.5 3H6.5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V5.5L17.5 3z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 3v5H9V3m-1 11h8v6H8v-6z" />
-                </svg>
-                {isEditing ? "Update Voucher" : "Save Voucher"}
-                <kbd className="hidden sm:flex items-center justify-center rounded bg-black/10 px-1.5 py-0.5 font-sans text-xs font-medium text-emerald-100 ring-1 ring-black/10 ml-2">
-                  ⌘S
-                </kbd>
+                {isBlocked ? (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.5 3H6.5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V5.5L17.5 3z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 3v5H9V3m-1 11h8v6H8v-6z" />
+                  </svg>
+                )}
+                {isBlocked ? "Period Blocked" : isEditing ? "Update Voucher" : "Save Voucher"}
+                {!isBlocked && (
+                  <kbd className="hidden sm:flex items-center justify-center rounded bg-black/10 px-1.5 py-0.5 font-sans text-xs font-medium text-emerald-100 ring-1 ring-black/10 ml-2">
+                    ⌘S
+                  </kbd>
+                )}
               </span>
             )}
           </button>

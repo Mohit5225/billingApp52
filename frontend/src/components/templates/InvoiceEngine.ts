@@ -283,9 +283,9 @@ export function calcWidths(columns: ColumnDef[], data?: InvoiceData): ColumnDef[
 /** Default chunk options — sensible for the Classic template at 12.5px base */
 export const DEFAULT_CHUNK_OPTIONS: ChunkOptions = {
   // Reduced to account for browser default margins
-  page1Budget: 600,
-  pageNBudget: 850,
-  lastPageReserve: 540,
+  page1Budget: 580,
+  pageNBudget: 800,
+  lastPageReserve: 500,
   rowHeight: (item: InvoiceLineItem) => {
     const nameLen = (item.name || "").length;
     if (nameLen > 150) return 85;
@@ -395,7 +395,8 @@ export function chunkPages(
         : options.rowHeight({ name: "" } as unknown as InvoiceLineItem);
 
       if (adaptiveRowHeight > 0) {
-        const numEmptyRows = Math.floor(remainingHeight / adaptiveRowHeight);
+        // Leave a 10px buffer to prevent boundary overflow due to subpixel rendering or borders
+        const numEmptyRows = Math.floor(Math.max(0, remainingHeight - 10) / adaptiveRowHeight);
 
         for (let i = 0; i < numEmptyRows; i++) {
           finalItems.push({
